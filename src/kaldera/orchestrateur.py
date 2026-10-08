@@ -8,6 +8,7 @@ puis trace l'étape. « Les agents proposent, l'orchestration impose. »
 from __future__ import annotations
 
 import copy
+import logging
 from collections.abc import Callable, Mapping
 from time import monotonic, perf_counter
 from typing import Any
@@ -18,6 +19,8 @@ from .agents_llm import AgentLLM, MesureAgent, creer_agent
 from .llm import ClientLLM, ConfigAgents
 from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, EtatDemande
 from .machine import TERMINAUX, Etat, TransitionInconnue, transition
+
+LOGGER = logging.getLogger(__name__)
 
 Action = Callable[[dict[str, Any]], dict[str, Any]]
 
@@ -45,7 +48,7 @@ class Orchestrateur:
         config: ConfigAgents | None = None,
     ) -> None:
         self.bornes = bornes or BORNES
-        cfg = config or llm.charger_config()
+        cfg = config or self._charger_config()
         if llms is None:
             llms = {nom: llm.fabrique_llm(cfg, nom) for nom in llm.AGENTS_LLM}
 
@@ -65,6 +68,14 @@ class Orchestrateur:
             Etat.ANTIFRAUDE: agent("antifraude"),
             Etat.DECISION: agent("decision"),
         }
+
+    @staticmethod
+    def _charger_config() -> ConfigAgents:
+        try:
+            return llm.charger_config()
+        except ValueError as exc:  # ValidationError : .env malformé, jamais bloquant
+            LOGGER.warning("config LLM invalide, agents déterministes : %s", exc)
+            return ConfigAgents.model_construct()  # aucun agent configuré, sans relire l'env
 
     def traiter(self, demande: dict[str, Any]) -> dict[str, Any]:
         return construire_fiche(self.executer(demande))
