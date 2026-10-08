@@ -22,8 +22,9 @@ def main() -> None:
         return
     scenarios = map(json.loads, (RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines())
     nominaux = [d for s in scenarios if s["categorie"] == "nominal" for d in s["demandes"]][:3]
+    orchestrateur = Orchestrateur(config=cfg, llms=llms)
     for demande in nominaux:
-        fiche = Orchestrateur(config=cfg, llms=llms).traiter(demande)
+        fiche = orchestrateur.traiter(demande)
         print(f"\n{fiche['reference']} → {fiche['issue']} ({fiche['file'] or fiche['decision']})")
         for e in (e for e in fiche["trace"] if "mode" in e):
             print(
