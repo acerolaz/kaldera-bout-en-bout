@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .etat import Bornes
+from .etat import BORNES
 from .orchestrateur import Orchestrateur
 
 __all__ = ["bornes", "traiter_demande", "traiter_lot"]
@@ -12,7 +12,7 @@ __all__ = ["bornes", "traiter_demande", "traiter_lot"]
 
 def bornes() -> dict[str, Any]:
     """Bornes d'exécution en vigueur."""
-    return Bornes().model_dump()
+    return BORNES.model_dump()
 
 
 def traiter_demande(
@@ -28,17 +28,17 @@ def traiter_lot(
     """Traite un lot de demandes ; retourne les fiches (dans l'ordre) et les métriques par agent."""
     # ponytail: séquentiel ; paralléliser (§12) si une mesure montre un lot trop lent
     fiches = [traiter_demande(d, partenaire_url=partenaire_url) for d in demandes]
-    return {"fiches": fiches, "metriques": metriques_par_agent(fiches)}
+    return {"fiches": fiches, "metriques": _metriques_par_agent(fiches)}
 
 
-def metriques_par_agent(fiches: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def _metriques_par_agent(fiches: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     metriques: dict[str, dict[str, Any]] = {}
     for etape in (e for f in fiches for e in f["trace"]):
         m = metriques.setdefault(
             etape["agent"], {"appels": 0, "echecs": 0, "duree_ms": 0.0, "appels_externes": 0}
         )
         m["appels"] += 1
-        m["echecs"] += etape["statut"] == "echec"
+        m["echecs"] += int(etape["statut"] == "echec")
         m["duree_ms"] += etape["duree_ms"]
         m["appels_externes"] += etape["appels_externes"]
     for m in metriques.values():
