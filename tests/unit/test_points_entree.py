@@ -89,3 +89,11 @@ def test_une_demande_qui_plante_n_arrete_pas_le_lot(monkeypatch: pytest.MonkeyPa
 
 def test_lot_vide() -> None:
     assert kaldera.traiter_lot([]) == {"fiches": [], "metriques": {}}
+
+
+@pytest.mark.parametrize("malformee", [None, "KAL-26-0101", {1: "clé non textuelle"}])
+def test_entree_malformee_n_arrete_pas_le_lot(malformee: Any) -> None:
+    fiches = kaldera.traiter_lot([NOMINAUX[0], malformee])["fiches"]
+    assert fiches[0]["issue"] == "decision"
+    assert (fiches[1]["issue"], fiches[1]["file"]) == ("escalade", "gestionnaire")
+    assert fiches[1]["trace"][-1]["action"] == "filet_securite"
