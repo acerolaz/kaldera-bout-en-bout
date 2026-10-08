@@ -34,7 +34,7 @@ def TOUJOURS(e: Any, b: Any) -> bool:  # noqa: N802 — garde « sinon », lue c
 
 
 # (état de départ, garde, état suivant) : évaluées DANS L'ORDRE, la première garde vraie gagne
-TRANSITIONS: list[tuple[Etat, Garde, Etat]] = [
+TRANSITIONS: tuple[tuple[Etat, Garde, Etat], ...] = (
     (Etat.ELIGIBILITE, lambda e, b: not e.eligibilite.eligible, Etat.DECISION),  # T1
     (Etat.ELIGIBILITE, TOUJOURS, Etat.PIECES),  # T2
     (Etat.PIECES, lambda e, b: e.pieces.statut == "complet", Etat.ESTIMATION),  # T3
@@ -51,7 +51,7 @@ TRANSITIONS: list[tuple[Etat, Garde, Etat]] = [
     (Etat.DECISION, lambda e, b: e.issue.decision == "acceptee", Etat.ACCEPTEE),  # T9
     (Etat.DECISION, lambda e, b: e.issue.decision == "refusee", Etat.REFUSEE),  # T10
     (Etat.DECISION, TOUJOURS, Etat.ESCALADE),  # T11
-]
+)
 
 
 class TransitionInconnue(Exception):

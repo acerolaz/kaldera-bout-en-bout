@@ -238,7 +238,7 @@ def construire_fiche(etat: EtatDemande) -> dict[str, Any]:
             "mode_degrade": False,
         }
     return {
-        "reference": etat.demande["reference"],
+        "reference": etat.demande.get("reference"),
         **issue,
         "avis_fraude": etat.avis_fraude.avis if etat.avis_fraude else None,
         "trace": etat.trace,

@@ -6,7 +6,9 @@ l'orchestrateur le contrôle puis l'affecte (validation Pydantic à l'affectatio
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from time import monotonic
+from types import MappingProxyType
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -18,7 +20,7 @@ class Bornes(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     etapes_max: int = 12
-    duree_max_s: float = 8
+    duree_max_s: float = Field(default=8, gt=0, le=10)  # engagement de service §12 : 10 s
     relances_pieces_max: int = 1
     delai_partenaire_s: float = 3
 
@@ -82,13 +84,15 @@ class Issue(BaseModel):
 
 
 # section métier → seul agent autorisé à l'écrire
-PROPRIETAIRES: dict[str, str] = {
-    "eligibilite": "orchestrateur",  # via le tool is_eligible()
-    "pieces": "pieces",
-    "estimation": "estimation",
-    "avis_fraude": "antifraude",
-    "issue": "decision",
-}
+PROPRIETAIRES: Mapping[str, str] = MappingProxyType(
+    {
+        "eligibilite": "orchestrateur",  # via le tool is_eligible()
+        "pieces": "pieces",
+        "estimation": "estimation",
+        "avis_fraude": "antifraude",
+        "issue": "decision",
+    }
+)
 SECTIONS = tuple(PROPRIETAIRES)
 
 
@@ -104,7 +108,7 @@ class Compteurs(BaseModel):
 class Arret(BaseModel):
     borne: str
     valeur: float
-    etape: int
+    etape: int  # étapes consommées au moment de l'arrêt
     etat: str | None = None  # état où la borne a interrompu le flux
 
 

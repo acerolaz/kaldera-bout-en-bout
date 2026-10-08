@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 import uuid
 from typing import Any
 
@@ -36,12 +37,25 @@ def evaluer_risque(
         },
     }
     entetes = {"Authorization": f"Bearer {os.environ.get('PARTENAIRE_JETON', '')}"}
-    try:
-        reponse = httpx.post(
-            f"{url_partenaire(url)}/a2a", json=requete, headers=entetes, timeout=timeout
-        )
-        reponse.raise_for_status()
-        resultat = reponse.json()["result"]
-        return resultat["artifacts"][0]["parts"][0]["data"]
-    except (httpx.HTTPError, KeyError, IndexError, ValueError):
-        return None
+
+    def appeler() -> dict[str, Any] | None:
+        try:
+            reponse = httpx.post(
+                f"{url_partenaire(url)}/a2a", json=requete, headers=entetes, timeout=timeout
+            )
+            reponse.raise_for_status()
+            resultat = reponse.json()["result"]
+            return resultat["artifacts"][0]["parts"][0]["data"]
+        except (httpx.HTTPError, KeyError, IndexError, ValueError):
+            return None
+
+    if timeout is None:
+        return appeler()
+    # httpx borne chaque phase (connexion, lecture…), pas la durée totale : échéance globale.
+    # ponytail: le fil abandonné finit seul (timeout httpx par phase) ; client async si le
+    # nombre d'appels simultanés devient important
+    avis: list[dict[str, Any] | None] = []
+    fil = threading.Thread(target=lambda: avis.append(appeler()), daemon=True)
+    fil.start()
+    fil.join(timeout)
+    return avis[0] if avis else None

@@ -71,6 +71,12 @@ def test_un_arret_ne_demande_que_la_borne() -> None:
     assert etat.arret is not None and etat.arret.borne == "etapes_max"
 
 
+@pytest.mark.parametrize("duree", [0, 10.5])
+def test_duree_max_dans_l_engagement_de_service(duree: float) -> None:
+    with pytest.raises(ValidationError):
+        Bornes(duree_max_s=duree)
+
+
 def test_les_bornes_ne_se_modifient_pas() -> None:
     with pytest.raises(ValidationError):
         Bornes().etapes_max = 99  # type: ignore[misc]

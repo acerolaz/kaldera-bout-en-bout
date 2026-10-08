@@ -9,6 +9,7 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-08 | NOM-05 | refus « montant supérieur au plafond » | attendu : acceptée 3 000 € | plafond retiré de l'éligibilité, appliqué par l'estimation après la franchise | refusée → acceptée 3 000 € |
 | 2026-10-08 | BCL-01 | relance sans fin possible (facture toujours illisible) | `relances_pieces_max` = 1 | garde T4 ; T5 sur borne pose `arret` | sans arrêt → escalade, `arret.borne = relances_pieces_max`, 4 étapes |
 | 2026-10-08 | PAN-02 (partenaire à 5 s) | appel A2A sans délai (`timeout=None`) | `delai_partenaire_s` = 3, `duree_max_s` = 8 | délai = min(3 s, temps restant de la demande) | non borné → ≤ 3 s *(non encore éprouvé en acceptance : la requête non projetée est rejetée avant le délai, voir chantier 2)* |
+| 2026-10-08 | test unitaire « compte-gouttes » (1 octet / 100 ms) | httpx borne chaque lecture, pas la durée totale : 103 s pour un délai de 0,5 s | échéance totale = délai | échéance globale autour de l'appel (fil abandonné au-delà) | 103 s → < 1 s |
 
 ## Bornes provisoires en vigueur
 
@@ -21,5 +22,12 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 
 ## Restant (chantier 2)
 
-14 tests rouges, tous dans `tests/acceptance/test_collaboration_a2a.py` (AF-01→07, INV-01→07),
-une seule cause : la requête envoyée au partenaire n'est pas projetée sur les 7 champs du contrat.
+14 tests rouges, tous dans `tests/acceptance/test_collaboration_a2a.py` :
+
+| Tests | Ce qu'ils éprouvent | Cause bloquante actuelle |
+|---|---|---|
+| `test_echange_antifraude_…[AF-01…AF-07]` | requête conforme au contrat, données minimisées | requête non projetée sur les 7 champs : le partenaire la refuse |
+| `test_reponse_invalide_…[INV-01…INV-07]` | rejet d'une réponse non conforme (validation 4 couches) | même refus en amont ; la validation des réponses reste à écrire derrière |
+
+Le plan estimait ~49 verts sur 56 en acceptance, en supposant que des INV passeraient via le
+mode dégradé ; ils vérifient aussi la forme de la requête, d'où 42/56.
