@@ -204,7 +204,7 @@ seulement**. Il ne soumet rien, ne dépose rien et ne promet rien.
 ## 7. Interface
 
 - **Design system** : à générer avec ui-ux-pro-max après validation de cette spec et avant le plan (brief §0, étape 2).
-  - Résultat versionné dans `design-system/MASTER.md`, avec une variante `espace-sinistre`.
+  - Résultat versionné dans `design-system/kaldera/MASTER.md` (arborescence imposée par l'outil), avec la variante `design-system/kaldera/pages/espace-sinistre.md`.
   - Palette vert foncé et or ; l'or sert aux accents, **jamais au texte courant** (contraste AA).
 - **Page `Sinistre`** :
 
@@ -283,7 +283,7 @@ erDiagram
   - back-end : `argon2-cffi`, `itsdangerous` ;
   - front : `package.json` dans `front/`.
 - `.env.example` : `KALDERA_SESSION_SECRET`, `KALDERA_FRONT_ORIGIN`, `KALDERA_RELANCE__*`.
-- `design-system/MASTER.md` et `design-system/pages/espace-sinistre.md`.
+- `design-system/kaldera/MASTER.md` et `design-system/kaldera/pages/espace-sinistre.md` (générés et adaptés ; `console-admin.md` brut, revu en spec 2).
 - Documentation `docs/interface_web.md`, en français, avec schémas Mermaid ; README (Setup, Utilisation, Layout) ; une ligne au journal des ajustements.
 - Travail dans le worktree `.claude/worktrees/ui-assure`, sur la branche `feature/ui-espace-sinistre`.
 
