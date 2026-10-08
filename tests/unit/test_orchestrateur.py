@@ -16,10 +16,16 @@ import kaldera
 from kaldera import partenaire
 from kaldera.agents import AgentDecision, AgentEstimation, AgentPieces
 from kaldera.agents_llm import SPECS, AgentLLM
-from kaldera.etat import Bornes, EtatDemande
+from kaldera.etat import AvisFraude, Bornes, ContratDemande, Estimation, EtatDemande
 from kaldera.llm import fidele
 from kaldera.machine import Etat
-from kaldera.orchestrateur import ErreurEcriture, Orchestrateur, fusionner, vue_filtree
+from kaldera.orchestrateur import (
+    ErreurEcriture,
+    Orchestrateur,
+    construire_fiche,
+    fusionner,
+    vue_filtree,
+)
 
 RACINE = Path(__file__).resolve().parents[2]
 SCENARIOS = {
@@ -391,3 +397,72 @@ def test_decision_voit_la_provenance_du_contrat() -> None:
         "statut_extraction": "valide",
         "violations": [],
     }
+
+
+# --------------------------------------------------------------------- filet de sécurité niveau 1
+
+
+def _en_panne_imprevue(vue: dict[str, Any]) -> dict[str, Any]:
+    raise RuntimeError("imprévu")
+
+
+@pytest.mark.parametrize("etat_en_panne", ["estimation", "decision"])
+def test_exception_imprevue_rattrapee_par_le_filet(etat_en_panne: str) -> None:
+    orch = _orchestrateur(**{etat_en_panne: _en_panne_imprevue})
+    fiche = orch.traiter(_demande("NOM-01"))
+    assert (fiche["issue"], fiche["file"]) == ("escalade", "gestionnaire")
+    assert fiche["reference"] == "KAL-26-0101"
+    filet = fiche["trace"][-1]
+    assert (filet["action"], filet["statut"], filet["de"], filet["vers"]) == (
+        "filet_securite",
+        "echec",
+        etat_en_panne,
+        "escalade",
+    )
+    assert fiche["motif"].startswith("Escalade de secours : filet de sécurité : RuntimeError")
+    assert f"(dernier état : {etat_en_panne})" in fiche["motif"]
+
+
+def test_provenance_invalide_jamais_d_eligibilite() -> None:
+    espion = Espion()
+    fiche = _orchestrateur(eligibilite=espion).traiter(_contrat("peut-etre"))
+    assert espion.appels == 0
+    assert (fiche["issue"], fiche["file"]) == ("escalade", "gestionnaire")
+    assert [e["action"] for e in fiche["trace"]] == ["filet_securite"]
+    assert "(dernier état : eligibilite)" in fiche["motif"]
+
+
+def _etat_secours(avis: AvisFraude | None, estime: float) -> EtatDemande:
+    etat = EtatDemande(demande=_demande("NOM-01"))
+    etat.estimation = Estimation(
+        justifie=estime, retenu=estime, franchise=0, plafond=20_000, estime=estime
+    )
+    etat.avis_fraude = avis
+    return etat
+
+
+SANS_AVIS = AvisFraude(requis=True, indicateurs=["F1"], statut="indisponible")
+
+
+@pytest.mark.parametrize(
+    ("avis", "estime", "file"),
+    [
+        (SANS_AVIS, 2_000.0, "cellule_fraude"),  # F1–F4 sans avis, > 1 500 €
+        (SANS_AVIS, 1_500.0, "gestionnaire"),  # seuil non dépassé
+        (
+            AvisFraude(requis=True, indicateurs=["F2"], statut="avis", avis={"niveau": "eleve"}),
+            100.0,
+            "cellule_fraude",
+        ),
+        (AvisFraude(requis=False, statut="non_requis"), 9_000.0, "gestionnaire"),
+        (None, 9_000.0, "gestionnaire"),  # antifraude non atteint : indicateurs inconnus
+    ],
+)
+def test_fiche_de_secours_file_prudente(avis: AvisFraude | None, estime: float, file: str) -> None:
+    assert construire_fiche(_etat_secours(avis, estime))["file"] == file
+
+
+def test_fiche_de_secours_contrat_non_exploitable_gestionnaire() -> None:
+    etat = _etat_secours(SANS_AVIS, 2_000.0)
+    etat.contrat = ContratDemande(statut_extraction="non_exploitable")
+    assert construire_fiche(etat)["file"] == "gestionnaire"

@@ -13,8 +13,8 @@ from collections.abc import Callable, Mapping
 from time import monotonic, perf_counter
 from typing import Any
 
-from . import llm, partenaire
-from .agents import Evaluateur, is_eligible
+from . import llm, partenaire, regles
+from .agents import NIVEAUX_AVIS, Evaluateur, is_eligible
 from .agents_llm import AgentLLM, MesureAgent, creer_agent
 from .llm import ClientLLM, ConfigAgents
 from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, ContratDemande, EtatDemande
@@ -78,7 +78,31 @@ class Orchestrateur:
             return ConfigAgents.model_construct()  # aucun agent configuré, sans relire l'env
 
     def traiter(self, demande: dict[str, Any]) -> dict[str, Any]:
-        return construire_fiche(self.executer(demande))
+        etat = EtatDemande(demande=copy.deepcopy(demande))
+        try:
+            self._executer(etat)
+        except Exception as exc:  # noqa: BLE001 — EX-01 : seule capture large du paquet (filet)
+            self._filet(etat, exc)
+        return construire_fiche(etat)
+
+    @staticmethod
+    def _filet(etat: EtatDemande, exc: Exception) -> None:
+        """Filet niveau 1 (dossier 2.5) : lit l'état, ne relance rien, n'appelle aucun agent."""
+        LOGGER.exception("filet de sécurité, demande %s", etat.demande.get("reference"))
+        etat.escalade_forcee = f"filet de sécurité : {type(exc).__name__}"
+        etat.trace.append(
+            {
+                "agent": "orchestrateur",
+                "action": "filet_securite",
+                "ecrit": [],
+                "statut": "echec",
+                "duree_ms": 0.0,
+                "de": etat.etat_courant,
+                "vers": Etat.ESCALADE.value,
+                "garde": "filet",
+                "appels_externes": 0,
+            }
+        )
 
     def executer(self, demande: dict[str, Any]) -> EtatDemande:
         etat = EtatDemande(demande=copy.deepcopy(demande))
@@ -291,12 +315,14 @@ def construire_fiche(etat: EtatDemande) -> dict[str, Any]:
     if etat.issue is not None:
         issue = etat.issue.model_dump()
     else:  # filet de sécurité : decision n'a pas conclu
+        dernier = etat.trace[-1]["de"] if etat.trace else etat.etat_courant
+        raison = etat.escalade_forcee or "aucune issue produite"
         issue = {
             "issue": "escalade",
             "decision": None,
             "montant_rembourse": None,
-            "motif": f"Escalade de secours : {etat.escalade_forcee or 'aucune issue produite'}",
-            "file": "gestionnaire",
+            "motif": f"Escalade de secours : {raison} (dernier état : {dernier})",
+            "file": file_prudente(etat),
             "mode_degrade": False,
         }
     return {
@@ -306,3 +332,20 @@ def construire_fiche(etat: EtatDemande) -> dict[str, Any]:
         "trace": etat.trace,
         "arret": etat.arret.model_dump() if etat.arret else None,
     }
+
+
+def file_prudente(etat: EtatDemande) -> str:
+    """File la plus prudente d'une fiche de secours (dossier 2.5), lue dans l'état partagé."""
+    if etat.contrat.statut_extraction != "valide":
+        return "gestionnaire"
+    avis = etat.avis_fraude
+    if avis is None:  # antifraude non atteint : indicateurs inconnus
+        return "gestionnaire"
+    niveau = (avis.avis or {}).get("niveau") if avis.statut == "avis" else None
+    if niveau == "eleve":
+        return "cellule_fraude"
+    sans_avis = niveau not in NIVEAUX_AVIS
+    estime = etat.estimation.estime if etat.estimation else 0.0
+    if avis.requis and sans_avis and estime > regles.SEUIL_MODE_DEGRADE:
+        return "cellule_fraude"
+    return "gestionnaire"
