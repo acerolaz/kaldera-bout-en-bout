@@ -9,7 +9,7 @@ from __future__ import annotations
 from time import monotonic
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Bornes(BaseModel):
@@ -66,6 +66,17 @@ class Issue(BaseModel):
     file: str | None = None
     mode_degrade: bool = False
 
+    @model_validator(mode="after")
+    def _coherente(self) -> Issue:
+        if self.issue == "decision":
+            if self.decision is None or self.montant_rembourse is None:
+                raise ValueError("une décision porte un verdict et un montant")
+            if self.montant_rembourse < 0:
+                raise ValueError("montant remboursé négatif")
+        elif not self.file:
+            raise ValueError("une escalade désigne une file")
+        return self
+
 
 # section métier → seul agent autorisé à l'écrire
 PROPRIETAIRES: dict[str, str] = {
@@ -91,7 +102,7 @@ class Arret(BaseModel):
     borne: str
     valeur: float
     etape: int
-    etat: str
+    etat: str | None = None  # état où la borne a interrompu le flux
 
 
 class EtatDemande(BaseModel):
