@@ -32,9 +32,10 @@ def _sans_partenaire(demande: dict[str, Any], timeout: float) -> None:
     raise AssertionError("aucun appel au partenaire attendu")
 
 
-def _orchestrateur(bornes: Bornes | None = None, **remplacements: Any) -> Orchestrateur:
-    orch = Orchestrateur(bornes=bornes)
-    orch.actions[Etat.ANTIFRAUDE].evaluer = _sans_partenaire  # type: ignore[union-attr]
+def _orchestrateur(
+    bornes: Bornes | None = None, evaluer: Any = _sans_partenaire, **remplacements: Any
+) -> Orchestrateur:
+    orch = Orchestrateur(bornes=bornes, evaluer=evaluer)
     orch.actions.update({Etat[nom.upper()]: action for nom, action in remplacements.items()})
     return orch
 
@@ -186,12 +187,42 @@ def test_decision_toujours_executee_meme_borne_depassee() -> None:
 
 
 def test_appel_externe_et_echec_comptes_dans_la_trace() -> None:
-    orch = _orchestrateur()
-    orch.actions[Etat.ANTIFRAUDE].evaluer = lambda demande, timeout: None  # type: ignore[union-attr]
+    orch = _orchestrateur(evaluer=lambda demande, timeout: None)
     fiche = orch.traiter(_demande("PAN-01", 3))  # 8 800 € : F1
     etape = next(e for e in fiche["trace"] if e["agent"] == "antifraude")
     assert (etape["appels_externes"], etape["statut"]) == (1, "echec")
     assert fiche["mode_degrade"] is True and fiche["file"] == "cellule_fraude"
+
+
+# --------------------------------------------------------------------- robustesse (revue T4)
+
+
+def test_section_vide_rejetee_sans_planter() -> None:
+    fiche = _orchestrateur(eligibilite=lambda vue: {"eligibilite": None}).traiter(
+        _demande("NOM-01")
+    )
+    assert fiche["trace"][0]["statut"] == "echec"
+    assert (fiche["issue"], fiche["file"]) == ("escalade", "gestionnaire")
+
+
+def test_agent_qui_leve_attribute_error_escalade_sans_planter() -> None:
+    def casse(vue: dict[str, Any]) -> dict[str, Any]:
+        raise AttributeError("bug")
+
+    fiche = _orchestrateur(pieces=casse).traiter(_demande("NOM-01"))
+    assert fiche["issue"] == "escalade" and "pieces" in fiche["motif"]
+
+
+def test_appel_partenaire_plafonne_par_le_temps_restant() -> None:
+    delais: list[float] = []
+
+    def espion(demande: dict[str, Any], timeout: float) -> None:
+        delais.append(timeout)
+
+    bornes = Bornes(duree_max_s=0.5, delai_partenaire_s=3)
+    _orchestrateur(bornes, evaluer=espion).traiter(_demande("PAN-01", 3))  # F1 : appel requis
+    (delai,) = delais
+    assert 0 < delai <= 0.5
 
 
 def test_agents_par_defaut() -> None:
