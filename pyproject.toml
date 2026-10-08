@@ -13,6 +13,7 @@ dependencies = [
     "langchain-azure-ai>=0.1,<0.2",
     "langgraph>=0.2,<0.3",
     "pydantic-settings>=2.4,<3",
+    "psycopg[binary,pool]>=3.2,<4",
 ]
 
 [dependency-groups]
@@ -32,6 +33,8 @@ packages = ["src/kaldera"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not integration'"
+markers = ["integration: exige PostgreSQL (make test-integration)"]
 pythonpath = ["src", "."]
 
 [tool.ruff]
