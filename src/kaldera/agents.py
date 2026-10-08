@@ -167,7 +167,7 @@ def indicateurs_fraude(demande: dict[str, Any], justifie: float) -> list[str]:
 
 
 class AgentDecision:
-    """Seul écrivain de l'issue : règles §10 dans l'ordre, mode dégradé §9, escalade forcée."""
+    """Seul écrivain de l'issue : règle 0, règles §10 dans l'ordre, mode dégradé §9, escalade forcée."""
 
     nom = "decision"
 
@@ -179,6 +179,9 @@ NIVEAUX_AVIS = {"faible", "modere", "eleve"}
 
 
 def _issue(vue: dict[str, Any]) -> dict[str, Any]:
+    contrat = vue.get("contrat") or {}
+    if contrat.get("statut_extraction", "valide") != "valide":  # règle 0 (hors §10, PQ8)
+        return _escalade("gestionnaire", "Contrat illisible ou incohérent")
     eligibilite, pieces = vue.get("eligibilite"), vue.get("pieces")
     estimation, avis = vue.get("estimation"), vue.get("avis_fraude")
     arret = vue.get("arret")

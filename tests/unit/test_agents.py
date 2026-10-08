@@ -277,3 +277,28 @@ def test_agents_independants_de_la_machine_et_des_autres_modules_d_orchestration
         if isinstance(noeud, ast.ImportFrom) and noeud.module
     }
     assert not importes & {"machine", "orchestrateur", "etat"}
+
+
+NON_EXPLOITABLE = {"statut_extraction": "non_exploitable", "violations": ["barème"]}
+
+
+def test_regle_0_contrat_non_exploitable_gestionnaire() -> None:
+    issue = _issue(contrat=NON_EXPLOITABLE, eligibilite=None, pieces=None, estimation=None)
+    assert (issue["issue"], issue["file"], issue["motif"]) == (
+        "escalade",
+        "gestionnaire",
+        "Contrat illisible ou incohérent",
+    )
+
+
+def test_regle_0_passe_avant_la_regle_1() -> None:
+    issue = _issue(
+        contrat=NON_EXPLOITABLE,
+        eligibilite={"eligible": False, "conditions_ko": ["contrat non actif"]},
+    )
+    assert (issue["issue"], issue["motif"]) == ("escalade", "Contrat illisible ou incohérent")
+
+
+def test_contrat_valide_ne_change_rien() -> None:
+    issue = _issue(contrat={"statut_extraction": "valide", "violations": []})
+    assert issue["decision"] == "acceptee"
