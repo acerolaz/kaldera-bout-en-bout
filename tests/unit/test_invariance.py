@@ -40,4 +40,5 @@ def test_meme_issue_en_fake_et_en_repli(demande: dict[str, Any]) -> None:
     fake = Orchestrateur(evaluer=_avis, llms=llms).traiter(copy.deepcopy(demande))
     assert {k: fake[k] for k in DECISIFS} == {k: repli[k] for k in DECISIFS}
     etapes_llm = [e for e in fake["trace"] if "mode" in e]
+    assert etapes_llm, "aucune étape d'agent LLM tracée"
     assert all(e["mode"] == "llm" for e in etapes_llm), [e.get("violations") for e in etapes_llm]

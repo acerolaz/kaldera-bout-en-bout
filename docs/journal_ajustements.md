@@ -38,8 +38,9 @@ mode dégradé ; ils vérifient aussi la forme de la requête, d'où 42/56.
 **Ajustement.** Chaque agent a son LLM (Azure, modèle lu dans le `.env` par agent), son prompt
 versionné, ses outils exclusifs et un garde-fou de sortie ; le code déterministe d'avant devient
 la référence et le repli. Machine à états, orchestrateur, propriété des sections et A2A inchangés.
-**Mesure** (chiffres réellement observés). Critère d'invariance : 34 demandes, issue / file /
+**Mesure** (chiffres réellement observés). Critère d'invariance (`tests/unit/test_invariance.py`) : 34 demandes, issue / file /
 montant / mode dégradé identiques en mode fake et en mode repli. Les 7 saboteurs du FakeLLM
-finissent tous en repli tracé, patch identique. Partenaire appelé une seule fois par demande
-dans tous les cas. Suite complète : 14 rouges (A2A), 268 verts.
+finissent tous en repli tracé, patch identique (`test_chaque_saboteur_finit_en_repli`,
+`tests/unit/test_agents_llm.py`). Partenaire appelé une seule fois par demande dans tous les cas
+(`test_partenaire_appele_une_seule_fois`, même fichier). Suite complète : 14 rouges (A2A), 268 verts.
 **Reste au chantier 2.** `make eval` (matrice agent × modèle), disjoncteur LLM, 14 tests A2A.
