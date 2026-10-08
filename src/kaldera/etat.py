@@ -103,6 +103,26 @@ PROPRIETAIRES: Mapping[str, str] = MappingProxyType(
 SECTIONS = tuple(PROPRIETAIRES)
 
 
+# ------------------------------------------------------------- provenance du contrat
+
+
+class ContratDemande(BaseModel):
+    """Provenance des termes du contrat (dossier 2.4) ; écrite par l'orchestrateur seul.
+
+    Niveau 0 : termes lus dans la demande JSON, valides par construction. Niveau 1 (SP3) : mêmes
+    champs, remplis par l'extraction VLM sous 3 verrous. Les termes restent dans ``demande``.
+    """
+
+    model_config = ConfigDict(frozen=True)  # extra ignoré : on valide le dict contrat entier
+
+    statut_extraction: Literal["valide", "non_exploitable"] = "valide"
+    violations: tuple[str, ...] = ()
+    source: Literal["extraction_vlm", "demande_json"] = "demande_json"
+    modele: str | None = None
+    version_prompt: str | None = None
+    sha256: str | None = None
+
+
 # ------------------------------------------------------- pilotage (orchestrateur)
 
 
@@ -123,6 +143,7 @@ class EtatDemande(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     demande: dict[str, Any]
+    contrat: ContratDemande = Field(default_factory=ContratDemande)  # provenance, orchestrateur
     # sections métier
     eligibilite: Eligibilite | None = None
     pieces: Pieces | None = None

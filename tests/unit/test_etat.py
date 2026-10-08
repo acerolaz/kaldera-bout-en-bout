@@ -12,6 +12,7 @@ from kaldera.etat import (
     SECTIONS,
     AvisFraude,
     Bornes,
+    ContratDemande,
     Estimation,
     EtatDemande,
     Pieces,
@@ -130,3 +131,23 @@ def test_bornes_llm_refusent_les_valeurs_nulles() -> None:
         Bornes(delai_min_llm_s=0)
     with pytest.raises(ValidationError):
         Bornes(appels_outil_max=0)
+
+
+def test_contrat_niveau_0_valide_par_construction() -> None:
+    contrat = ContratDemande.model_validate({"numero": "CTR-1", "formule": "confort"})
+    assert (contrat.statut_extraction, contrat.source, contrat.violations) == (
+        "valide",
+        "demande_json",
+        (),
+    )
+    assert _etat().contrat == ContratDemande()
+
+
+def test_contrat_statut_inconnu_refuse() -> None:
+    with pytest.raises(ValidationError):
+        ContratDemande.model_validate({"statut_extraction": "peut-etre"})
+
+
+def test_contrat_immuable() -> None:
+    with pytest.raises(ValidationError):
+        ContratDemande().statut_extraction = "non_exploitable"  # type: ignore[misc]
