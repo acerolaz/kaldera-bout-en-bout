@@ -251,6 +251,21 @@ def test_escalade_forcee_cite_la_raison() -> None:
     assert "duree_max_s" in issue["motif"]
 
 
+def test_borne_violee_jamais_acceptee_meme_sections_completes() -> None:
+    issue = _issue(arret={"borne": "etapes_max"})
+    assert (issue["issue"], issue["file"]) == ("escalade", "gestionnaire")
+    assert "etapes_max" in issue["motif"]
+
+
+@pytest.mark.parametrize("avis", [{}, {"niveau": "inconnu"}, None])
+def test_niveau_d_avis_inconnu_traite_comme_indisponible(avis: dict[str, Any] | None) -> None:
+    issue = _issue(
+        estimation={"estime": 1350.0},
+        avis_fraude={"requis": True, "statut": "avis", "avis": avis},
+    )
+    assert issue["decision"] == "acceptee" and issue["mode_degrade"] is True
+
+
 # ------------------------------------------------------------------ frontières
 
 
