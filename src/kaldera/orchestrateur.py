@@ -91,17 +91,14 @@ class Orchestrateur:
         LOGGER.exception("filet de sécurité, demande %s", etat.demande.get("reference"))
         etat.escalade_forcee = f"filet de sécurité : {type(exc).__name__}"
         etat.trace.append(
-            {
-                "agent": "orchestrateur",
-                "action": "filet_securite",
-                "ecrit": [],
-                "statut": "echec",
-                "duree_ms": 0.0,
-                "de": etat.etat_courant,
-                "vers": Etat.ESCALADE.value,
-                "garde": "filet",
-                "appels_externes": 0,
-            }
+            _etape_sans_action(
+                agent="orchestrateur",
+                action="filet_securite",
+                statut="echec",
+                de=etat.etat_courant,
+                vers=Etat.ESCALADE.value,
+                garde="filet",
+            )
         )
 
     def executer(self, demande: dict[str, Any]) -> EtatDemande:
@@ -183,17 +180,13 @@ class Orchestrateur:
         """Garde d'entrée vraie : l'action de l'état n'est pas exécutée, l'étape est tracée."""
         etat.compteurs.etapes += 1
         etat.trace.append(
-            {
-                "agent": PROPRIETAIRES[SECTION_DE[courant]],
-                "action": courant.value,
-                "ecrit": [],
-                "statut": "ok",
-                "duree_ms": 0.0,
-                "de": courant.value,
-                "vers": suivant.value,
-                "garde": garde,
-                "appels_externes": 0,
-            }
+            _etape_sans_action(
+                agent=PROPRIETAIRES[SECTION_DE[courant]],
+                action=courant.value,
+                de=courant.value,
+                vers=suivant.value,
+                garde=garde,
+            )
         )
         etat.etat_courant = suivant.value
         return suivant
@@ -238,6 +231,11 @@ class Orchestrateur:
         if courant is not Etat.DECISION:
             reserves += self.bornes.reserve_decision_s
         return max(0.0, restant - reserves)
+
+
+def _etape_sans_action(**champs: Any) -> dict[str, Any]:
+    """Étape de trace sans action d'agent (garde d'entrée, filet) : rien écrit, rien mesuré."""
+    return {"ecrit": [], "statut": "ok", "duree_ms": 0.0, "appels_externes": 0, **champs}
 
 
 # ---------------------------------------------------------------- contrôle d'écriture
