@@ -169,9 +169,10 @@ def charger_config() -> ConfigAgents:
 def fabrique_llm(cfg: ConfigAgents, nom: str) -> ClientLLM | None:
     """Le ClientLLM d'un agent, ou None s'il n'est pas configuré (⇒ repli tracé)."""
     config: ConfigLLM | None = getattr(cfg, nom)
-    if config is None or not cfg.azure_ai_endpoint or cfg.azure_ai_api_key is None:
+    cle = cfg.azure_ai_api_key.get_secret_value() if cfg.azure_ai_api_key else ""
+    if config is None or not cfg.azure_ai_endpoint or not cle:
         return None
-    return AzureLLM.depuis(config, cfg.azure_ai_endpoint, cfg.azure_ai_api_key.get_secret_value())
+    return AzureLLM.depuis(config, cfg.azure_ai_endpoint, cle)
 
 
 # ------------------------------------------------------------------ adaptateur Azure
@@ -212,25 +213,25 @@ class AzureLLM:
         pool = ThreadPoolExecutor(max_workers=1)
         try:
             reponse = pool.submit(modele.invoke, historique).result(timeout=timeout_s)
+            contenu = (
+                reponse.content if isinstance(reponse.content, str) else json.dumps(reponse.content)
+            )
+            return ReponseLLM(
+                texte=None if reponse.tool_calls else (contenu or None),
+                appels_outils=[
+                    AppelOutil(id=a.get("id") or a["name"], nom=a["name"], arguments=a["args"])
+                    for a in reponse.tool_calls
+                ],
+                jetons=(reponse.usage_metadata or {}).get("total_tokens", 0),
+            )
         except DelaiDepasse as exc:
             raise ErreurLLM(f"délai de {timeout_s:.2f} s dépassé") from exc
-        except AzureError as exc:
-            raise ErreurLLM(f"erreur du fournisseur : {exc}") from exc
+        except (AzureError, ValueError, KeyError, TypeError) as exc:
+            raise ErreurLLM(f"erreur du fournisseur ou réponse mal formée : {exc!r}") from exc
         finally:
             # ponytail: au délai, le thread de l'appel HTTP est abandonné (il finit seul) ;
             # passer à l'API async du SDK si les threads orphelins deviennent un problème
             pool.shutdown(wait=False)
-        contenu = (
-            reponse.content if isinstance(reponse.content, str) else json.dumps(reponse.content)
-        )
-        return ReponseLLM(
-            texte=None if reponse.tool_calls else (contenu or None),
-            appels_outils=[
-                AppelOutil(id=a.get("id") or a["name"], nom=a["name"], arguments=a["args"])
-                for a in reponse.tool_calls
-            ],
-            jetons=(reponse.usage_metadata or {}).get("total_tokens", 0),
-        )
 
 
 def _vers_langchain(message: dict[str, Any]) -> Any:
