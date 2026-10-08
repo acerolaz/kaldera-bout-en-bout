@@ -55,17 +55,17 @@ class AgentPieces:
     nom = "pieces"
 
     def __call__(self, vue: dict[str, Any]) -> dict[str, Any]:
-        demande, relances = vue["demande"], vue["relances"]
-        recues = list(demande.get("pieces", []))
+        demande, relances, depots = vue["demande"], vue["relances"], vue["depots"]
+        recues = list(vue["initiales"])
         for tentative in range(relances):
             for type_piece in _manquantes(demande, recues):
-                depot = espace_assure.demander_piece(demande, type_piece, tentative)
+                depot = espace_assure.depot_pour(depots, type_piece, tentative)
                 if depot is not None:
                     recues.append(depot)
         manquantes = _manquantes(demande, recues)
         if not manquantes:
             statut = "complet"
-        elif any(espace_assure.demander_piece(demande, t, relances) for t in manquantes):
+        elif any(espace_assure.depot_pour(depots, t, relances) for t in manquantes):
             # l'assuré a déjà déposé ce type : une relance peut aboutir (ou re-soumettre
             # le même dépôt illisible — c'est la borne de relances qui tranche)
             statut = "incomplet"

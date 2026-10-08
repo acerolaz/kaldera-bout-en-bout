@@ -11,7 +11,9 @@ import pytest
 
 from kaldera import espace_assure
 from kaldera.agents_llm import IDENTITE, SPECS, AgentLLM, creer_agent
-from kaldera.etat import Bornes
+from kaldera.etat import Bornes, EtatDemande
+from kaldera.machine import Etat
+from kaldera.orchestrateur import vue_filtree
 from kaldera.llm import SABOTEURS, AppelOutil, ConfigLLM, FakeLLM, ReponseLLM, fidele, saboteur
 
 RACINE = Path(__file__).resolve().parents[2]
@@ -41,6 +43,12 @@ def _demande(scenario: str = "NOM-01", rang: int = 0) -> dict[str, Any]:
     return copy.deepcopy(SCENARIOS[scenario]["demandes"][rang])
 
 
+def _vue_pieces(demande: dict[str, Any], relances: int = 0) -> dict[str, Any]:
+    etat = EtatDemande(demande=demande)
+    etat.compteurs.relances = relances
+    return vue_filtree(etat, Etat.PIECES)
+
+
 def _vues() -> dict[str, dict[str, Any]]:
     demande = _demande()
     estimation = {
@@ -51,7 +59,7 @@ def _vues() -> dict[str, dict[str, Any]]:
         "estime": 750.0,
     }
     return {
-        "pieces": {"demande": demande, "relances": 0},
+        "pieces": _vue_pieces(demande),
         "estimation": {
             "demande": demande,
             "pieces": {
@@ -221,7 +229,7 @@ def test_la_decision_ne_voit_pas_l_avis_brut() -> None:
 
 @pytest.mark.parametrize("k", [1.0, True, "1"])
 def test_argument_d_outil_invalide_finit_en_repli(k: Any) -> None:
-    vue = {"demande": _demande("NOM-07"), "relances": 1}
+    vue = _vue_pieces(_demande("NOM-07"), 1)
     llm = FakeLLM(lambda m, o: _appel_depot({"k": k}))
     patch, mesure = _agent("pieces", llm).executer(vue, budget_s=5)
     repli, _ = _agent("pieces", None).executer(copy.deepcopy(vue), budget_s=5)
@@ -229,9 +237,9 @@ def test_argument_d_outil_invalide_finit_en_repli(k: Any) -> None:
 
 
 def test_exception_d_outil_finit_en_outil_refuse(monkeypatch: pytest.MonkeyPatch) -> None:
-    vue = {"demande": _demande("NOM-07"), "relances": 1}
+    vue = _vue_pieces(_demande("NOM-07"), 1)
     repli, _ = _agent("pieces", None).executer(copy.deepcopy(vue), budget_s=5)
-    reel, appels = espace_assure.demander_piece, []
+    reel, appels = espace_assure.depot_pour, []
 
     def casse(*args: Any) -> Any:
         appels.append(args)
@@ -239,7 +247,7 @@ def test_exception_d_outil_finit_en_outil_refuse(monkeypatch: pytest.MonkeyPatch
             raise TypeError("liste indexée par un flottant")
         return reel(*args)
 
-    monkeypatch.setattr(espace_assure, "demander_piece", casse)
+    monkeypatch.setattr(espace_assure, "depot_pour", casse)
     llm = FakeLLM(lambda m, o: _appel_depot({"k": 1}))
     patch, mesure = _agent("pieces", llm).executer(vue, budget_s=5)
     assert (mesure.mode, mesure.cause) == ("repli", "outil_refuse") and patch == repli

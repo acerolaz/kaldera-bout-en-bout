@@ -18,9 +18,12 @@ from .agents import NIVEAUX_AVIS, Evaluateur, is_eligible
 from .agents_llm import AgentLLM, MesureAgent, creer_agent
 from .llm import ClientLLM, ConfigAgents
 from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, ContratDemande, EtatDemande
+from .memoire import DepotDepuisDemande
+from .ports import DepotPieces
 from .machine import TERMINAUX, Etat, TransitionInconnue, garde_entree, transition
 
 LOGGER = logging.getLogger(__name__)
+NIVEAU_0 = DepotDepuisDemande()  # sans état : partagé
 
 Action = Callable[[dict[str, Any]], dict[str, Any]]
 
@@ -46,8 +49,10 @@ class Orchestrateur:
         evaluer: Evaluateur | None = None,
         llms: Mapping[str, ClientLLM | None] | None = None,
         config: ConfigAgents | None = None,
+        depot: DepotPieces | None = None,
     ) -> None:
         self.bornes = bornes or BORNES
+        self.depot = depot or NIVEAU_0
         cfg = config or self._charger_config()
         if llms is None:
             llms = {nom: llm.fabrique_llm(cfg, nom) for nom in llm.AGENTS_LLM}
@@ -129,7 +134,7 @@ class Orchestrateur:
         debut, statut, ecrit = perf_counter(), "ok", []
         mesure: MesureAgent | None = None
         try:
-            action, vue = self.actions[courant], vue_filtree(etat, courant, self.bornes)
+            action, vue = self.actions[courant], vue_filtree(etat, courant, self.bornes, self.depot)
             if isinstance(action, AgentLLM):
                 patch, mesure = action.executer(vue, self._budget(etat, courant))
             else:  # tool d'éligibilité, ou action remplacée dans un test
@@ -256,13 +261,23 @@ def fusionner(etat: EtatDemande, patch: dict[str, Any], section: str) -> None:
 # ---------------------------------------------------------------- vues filtrées
 
 
-def vue_filtree(etat: EtatDemande, courant: Etat, bornes: Bornes = BORNES) -> dict[str, Any]:
+def vue_filtree(
+    etat: EtatDemande, courant: Etat, bornes: Bornes = BORNES, depot: DepotPieces = NIVEAU_0
+) -> dict[str, Any]:
     """Ce que voit l'action de l'état courant — des copies : la demande reste immuable."""
     demande = copy.deepcopy(etat.demande)
     if courant is Etat.ELIGIBILITE:
         return {"demande": demande}
     if courant is Etat.PIECES:
-        return {"demande": demande, "relances": etat.compteurs.relances}
+        # claim check : l'agent ne voit que des descripteurs, chargés par le port
+        demande.pop("pieces", None)
+        demande.pop("espace_assure", None)
+        return {
+            "demande": demande,
+            "relances": etat.compteurs.relances,
+            "initiales": [p.model_dump(mode="json") for p in depot.initiales(etat.demande)],
+            "depots": [p.model_dump(mode="json") for p in depot.depots(etat.demande)],
+        }
     if courant is Etat.ESTIMATION:
         return {"demande": demande, "pieces": _section(etat, "pieces")}
     if courant is Etat.ANTIFRAUDE:
