@@ -78,8 +78,9 @@ class Orchestrateur:
             return ConfigAgents.model_construct()  # aucun agent configuré, sans relire l'env
 
     def traiter(self, demande: dict[str, Any]) -> dict[str, Any]:
-        etat = EtatDemande(demande=copy.deepcopy(demande))
+        etat = EtatDemande(demande={})
         try:
+            etat.demande = copy.deepcopy(demande)  # validée : une entrée malformée passe au filet
             self._executer(etat)
         except Exception as exc:  # noqa: BLE001 — EX-01 : seule capture large du paquet (filet)
             self._filet(etat, exc)
