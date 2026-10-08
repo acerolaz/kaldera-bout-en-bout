@@ -46,7 +46,7 @@ def test_seed_puis_traitement(api: TestClient, base: Any) -> None:
 def test_base_deja_semee(api: TestClient) -> None:
     manifeste = _extrait(lire_manifeste(), "KAL-26-0101")
     deposer(api, manifeste)
-    with pytest.raises(EchecSeed, match="base déjà semée"):
+    with pytest.raises(EchecSeed, match="base déjà semée.*interrompu"):
         deposer(api, manifeste)
 
 
@@ -66,3 +66,15 @@ def test_verites_fake() -> None:
     nette = next(x for x in contrats if x["variante"] == "nette")
     assert verites[floue["sha256"]] == {"illisible": True}
     assert verites[nette["sha256"]] == nette["attendu"]
+
+
+def test_attendre_reference_inconnue(api: TestClient) -> None:
+    with pytest.raises(EchecSeed, match="KAL-26-9999 inconnue"):
+        attendre(api, ["KAL-26-9999"], attente_s=0, pause_s=0)
+
+
+def test_attendre_accepte_le_secours_avec_fiche(api: TestClient, base: Any) -> None:
+    references = deposer(api, _extrait(lire_manifeste(), "KAL-26-0101"))
+    with base.connection() as conn:  # le reaper a fauché la demande et classé sa fiche
+        conn.execute("""UPDATE demandes SET statut = 'secours', fiche = '{"file": "x"}'""")
+    attendre(api, references, attente_s=0, pause_s=0)
