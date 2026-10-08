@@ -1,6 +1,7 @@
 """Dépose les pièces générées par l'API (dossier 2.7) : même chemin que la prod, jamais d'INSERT.
 
-Usage : make api & make worker-epreuve, puis uv run python tools/seed.py [--attente-s 900]
+Usage : make api & make worker-epreuve, puis uv run python -m tools.seed [--attente-s 3600]
+(premier passage avec un VLM réel : ~120 fichiers analysés un par un, compter large.)
 """
 
 from __future__ import annotations
@@ -44,7 +45,10 @@ def deposer(
             if ligne["role"] == "demande":
                 reponse = client.post("/demandes", json=ligne["json"])
                 if reponse.status_code == 409:
-                    raise EchecSeed(f"{reference} existe déjà : base déjà semée")
+                    raise EchecSeed(
+                        f"{reference} existe déjà : base déjà semée "
+                        "(seed interrompu ? vider la base, puis relancer)"
+                    )
                 _verifier(reponse, 201, reference)
                 continue
             donnees = {"role": ligne["role"]}
@@ -63,15 +67,24 @@ def deposer(
     return list(par_reference)
 
 
+def _traitee(client: httpx.Client, reference: str) -> bool:
+    reponse = client.get(f"/demandes/{reference}")
+    if reponse.status_code == 404:
+        raise EchecSeed(f"{reference} inconnue de l'API")
+    _verifier(reponse, 200, f"{reference} lecture")
+    demande = reponse.json()  # fauchée par le reaper : sa fiche de secours la clôt
+    return demande["statut"] == "terminee" or (
+        demande["statut"] == "secours" and demande["fiche"] is not None
+    )
+
+
 def attendre(
     client: httpx.Client, references: list[str], attente_s: float, pause_s: float = 2.0
 ) -> None:
-    """Jusqu'à ce que toutes les demandes soient traitées (``terminee``), au plus ``attente_s``."""
+    """Jusqu'à ce que toutes les demandes aient une fiche (traitées ou fauchées), au plus ``attente_s``."""
     echeance, restantes = time.monotonic() + attente_s, set(references)
     while True:
-        restantes = {
-            r for r in restantes if client.get(f"/demandes/{r}").json()["statut"] != "terminee"
-        }
+        restantes = {r for r in restantes if not _traitee(client, r)}
         if not restantes:
             return
         if time.monotonic() >= echeance:
@@ -98,7 +111,7 @@ def verites_fake(manifeste: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
 def main() -> None:
     args = argparse.ArgumentParser(description=__doc__)
-    args.add_argument("--attente-s", type=float, default=900.0)
+    args.add_argument("--attente-s", type=float, default=3600.0)
     a = args.parse_args()
     url = os.environ.get("KALDERA_API_URL", "http://localhost:8000")
     with httpx.Client(base_url=url, timeout=30) as client:
@@ -108,6 +121,8 @@ def main() -> None:
             attendre(client, references, a.attente_s)
         except EchecSeed as exc:
             raise SystemExit(f"seed en échec : {exc}") from exc
+        except httpx.HTTPError as exc:
+            raise SystemExit(f"seed en échec : API injoignable à {url} ({exc})") from exc
     print(f"{len(references)} demandes traitées")
 
 
