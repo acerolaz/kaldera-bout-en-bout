@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test fmt lint typecheck
+.PHONY: install up down partenaire scenarios ctl test test-integration fmt lint typecheck
 
 install:
 	uv sync
@@ -23,6 +23,12 @@ ctl:
 
 test:
 	uv run pytest -v
+
+TEST_DATABASE_URL ?= postgresql://kaldera:kaldera@localhost:5433/kaldera_test
+
+test-integration:
+	docker compose --profile integration up -d --wait postgres
+	TEST_DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -m integration -v
 
 fmt:
 	uv run ruff format .
