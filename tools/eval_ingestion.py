@@ -24,6 +24,7 @@ from tools.seed import lire_manifeste
 
 DECISIFS = ("issue", "decision", "montant_rembourse", "file", "mode_degrade")
 TERMES = ("numero", "formule", "date_souscription", "franchise", "plafond")
+NUMERO_FAUX = "① numéro ≠ demande"
 MOTIF_REGLE_0 = "Contrat illisible ou incohérent"
 RAPPORTS = Path(__file__).resolve().parents[1] / "eval/rapports"
 
@@ -76,9 +77,13 @@ def evaluer(
             extrait = contrats.get(numeros[ligne["reference"]], {})
             for champ in TERMES:
                 mesures_contrats[champ][1] += 1
-                mesures_contrats[champ][0] += int(
-                    _egal(extrait.get(champ), ligne["attendu"][champ])
-                )
+                if (
+                    champ == "numero"
+                ):  # la clé est celui de la demande : le verrou ① juge la lecture
+                    juste = bool(extrait) and NUMERO_FAUX not in extrait["violations"]
+                else:
+                    juste = _egal(extrait.get(champ), ligne["attendu"][champ])
+                mesures_contrats[champ][0] += int(juste)
         elif ligne["role"] in ("initiale", "depot") and ligne["http"] == 202:
             descripteur = pieces.get((ligne["reference"], ligne["sha256"]), {})
             mesures_pieces["lisible"][1] += 1
@@ -142,7 +147,9 @@ def evaluer(
         elif ing["id"] == "ING-03":
             base = fiche(par_id[ing["base"]]["demandes"][0]["reference"])
             ok = bool(fiche(ref)) and _decisifs(fiche(ref)) == _decisifs(base)
-        elif ing["id"] == "ING-04":  # même fichier déposé deux fois : 1 blob, 1 pièce
+        elif (
+            ing["id"] == "ING-04"
+        ):  # le 2e dépôt en HTTP 200 est contrôlé par le seed
             doublon = fichiers(ref, 200)
             sha = doublon[0]["sha256"] if doublon else None
             ok = sha in blobs and (ref, sha) in pieces

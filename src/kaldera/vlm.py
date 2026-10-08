@@ -108,6 +108,7 @@ class ConfigIngestion(BaseSettings):
 
 
 RESOLUTION_DPI = 150
+PX_MAX = 2000  # côté maximal du rendu : la taille de page vient d'un fichier non fiable
 
 
 def en_image(contenu: bytes, mime: str) -> tuple[bytes, str]:
@@ -117,10 +118,16 @@ def en_image(contenu: bytes, mime: str) -> tuple[bytes, str]:
     try:
         document = pdfium.PdfDocument(contenu)
         try:
-            image = document[0].render(scale=RESOLUTION_DPI / 72).to_pil()
+            page = document[0]
+            echelle = min(RESOLUTION_DPI / 72, PX_MAX / max(page.get_size()))
+            image = page.render(scale=echelle).to_pil()
         finally:
             document.close()
-    except (pdfium.PdfiumError, IndexError) as exc:  # PDF illisible, ou sans page
+    except (
+        pdfium.PdfiumError,
+        IndexError,
+        ZeroDivisionError,
+    ) as exc:  # PDF illisible, ou sans page
         raise ErreurVLM(f"PDF illisible pour le rendu : {exc}") from exc
     tampon = io.BytesIO()
     image.save(tampon, format="PNG")

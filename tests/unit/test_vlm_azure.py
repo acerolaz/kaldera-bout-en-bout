@@ -97,3 +97,16 @@ def test_consigne_d_extraction_prevoit_l_illisible() -> None:
     from kaldera.vlm import consigne
 
     assert '{"illisible": true}' in consigne("extraire_contrat")[0]
+
+
+def test_une_page_geante_est_rendue_bornee() -> None:
+    import io
+
+    import pypdfium2 as pdfium
+    from PIL import Image
+
+    document, tampon = pdfium.PdfDocument.new(), io.BytesIO()
+    document.new_page(3000, 3000)  # 3000 pt : 6250 px à 150 dpi ; 14 400 pt ⇒ plusieurs Go
+    document.save(tampon)
+    image, _ = en_image(tampon.getvalue(), "application/pdf")
+    assert max(Image.open(io.BytesIO(image)).size) <= 2000
