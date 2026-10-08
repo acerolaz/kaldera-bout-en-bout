@@ -66,7 +66,9 @@ class AgentPieces:
         if not manquantes:
             statut = "complet"
         elif any(espace_assure.demander_piece(demande, t, relances) for t in manquantes):
-            statut = "incomplet"  # un dépôt reste à lire : relance possible
+            # l'assuré a déjà déposé ce type : une relance peut aboutir (ou re-soumettre
+            # le même dépôt illisible — c'est la borne de relances qui tranche)
+            statut = "incomplet"
         else:
             statut = "manquant"  # rien à relancer
         return {
@@ -172,6 +174,9 @@ class AgentDecision:
         return {"issue": _issue(vue)}
 
 
+NIVEAUX_AVIS = {"faible", "modere", "eleve"}
+
+
 def _issue(vue: dict[str, Any]) -> dict[str, Any]:
     eligibilite, pieces = vue.get("eligibilite"), vue.get("pieces")
     estimation, avis = vue.get("estimation"), vue.get("avis_fraude")
@@ -186,8 +191,13 @@ def _issue(vue: dict[str, Any]) -> dict[str, Any]:
         if arret:
             motif += f" (borne {arret['borne']} atteinte)"
         return _escalade("gestionnaire", motif)
-    if vue.get("escalade_forcee") or None in (eligibilite, pieces, estimation):
-        raison = vue.get("escalade_forcee") or "traitement incomplet"
+    # une borne violée (hors relance des pièces, traitée par la règle 2) n'aboutit jamais
+    # à une acceptation : escalade forcée
+    borne_violee = arret is not None and arret["borne"] != "relances_pieces_max"
+    if vue.get("escalade_forcee") or borne_violee or None in (eligibilite, pieces, estimation):
+        raison = vue.get("escalade_forcee") or (
+            f"borne {arret['borne']} atteinte" if borne_violee and arret else "traitement incomplet"
+        )
         return _escalade("gestionnaire", f"Escalade forcée : {raison}")
 
     assert estimation is not None  # garanti par le test ci-dessus
@@ -197,8 +207,11 @@ def _issue(vue: dict[str, Any]) -> dict[str, Any]:
     if avis is None:
         return _escalade("gestionnaire", "Escalade forcée : contrôle anti-fraude non effectué")
 
-    degrade = avis["statut"] == "indisponible"
     niveau = (avis.get("avis") or {}).get("niveau") if avis["statut"] == "avis" else None
+    # avis indisponible, ou niveau inexploitable : par prudence, mode dégradé §9
+    degrade = avis["statut"] == "indisponible" or (
+        avis["statut"] == "avis" and niveau not in NIVEAUX_AVIS
+    )
     if niveau == "modere":  # règle 4
         return _escalade("gestionnaire", "Contrôle renforcé : risque de fraude modéré")
     if niveau == "eleve":
@@ -210,7 +223,7 @@ def _issue(vue: dict[str, Any]) -> dict[str, Any]:
             mode_degrade=True,
         )
     if montant > regles.SEUIL_DELEGATION:  # règle 5
-        return _escalade("gestionnaire", "Seuil de délégation dépassé", mode_degrade=degrade)
+        return _escalade("gestionnaire", "Seuil de délégation dépassé")
     motif = f"Remboursement accordé : {montant:.2f} €"  # règle 6
     if degrade:
         motif += " — avis anti-fraude indisponible, décision en mode dégradé (§9)"
