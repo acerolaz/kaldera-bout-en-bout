@@ -83,3 +83,33 @@ def test_transitions_des_pieces(statut: str, relances: int, attendu: Etat) -> No
 def test_transitions_de_la_decision(decision: str | None, attendu: Etat) -> None:
     etat = _etat(issue=SimpleNamespace(decision=decision))
     assert transition(Etat.DECISION, etat, BORNES)[0] is attendu
+
+
+def test_numeros_tn_figes_sur_le_dossier() -> None:
+    """Tn = position dans la table : insérer ou réordonner une ligne doit casser ce test."""
+    assert [(depart, suivant) for depart, _, suivant in TRANSITIONS] == [
+        (Etat.ELIGIBILITE, Etat.DECISION),  # T1
+        (Etat.ELIGIBILITE, Etat.PIECES),  # T2
+        (Etat.PIECES, Etat.ESTIMATION),  # T3
+        (Etat.PIECES, Etat.PIECES),  # T4
+        (Etat.PIECES, Etat.DECISION),  # T5
+        (Etat.ESTIMATION, Etat.DECISION),  # T6
+        (Etat.ESTIMATION, Etat.ANTIFRAUDE),  # T7
+        (Etat.ANTIFRAUDE, Etat.DECISION),  # T8
+        (Etat.DECISION, Etat.ACCEPTEE),  # T9
+        (Etat.DECISION, Etat.REFUSEE),  # T10
+        (Etat.DECISION, Etat.ESCALADE),  # T11
+    ]
+
+
+@pytest.mark.parametrize(
+    ("estime", "attendu"),
+    [(0.0, (Etat.DECISION, "T6")), (12.5, (Etat.ANTIFRAUDE, "T7"))],
+)
+def test_transitions_de_l_estimation(estime: float, attendu: tuple[Etat, str]) -> None:
+    etat = _etat(estimation=SimpleNamespace(estime=estime))
+    assert transition(Etat.ESTIMATION, etat, BORNES) == attendu
+
+
+def test_antifraude_mene_toujours_a_la_decision() -> None:
+    assert transition(Etat.ANTIFRAUDE, _etat(), BORNES) == (Etat.DECISION, "T8")
