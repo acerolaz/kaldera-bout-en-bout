@@ -23,6 +23,9 @@ class Bornes(BaseModel):
     duree_max_s: float = Field(default=8, gt=0, le=10)  # engagement de service §12 : 10 s
     relances_pieces_max: int = 1
     delai_partenaire_s: float = 3
+    delai_min_llm_s: float = 0.3  # en dessous : repli direct, 0 appel LLM (dossier 2.3 bis)
+    reserve_decision_s: float = 1.0  # toujours gardé pour decision
+    appels_outil_max: int = 4  # appels d'outils par agent
 
 
 BORNES = Bornes()  # bornes en vigueur : seule source pour bornes() et l'orchestrateur
@@ -46,6 +49,7 @@ class Pieces(BaseModel):
     statut: Literal["complet", "incomplet", "manquant"]
     manquantes: list[str] = []
     retenues: list[Piece] = []
+    message_relance: str | None = None
 
 
 class Estimation(BaseModel):
@@ -54,6 +58,7 @@ class Estimation(BaseModel):
     franchise: float = Field(ge=0)
     plafond: float = Field(ge=0)
     estime: float = Field(ge=0)
+    explication: str | None = None
 
 
 class AvisFraude(BaseModel):
@@ -61,6 +66,7 @@ class AvisFraude(BaseModel):
     indicateurs: list[str] = []
     statut: Literal["non_requis", "avis", "indisponible"]
     avis: dict[str, Any] | None = None
+    note: str | None = None
 
 
 class Issue(BaseModel):

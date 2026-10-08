@@ -7,7 +7,15 @@ from collections import Counter
 import pytest
 from pydantic import ValidationError
 
-from kaldera.etat import PROPRIETAIRES, SECTIONS, Bornes, EtatDemande
+from kaldera.etat import (
+    PROPRIETAIRES,
+    SECTIONS,
+    AvisFraude,
+    Bornes,
+    Estimation,
+    EtatDemande,
+    Pieces,
+)
 
 SECTIONS_METIER = ("eligibilite", "pieces", "estimation", "avis_fraude", "issue")
 
@@ -99,3 +107,19 @@ def test_etat_neuf_sans_section_ni_arret() -> None:
     assert all(getattr(etat, s) is None for s in SECTIONS_METIER)
     assert etat.arret is None and etat.trace == []
     assert etat.compteurs.etapes == etat.compteurs.relances == 0
+
+
+def test_champs_rediges_optionnels() -> None:
+    assert Pieces(statut="complet").message_relance is None
+    assert Estimation(justifie=1, retenu=1, franchise=0, plafond=5, estime=1).explication is None
+    assert AvisFraude(requis=False, statut="non_requis").note is None
+    assert Pieces(statut="incomplet", message_relance="Merci").message_relance == "Merci"
+
+
+def test_bornes_llm() -> None:
+    bornes = Bornes()
+    assert (bornes.delai_min_llm_s, bornes.reserve_decision_s, bornes.appels_outil_max) == (
+        0.3,
+        1.0,
+        4,
+    )
