@@ -6,17 +6,24 @@ code (``ingestion``). ``FakeVLM`` rend une vérité scriptée par sha256, ou un 
 
 from __future__ import annotations
 
+import base64
 import copy
 import hashlib
+import io
+import json
+import math
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from importlib import resources
 from typing import Any, Protocol
 
-from pydantic import BaseModel
+import pypdfium2 as pdfium
+from pydantic import AliasChoices, BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .llm import ConfigLLM
+from .agents_llm import _sans_balises
+from .llm import ConfigLLM, DelaiDepasse
 
 MODES_FAKE = ("menteur", "hallucine", "casse", "lent")
 
@@ -92,9 +99,97 @@ class ConfigIngestion(BaseSettings):
     vlm: ConfigLLM | None = None
     delai_analyse_s: float = 60.0
     taille_max_mo: int = 10
+    azure_ai_endpoint: str | None = Field(
+        default=None, validation_alias=AliasChoices("AZURE_AI_ENDPOINT", "azure_ai_endpoint")
+    )
+    azure_ai_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("AZURE_AI_API_KEY", "azure_ai_api_key")
+    )
+
+
+RESOLUTION_DPI = 150
+
+
+def en_image(contenu: bytes, mime: str) -> tuple[bytes, str]:
+    """Ce que voit le VLM : l'image du document ; PDF ⇒ page 1 en PNG. Jamais son texte."""
+    if mime != "application/pdf":
+        return contenu, mime
+    try:
+        document = pdfium.PdfDocument(contenu)
+        try:
+            image = document[0].render(scale=RESOLUTION_DPI / 72).to_pil()
+        finally:
+            document.close()
+    except (pdfium.PdfiumError, IndexError) as exc:  # PDF illisible, ou sans page
+        raise ErreurVLM(f"PDF illisible pour le rendu : {exc}") from exc
+    tampon = io.BytesIO()
+    image.save(tampon, format="PNG")
+    return tampon.getvalue(), "image/png"
+
+
+class AzureVLM:
+    """Azure AI (langchain-azure-ai), déploiement capable de vision, derrière ``ClientVLM``."""
+
+    def __init__(self, config: ConfigLLM, chat_model: Any) -> None:
+        self.modele = config.modele
+        self._chat = chat_model
+
+    @classmethod
+    def depuis(cls, config: ConfigLLM, endpoint: str, cle: str, delai_s: float) -> AzureVLM:
+        from langchain_azure_ai.chat_models import AzureAIChatCompletionsModel
+
+        chat = AzureAIChatCompletionsModel(
+            endpoint=endpoint,
+            credential=cle,
+            model=config.modele,
+            temperature=config.temperature,
+            max_tokens=config.jetons_max,
+            client_kwargs={
+                "connection_timeout": 2,
+                "read_timeout": math.ceil(delai_s) + 1,
+                "retry_total": 0,
+            },
+        )
+        return cls(config, chat)
+
+    def analyser(
+        self,
+        contenu: bytes,
+        mime: str,
+        consigne: str,
+        schema: type[BaseModel],
+        timeout_s: float,
+    ) -> dict[str, Any]:
+        from azure.core.exceptions import AzureError
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        image, type_image = en_image(contenu, mime)
+        url = f"data:{type_image};base64,{base64.b64encode(image).decode()}"
+        messages = [
+            SystemMessage(consigne),
+            HumanMessage(content=[{"type": "image_url", "image_url": {"url": url}}]),
+        ]
+        pool = ThreadPoolExecutor(max_workers=1)
+        try:
+            reponse = pool.submit(self._chat.invoke, messages).result(timeout=timeout_s)
+            texte = (
+                reponse.content if isinstance(reponse.content, str) else json.dumps(reponse.content)
+            )
+            sortie = json.loads(_sans_balises(texte))
+        except DelaiDepasse as exc:
+            raise ErreurVLM(f"délai de {timeout_s:.0f} s dépassé") from exc
+        except (AzureError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise ErreurVLM(f"erreur du fournisseur ou réponse mal formée : {exc!r}") from exc
+        finally:
+            pool.shutdown(wait=False)  # au délai, le thread HTTP est borné par read_timeout
+        if not isinstance(sortie, dict):
+            raise ErreurVLM("la sortie du VLM n'est pas un objet JSON")
+        return sortie
 
 
 def fabrique_vlm(config: ConfigIngestion) -> ClientVLM | None:
-    """Adaptateur VLM réel : SP3b (Azure, vision). Sans lui, le worker refuse de démarrer."""
-    # ponytail: aucun adaptateur réel avant SP3b ; les tests injectent FakeVLM
-    return None
+    """Le VLM d'ingestion, ou None s'il n'est pas configuré (le worker refuse alors de démarrer)."""
+    cle = config.azure_ai_api_key.get_secret_value() if config.azure_ai_api_key else ""
+    if config.vlm is None or not config.vlm.vision or not config.azure_ai_endpoint or not cle:
+        return None
+    return AzureVLM.depuis(config.vlm, config.azure_ai_endpoint, cle, config.delai_analyse_s)

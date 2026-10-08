@@ -141,6 +141,7 @@ class ConfigLLM(BaseModel):
     jetons_max: int = Field(default=3000, gt=0)
     tours_max: int = Field(default=3, ge=1)
     temperature: float = 0.0
+    vision: bool = False  # profil multimodal (VLM d'ingestion, dossier 1.4 ter) ; agents : non
 
 
 class ConfigAgents(BaseSettings):

@@ -139,7 +139,10 @@ def main() -> None:
     if not url:
         raise SystemExit("KALDERA_DATABASE_URL absente : rien à ingérer")
     if vlm is None:
-        raise SystemExit("aucun VLM configuré (adaptateur réel : SP3b)")
+        raise SystemExit(
+            "aucun VLM : KALDERA_INGESTION__VLM__MODELE, KALDERA_INGESTION__VLM__VISION=true, "
+            "AZURE_AI_ENDPOINT et AZURE_AI_API_KEY sont requis"
+        )
     ingestion = IngestionPostgres(pool(url))
     while True:
         try:
