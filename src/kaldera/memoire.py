@@ -37,10 +37,8 @@ class SnapshotsEnMemoire:
         self._verrou = threading.Lock()
 
     def debuter(self, etat: EtatDemande) -> None:
-        contrat = etat.demande.get("contrat")
         with self._verrou:
             self.lignes[_reference(etat)] = {
-                "numero_contrat": contrat.get("numero") if isinstance(contrat, dict) else None,
                 "etat": etat.model_dump(mode="json"),
                 "etat_courant": etat.etat_courant,
                 "statut": "en_cours",

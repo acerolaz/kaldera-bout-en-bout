@@ -43,17 +43,10 @@ def appliquer_migrations(conn: psycopg.Connection) -> list[str]:
             "version text PRIMARY KEY, applique_le timestamptz NOT NULL DEFAULT now())"
         )
         faites = {v for (v,) in conn.execute("SELECT version FROM schema_migrations")}
-        fichiers = sorted(
-            (
-                f
-                for f in resources.files("kaldera").joinpath("migrations").iterdir()
-                if f.name.endswith(".sql")
-            ),
-            key=lambda f: f.name,
-        )
         appliquees = []
-        for fichier in fichiers:
-            if fichier.name in faites:
+        dossier = resources.files("kaldera").joinpath("migrations")
+        for fichier in sorted(dossier.iterdir(), key=lambda f: f.name):
+            if not fichier.name.endswith(".sql") or fichier.name in faites:
                 continue
             with conn.transaction():
                 conn.execute(fichier.read_text("utf-8"))  # sans paramètre : plusieurs requêtes
@@ -117,20 +110,16 @@ class DepotPostgres:
         self.connexions = connexions
 
     def initiales(self, demande: dict[str, Any]) -> list[PieceRef]:
-        return self._lire(
-            "SELECT type, lisible, montant, piece_id, sha256, statut_analyse FROM pieces "
-            "WHERE reference = %s AND relance IS NULL ORDER BY piece_id",
-            demande,
-        )
+        return self._lire("relance IS NULL ORDER BY piece_id", demande)
 
     def depots(self, demande: dict[str, Any]) -> list[PieceRef]:
-        return self._lire(
-            "SELECT type, lisible, montant, piece_id, sha256, statut_analyse FROM pieces "
-            "WHERE reference = %s AND relance IS NOT NULL ORDER BY relance, piece_id",
-            demande,
-        )
+        return self._lire("relance IS NOT NULL ORDER BY relance, piece_id", demande)
 
-    def _lire(self, requete: str, demande: dict[str, Any]) -> list[PieceRef]:
+    def _lire(self, condition: str, demande: dict[str, Any]) -> list[PieceRef]:
+        requete = (  # condition : littéral de cette classe, jamais une donnée
+            "SELECT type, lisible, montant, piece_id, sha256, statut_analyse FROM pieces "
+            "WHERE reference = %s AND " + condition
+        )
         with _connexion(self.connexions) as conn:
             lignes = conn.execute(requete, (demande.get("reference"),)).fetchall()
         return [_piece(*ligne) for ligne in lignes]
