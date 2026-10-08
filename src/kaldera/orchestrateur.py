@@ -8,19 +8,14 @@ puis trace l'étape. « Les agents proposent, l'orchestration impose. »
 from __future__ import annotations
 
 import copy
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from time import monotonic, perf_counter
 from typing import Any
 
-from . import partenaire
-from .agents import (
-    AgentAntifraude,
-    AgentDecision,
-    AgentEstimation,
-    AgentPieces,
-    Evaluateur,
-    is_eligible,
-)
+from . import llm, partenaire
+from .agents import Evaluateur, is_eligible
+from .agents_llm import AgentLLM, MesureAgent, creer_agent
+from .llm import ClientLLM, ConfigAgents
 from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, EtatDemande
 from .machine import TERMINAUX, Etat, TransitionInconnue, transition
 
@@ -46,21 +41,29 @@ class Orchestrateur:
         partenaire_url: str | None = None,
         bornes: Bornes | None = None,
         evaluer: Evaluateur | None = None,
+        llms: Mapping[str, ClientLLM | None] | None = None,
+        config: ConfigAgents | None = None,
     ) -> None:
         self.bornes = bornes or BORNES
+        cfg = config or llm.charger_config()
+        if llms is None:
+            llms = {nom: llm.fabrique_llm(cfg, nom) for nom in llm.AGENTS_LLM}
 
         def evaluer_partenaire(demande: dict[str, Any], timeout: float) -> dict[str, Any] | None:
             return partenaire.evaluer_risque(demande, partenaire_url, timeout=timeout)
 
+        def agent(nom: str) -> AgentLLM:
+            return creer_agent(
+                nom, llms.get(nom), getattr(cfg, nom), self.bornes, evaluer or evaluer_partenaire
+            )
+
         # état → action (agent-as-tool) ; l'éligibilité est un tool appelé directement
-        self.actions: dict[Etat, Action] = {
+        self.actions: dict[Etat, Action | AgentLLM] = {
             Etat.ELIGIBILITE: lambda vue: {"eligibilite": is_eligible(vue["demande"])},
-            Etat.PIECES: AgentPieces(),
-            Etat.ESTIMATION: AgentEstimation(),
-            Etat.ANTIFRAUDE: AgentAntifraude(
-                evaluer or evaluer_partenaire, self.bornes.delai_partenaire_s
-            ),
-            Etat.DECISION: AgentDecision(),
+            Etat.PIECES: agent("pieces"),
+            Etat.ESTIMATION: agent("estimation"),
+            Etat.ANTIFRAUDE: agent("antifraude"),
+            Etat.DECISION: agent("decision"),
         }
 
     def traiter(self, demande: dict[str, Any]) -> dict[str, Any]:
@@ -82,8 +85,13 @@ class Orchestrateur:
         section = SECTION_DE[courant]
         agent = PROPRIETAIRES[section]
         debut, statut, ecrit = perf_counter(), "ok", []
+        mesure: MesureAgent | None = None
         try:
-            patch = self.actions[courant](vue_filtree(etat, courant, self.bornes))
+            action, vue = self.actions[courant], vue_filtree(etat, courant, self.bornes)
+            if isinstance(action, AgentLLM):
+                patch, mesure = action.executer(vue, self._budget(etat, courant))
+            else:  # tool d'éligibilité, ou action remplacée dans un test
+                patch = action(vue)
             fusionner(etat, patch, section)
             ecrit = [section]
             suivant, garde = transition(courant, etat, self.bornes)
@@ -121,6 +129,7 @@ class Orchestrateur:
                 "vers": suivant.value,
                 "garde": garde,
                 "appels_externes": externes,
+                **(mesure.model_dump() if mesure else {}),
             }
         )
         etat.etat_courant = suivant.value
@@ -156,6 +165,16 @@ class Orchestrateur:
         )
         etat.escalade_forcee = f"borne {borne} atteinte (état {courant.value})"
         return True
+
+    def _budget(self, etat: EtatDemande, courant: Etat) -> float:
+        """Budget LLM dégressif (dossier 2.3 bis) : on rogne le LLM, jamais l'A2A ni decision."""
+        restant = self.bornes.duree_max_s - (monotonic() - etat.debut)
+        reserves = 0.0
+        if courant in (Etat.PIECES, Etat.ESTIMATION):  # l'A2A n'a pas encore eu lieu
+            reserves += self.bornes.delai_partenaire_s
+        if courant is not Etat.DECISION:
+            reserves += self.bornes.reserve_decision_s
+        return max(0.0, restant - reserves)
 
 
 # ---------------------------------------------------------------- contrôle d'écriture

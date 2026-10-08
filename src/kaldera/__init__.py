@@ -31,6 +31,9 @@ def traiter_lot(
     return {"fiches": fiches, "metriques": _metriques_par_agent(fiches)}
 
 
+LLM_SOMMES = ("tours_llm", "jetons", "latence_llm_ms")
+
+
 def _metriques_par_agent(fiches: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     metriques: dict[str, dict[str, Any]] = {}
     for etape in (e for f in fiches for e in f["trace"]):
@@ -41,6 +44,16 @@ def _metriques_par_agent(fiches: list[dict[str, Any]]) -> dict[str, dict[str, An
         m["echecs"] += int(etape["statut"] == "echec")
         m["duree_ms"] += etape["duree_ms"]
         m["appels_externes"] += etape["appels_externes"]
+        if "mode" in etape:  # agent LLM (EX-D14)
+            for cle in LLM_SOMMES:
+                m[cle] = m.get(cle, 0) + etape[cle]
+            m["replis"] = m.get("replis", 0) + int(etape["mode"] == "repli")
+            m["sorties_rejetees"] = m.get("sorties_rejetees", 0) + int(etape["sortie_rejetee"])
+            modeles = m.setdefault("modeles", {})
+            modele = etape["modele"] or "aucun"
+            modeles[modele] = modeles.get(modele, 0) + 1
     for m in metriques.values():
         m["latence_ms"] = round(m.pop("duree_ms") / m["appels"], 2)
+        if "latence_llm_ms" in m:
+            m["latence_llm_ms"] = round(m["latence_llm_ms"] / m["appels"], 2)
     return metriques

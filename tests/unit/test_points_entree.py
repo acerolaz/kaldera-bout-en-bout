@@ -38,3 +38,15 @@ def test_metriques_par_agent_calculees_sur_les_traces() -> None:
         assert m["echecs"] == sum(e["statut"] == "echec" for e in siennes)
         assert m["appels_externes"] == sum(e["appels_externes"] for e in siennes)
         assert isinstance(m["latence_ms"], float) and m["latence_ms"] >= 0
+
+
+def test_metriques_llm_par_agent() -> None:
+    metriques = kaldera.traiter_lot(NOMINAUX)["metriques"]
+    agents_llm = set(metriques) - {"orchestrateur"}
+    assert agents_llm and agents_llm <= {"pieces", "estimation", "antifraude", "decision"}
+    for agent in agents_llm:
+        m = metriques[agent]
+        assert m["replis"] == m["appels"] and m["sorties_rejetees"] == 0
+        assert m["tours_llm"] == 0 and m["jetons"] == 0 and m["latence_llm_ms"] == 0.0
+        assert m["modeles"] == {"aucun": m["appels"]}
+    assert "replis" not in metriques["orchestrateur"]

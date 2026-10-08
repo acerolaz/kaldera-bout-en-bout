@@ -15,7 +15,9 @@ import pytest
 import kaldera
 from kaldera import partenaire
 from kaldera.agents import AgentDecision, AgentEstimation, AgentPieces
+from kaldera.agents_llm import SPECS, AgentLLM
 from kaldera.etat import Bornes, EtatDemande
+from kaldera.llm import fidele
 from kaldera.machine import Etat
 from kaldera.orchestrateur import ErreurEcriture, Orchestrateur, fusionner
 
@@ -229,9 +231,47 @@ def test_appel_partenaire_plafonne_par_le_temps_restant() -> None:
 
 def test_agents_par_defaut() -> None:
     actions = Orchestrateur().actions
-    assert isinstance(actions[Etat.PIECES], AgentPieces)
-    assert isinstance(actions[Etat.ESTIMATION], AgentEstimation)
-    assert isinstance(actions[Etat.DECISION], AgentDecision)
+    assert isinstance(actions[Etat.PIECES], AgentLLM)
+    assert isinstance(actions[Etat.PIECES].repli, AgentPieces)
+    assert isinstance(actions[Etat.ESTIMATION].repli, AgentEstimation)
+    assert isinstance(actions[Etat.DECISION].repli, AgentDecision)
+    assert all(a.llm is None for e, a in actions.items() if e is not Etat.ELIGIBILITE)
+
+
+def test_budget_degressif() -> None:
+    orch = Orchestrateur(bornes=Bornes())
+    etat = EtatDemande(demande=_demande("NOM-01"))
+    assert orch._budget(etat, Etat.PIECES) == pytest.approx(8 - 3 - 1, abs=0.05)
+    assert orch._budget(etat, Etat.ESTIMATION) == pytest.approx(4, abs=0.05)
+    assert orch._budget(etat, Etat.ANTIFRAUDE) == pytest.approx(7, abs=0.05)
+    assert orch._budget(etat, Etat.DECISION) == pytest.approx(8, abs=0.05)
+
+
+def _avis_faible(demande: dict[str, Any], timeout: float) -> dict[str, Any]:
+    return {
+        "reference_dossier": demande["reference"],
+        "score": 0.2,
+        "niveau": "faible",
+        "indicateurs": [],
+        "evaluation_id": "EV-1",
+        "version_modele": "v1",
+    }
+
+
+def test_trace_porte_la_mesure_des_agents_llm() -> None:
+    llms = {nom: fidele(SPECS[nom].champ, SPECS[nom].gabarit) for nom in SPECS}
+    fiche = Orchestrateur(evaluer=_avis_faible, llms=llms).traiter(_demande("NOM-01"))
+    etapes = [e for e in fiche["trace"] if e["agent"] != "orchestrateur"]
+    assert etapes and all(e["mode"] == "llm" and e["modele"] == "fake" for e in etapes)
+    assert all(len(e["version_prompt"]) == 8 and e["tours_llm"] == 2 for e in etapes)
+    eligibilite = next(e for e in fiche["trace"] if e["agent"] == "orchestrateur")
+    assert "mode" not in eligibilite
+
+
+def test_sans_llm_les_agents_tracent_le_repli() -> None:
+    fiche = Orchestrateur(evaluer=_avis_faible).traiter(_demande("NOM-01"))
+    etapes = [e for e in fiche["trace"] if e["agent"] != "orchestrateur"]
+    assert all((e["mode"], e["cause"]) == ("repli", "llm_non_configure") for e in etapes)
 
 
 # --------------------------------------------------------------------- partenaire
