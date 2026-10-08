@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -155,3 +156,31 @@ def test_demande_niveau_1_contrat_absent() -> None:
         "non_exploitable",
         ["contrat absent"],
     )
+
+
+def test_pdf_abime_ne_leve_jamais() -> None:
+    import random
+
+    sain, rng = pdf_texte("Facture KAL-26-0101", "Total 640.50 EUR"), random.Random(0)
+    for _ in range(1000):
+        octets = bytearray(sain)
+        for _ in range(3):
+            octets[rng.randrange(len(octets))] = rng.randrange(256)
+        texte_pdf(bytes(octets))  # une couche texte, ou "" : jamais une exception
+
+
+@pytest.mark.parametrize(
+    ("modele", "brut"),
+    [
+        (AnalysePiece, {"type": "facture", "lisible": True, "montant": 1e12}),
+        (AnalysePiece, {"type": "facture", "lisible": True, "montant": "640.505"}),
+    ],
+)
+def test_montants_hors_de_la_base_refuses_par_le_schema(modele: Any, brut: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        modele.model_validate(brut)
+
+
+def test_termes_hors_de_la_base_refuses_par_le_schema() -> None:
+    for champ, valeur in (("plafond", 1e12), ("plafond", 0), ("franchise", -1)):
+        assert verrous_contrat({**CONTRAT, champ: valeur}, "CTR-778801", "")[1] == ["① schéma"]

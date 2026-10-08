@@ -13,7 +13,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pypdf import PdfReader
 from pypdf.errors import PyPdfError
 
@@ -53,7 +53,16 @@ def texte_pdf(octets: bytes) -> str:
     """Couche texte d'un PDF natif ; vide pour un scan ou un PDF illisible."""
     try:
         return "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(octets)).pages)
-    except (PyPdfError, ValueError, KeyError, TypeError):  # PDF corrompu : pas de contrôle croisé
+    # PDF abîmé : pypdf lève des erreurs variées (dont AttributeError) ; pas de contrôle croisé
+    except (
+        PyPdfError,
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        IndexError,
+        RecursionError,
+    ):
         return ""
 
 
@@ -64,7 +73,8 @@ class AnalysePiece(BaseModel):
 
     type: Literal["facture", "photo", "depot_plainte"]
     lisible: bool
-    montant: Decimal | None = None
+    # bornes de numeric(10,2) : une valeur que la base refuserait est refusée ici
+    montant: Decimal | None = Field(default=None, max_digits=10, decimal_places=2)
 
 
 class ExtractionContrat(BaseModel):
@@ -75,8 +85,8 @@ class ExtractionContrat(BaseModel):
     numero: str
     formule: Literal["essentiel", "confort", "premium"]
     date_souscription: date
-    franchise: Decimal
-    plafond: Decimal
+    franchise: Decimal = Field(ge=0, max_digits=10, decimal_places=2)  # CHECK de contrats
+    plafond: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
 
 
 def _normalise(texte: str) -> str:

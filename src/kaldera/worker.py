@@ -28,6 +28,7 @@ from .vlm import ClientVLM, ConfigIngestion, ErreurVLM, consigne, fabrique_vlm
 
 LOGGER = logging.getLogger(__name__)
 PAUSE_S = 1.0
+ESSAIS_MAX = 3  # prises d'une tâche avant échec (fichier qui fait planter le worker)
 SCHEMAS: dict[str, type[BaseModel]] = {
     "analyser_piece": AnalysePiece,
     "extraire_contrat": ExtractionContrat,
@@ -36,7 +37,7 @@ SCHEMAS: dict[str, type[BaseModel]] = {
 
 def travailler(ingestion: IngestionPostgres, vlm: ClientVLM, config: ConfigIngestion) -> bool:
     """Un tour : reprise, une tâche, admissions. Vrai si une tâche a été traitée."""
-    ingestion.reprendre_bloquees(2 * config.delai_analyse_s)
+    ingestion.reprendre_bloquees(2 * config.delai_analyse_s, ESSAIS_MAX)
     tache = ingestion.prendre_tache()
     if tache is not None:
         _analyser(ingestion, vlm, config, tache)

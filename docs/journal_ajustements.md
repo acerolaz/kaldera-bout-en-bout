@@ -23,6 +23,9 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-08 | admission (schéma 2.6 bis) | l'admission ne savait pas quand le dossier est complet ; la tâche ne connaissait pas sa demande | EX-D40 | migration `002` : `demandes.soumise_le`, `file_ingestion.reference`, `file_ingestion.pris_le` | — |
 | 2026-10-08 | invariants des pièces | une photo déposée comme facture passait l'analyse | descripteur fidèle au dépôt | invariant ajouté : type lu = type déclaré | — |
 | 2026-10-08 | ports d'ingestion (spec SP2) | `RegistrePieces` et `DepotContrats` : une implémentation, aucun équivalent mémoire | YAGNI | un seul dépôt `IngestionPostgres` (API + worker) | — |
+| 2026-10-08 | PDF abîmé (revue finale SP3a, 185/3000 PDF mutés) | `AttributeError` de pypdf : le worker meurt, chaque reprise replante, demande bloquée en `admission` | EX-01 : jamais de blocage silencieux | erreurs de pypdf rattrapées ; migration `003` : `essais`, échec après 3 prises (`ESSAIS_MAX`) | boucle infinie → escalade motivée |
+| 2026-10-08 | sortie VLM hors des bornes de la base (`montant=1e12`, `plafond ≤ 0`) | CHECK refusé avant la fin de la tâche : reprise sans fin | EX-01 | bornes `numeric(10,2)` dans les schémas `AnalysePiece` / `ExtractionContrat` | boucle → pièce en échec / contrat non exploitable |
+| 2026-10-08 | deux demandes sur un même contrat | un second PDF (erroné ou forgé) écrasait la ligne `contrats` partagée | « extrait une fois par contrat » (2.4 quater) | un contrat `valide` n'est jamais remplacé | termes écrasés → premier contrat valide fait foi |
 
 ## Bornes provisoires en vigueur
 
