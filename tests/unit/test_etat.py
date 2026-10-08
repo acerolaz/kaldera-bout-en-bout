@@ -50,6 +50,44 @@ def test_une_issue_sans_motif_est_refusee() -> None:
         etat.issue = {"issue": "decision", "decision": "acceptee", "motif": ""}  # type: ignore[assignment]
 
 
+@pytest.mark.parametrize(
+    "issue",
+    [
+        {"issue": "decision", "decision": None, "motif": "motif valable", "montant_rembourse": 0},
+        {"issue": "decision", "decision": "acceptee", "motif": "motif valable"},  # sans montant
+        {"issue": "escalade", "motif": "motif valable", "file": None},
+        {"issue": "decision", "decision": "acceptee", "motif": "ok !", "montant_rembourse": -1},
+    ],
+)
+def test_une_issue_incoherente_est_refusee(issue: dict[str, object]) -> None:
+    etat = _etat()
+    with pytest.raises(ValidationError):
+        etat.issue = issue  # type: ignore[assignment]
+
+
+def test_un_arret_ne_demande_que_la_borne() -> None:
+    etat = _etat()
+    etat.arret = {"borne": "etapes_max", "valeur": 12, "etape": 11}  # type: ignore[assignment]
+    assert etat.arret is not None and etat.arret.borne == "etapes_max"
+
+
+def test_les_bornes_ne_se_modifient_pas() -> None:
+    with pytest.raises(ValidationError):
+        Bornes().etapes_max = 99  # type: ignore[misc]
+
+
+def test_une_estimation_negative_est_refusee() -> None:
+    etat = _etat()
+    with pytest.raises(ValidationError):
+        etat.estimation = {  # type: ignore[assignment]
+            "justifie": 0,
+            "retenu": 0,
+            "franchise": 0,
+            "plafond": 0,
+            "estime": -5,
+        }
+
+
 def test_etat_neuf_sans_section_ni_arret() -> None:
     etat = _etat()
     assert all(getattr(etat, s) is None for s in SECTIONS_METIER)
