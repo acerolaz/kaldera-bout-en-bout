@@ -15,10 +15,13 @@ def url_partenaire(url: str | None = None) -> str:
     return (url or os.environ.get("PARTENAIRE_URL") or URL_PAR_DEFAUT).rstrip("/")
 
 
-def evaluer_risque(demande: dict[str, Any], url: str | None = None) -> dict[str, Any] | None:
+def evaluer_risque(
+    demande: dict[str, Any], url: str | None = None, *, timeout: float | None = None
+) -> dict[str, Any] | None:
     """Demande l'avis anti-fraude du partenaire pour une demande.
 
-    Retourne l'évaluation du partenaire, ou ``None`` si elle n'a pas pu être obtenue.
+    Retourne l'évaluation du partenaire, ou ``None`` si elle n'a pas pu être obtenue
+    (y compris au-delà de ``timeout`` secondes).
     """
     requete = {
         "jsonrpc": "2.0",
@@ -35,7 +38,7 @@ def evaluer_risque(demande: dict[str, Any], url: str | None = None) -> dict[str,
     entetes = {"Authorization": f"Bearer {os.environ.get('PARTENAIRE_JETON', '')}"}
     try:
         reponse = httpx.post(
-            f"{url_partenaire(url)}/a2a", json=requete, headers=entetes, timeout=None
+            f"{url_partenaire(url)}/a2a", json=requete, headers=entetes, timeout=timeout
         )
         reponse.raise_for_status()
         resultat = reponse.json()["result"]
