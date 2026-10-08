@@ -186,32 +186,9 @@ def generer(scenarios: Path, ingestion: Path, sortie: Path, seed: int) -> list[d
     """Écrit les fichiers et ``manifeste.jsonl`` ; renvoie les lignes du manifeste."""
     manifeste: list[dict[str, Any]] = []
 
-    def fichier(
-        ref: str,
-        nom: str,
-        octets: bytes,
-        role: str,
-        relance: int | None,
-        type_: str,
-        lisible: bool,
-        variante: str,
-        montant: float | None,
-        attendu: dict[str, Any],
-        http: int,
-    ) -> dict[str, Any]:
-        ligne = {
-            "reference": ref,
-            "fichier": f"{ref}/{nom}",
-            "role": role,
-            "relance": relance,
-            "type": type_,
-            "lisible": lisible,
-            "variante": variante,
-            "montant": montant,
-            "attendu": attendu,
-            "http": http,
-            "sha256": _ecrire(sortie, f"{ref}/{nom}", octets),
-        }
+    def fichier(ref: str, nom: str, octets: bytes, **champs: Any) -> dict[str, Any]:
+        sha = _ecrire(sortie, f"{ref}/{nom}", octets)
+        ligne = {"reference": ref, "fichier": f"{ref}/{nom}", **champs, "sha256": sha}
         manifeste.append(ligne)
         return ligne
 
@@ -226,14 +203,14 @@ def generer(scenarios: Path, ingestion: Path, sortie: Path, seed: int) -> list[d
             ref,
             "contrat.pdf",
             octets,
-            "contrat",
-            None,
-            "contrat",
-            rendu == "nette",
-            rendu,
-            None,
-            attendu,
-            202,
+            role="contrat",
+            relance=None,
+            type="contrat",
+            lisible=rendu == "nette",
+            variante=rendu,
+            montant=None,
+            attendu=attendu,
+            http=202,
         )
         groupes = [("initiale", None, d.get("pieces", []))] + [
             ("depot", k, [p])
@@ -248,14 +225,14 @@ def generer(scenarios: Path, ingestion: Path, sortie: Path, seed: int) -> list[d
                     ref,
                     f"{nom}_{p['type']}.{ext}",
                     octets,
-                    role,
-                    relance,
-                    p["type"],
-                    p.get("lisible", True),
-                    v,
-                    p.get("montant"),
-                    {},
-                    202,
+                    role=role,
+                    relance=relance,
+                    type=p["type"],
+                    lisible=p.get("lisible", True),
+                    variante=v,
+                    montant=p.get("montant"),
+                    attendu={},
+                    http=202,
                 )
                 if variante.get("doublon") and p["type"] == "facture":
                     manifeste.append({**ligne, "http": 200})  # ING-04 : même fichier, 2e dépôt
@@ -264,15 +241,15 @@ def generer(scenarios: Path, ingestion: Path, sortie: Path, seed: int) -> list[d
                 ref,
                 "facture.pdf",
                 EXECUTABLE,
-                "initiale",
-                None,
-                "facture",
-                False,
-                "executable",
-                None,
-                {},
-                415,
-            )  # ING-05
+                role="initiale",
+                relance=None,  # ING-05
+                type="facture",
+                lisible=False,
+                variante="executable",
+                montant=None,
+                attendu={},
+                http=415,
+            )
     (sortie / "manifeste.jsonl").write_text(
         "".join(json.dumps(x, ensure_ascii=False) + "\n" for x in manifeste), "utf-8"
     )

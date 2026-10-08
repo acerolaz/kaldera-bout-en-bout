@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 import json
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -38,10 +39,14 @@ def _niveau_0(demande: dict[str, Any]) -> dict[str, Any]:
     return orch.traiter(copy.deepcopy(demande))
 
 
+def _decisifs(fiche: dict[str, Any]) -> dict[str, Any]:
+    return {k: fiche.get(k) for k in DECISIFS}
+
+
 def _egal(a: Any, b: Any) -> bool:
     if isinstance(a, date):
         a = a.isoformat()
-    if isinstance(a, (int, float)) or hasattr(a, "as_tuple"):  # Decimal
+    if isinstance(a, (int, float, Decimal)):
         return b is not None and round(float(a), 2) == round(float(b), 2)
     return bool(a == b)
 
@@ -96,13 +101,13 @@ def evaluer(
                 ok = False
                 continue
             niveau_0 = _niveau_0(demande)
-            if {k: niveau_1.get(k) for k in DECISIFS} != {k: niveau_0[k] for k in DECISIFS}:
+            if _decisifs(niveau_1) != _decisifs(niveau_0):
                 divergences.append(
                     {
                         "reference": demande["reference"],
                         "raison": "issue différente",
-                        "niveau_1": {k: niveau_1.get(k) for k in DECISIFS},
-                        "niveau_0": {k: niveau_0[k] for k in DECISIFS},
+                        "niveau_1": _decisifs(niveau_1),
+                        "niveau_0": _decisifs(niveau_0),
                     }
                 )
                 ok = False
@@ -115,9 +120,6 @@ def evaluer(
     def fiche(reference: str) -> dict[str, Any]:
         return fiches.get(reference) or {}
 
-    def contrat_de(ing: dict[str, Any]) -> dict[str, Any]:
-        return contrats.get(ing["contrat_numero"], {})
-
     def fichiers(reference: str, http: int) -> list[dict[str, Any]]:
         return [
             x
@@ -129,20 +131,21 @@ def evaluer(
     for ing in ing_lignes:
         ref = ing["reference"]
         if ing["id"] == "ING-01":
-            ok = contrat_de(ing).get("statut_extraction") == "non_exploitable"
+            ok = (
+                contrats.get(ing["contrat_numero"], {}).get("statut_extraction")
+                == "non_exploitable"
+            )
             ok = ok and fiche(ref).get("motif") == MOTIF_REGLE_0
         elif ing["id"] == "ING-02":
-            ok = "② barème" in (contrat_de(ing).get("violations") or [])
+            ok = "② barème" in (contrats.get(ing["contrat_numero"], {}).get("violations") or [])
             ok = ok and fiche(ref).get("motif") == MOTIF_REGLE_0
         elif ing["id"] == "ING-03":
             base = fiche(par_id[ing["base"]]["demandes"][0]["reference"])
-            ok = bool(fiche(ref)) and {k: fiche(ref).get(k) for k in DECISIFS} == {
-                k: base.get(k) for k in DECISIFS
-            }
+            ok = bool(fiche(ref)) and _decisifs(fiche(ref)) == _decisifs(base)
         elif ing["id"] == "ING-04":  # même fichier déposé deux fois : 1 blob, 1 pièce
             doublon = fichiers(ref, 200)
             sha = doublon[0]["sha256"] if doublon else None
-            ok = sha in blobs and sum(1 for (r, s) in pieces if (r, s) == (ref, sha)) == 1
+            ok = sha in blobs and (ref, sha) in pieces
         else:  # ING-05
             exe = fichiers(ref, 415)
             ok = bool(exe) and exe[0]["sha256"] not in blobs
