@@ -94,14 +94,14 @@ class SpecAgent:
 
 
 def _outils_pieces(vue: Vue, ref: dict[str, Any]) -> list[Outil]:
-    demande, relances = vue["demande"], vue["relances"]
+    demande, relances, depots = vue["demande"], vue["relances"], vue["depots"]
     requises = regles.PIECES_EXIGEES[demande["sinistre"]["type"]]
 
     def lire_depot(args: dict[str, Any]) -> Any:
         k = args.get("k")
         if not isinstance(k, int) or isinstance(k, bool) or k != relances or relances < 1:
             return {"refus": f"seul le dépôt n°{relances} est lisible"}
-        return [d for t in requises if (d := espace_assure.demander_piece(demande, t, k - 1))]
+        return [d for t in requises if (d := espace_assure.depot_pour(depots, t, k - 1))]
 
     entier = {"type": "object", "properties": {"k": {"type": "integer"}}, "required": ["k"]}
     return [
@@ -109,7 +109,7 @@ def _outils_pieces(vue: Vue, ref: dict[str, Any]) -> list[Outil]:
         Outil(
             "pieces_requises", "Types de pièces exigés pour ce sinistre.", lambda a: list(requises)
         ),
-        Outil("lister_pieces", "Pièces jointes à la demande.", lambda a: demande.get("pieces", [])),
+        Outil("lister_pieces", "Pièces jointes à la demande.", lambda a: vue["initiales"]),
         Outil(
             "lire_depot", "Dépôt n°k de l'espace assuré (k = relance en cours).", lire_depot, entier
         ),

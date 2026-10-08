@@ -21,6 +21,10 @@ from kaldera.agents import (
     is_eligible,
 )
 
+from kaldera.etat import EtatDemande
+from kaldera.machine import Etat
+from kaldera.orchestrateur import vue_filtree
+
 RACINE = Path(__file__).resolve().parents[2]
 SCENARIOS = {
     s["id"]: s
@@ -32,8 +36,14 @@ def _demande(scenario: str, rang: int = 0) -> dict[str, Any]:
     return copy.deepcopy(SCENARIOS[scenario]["demandes"][rang])
 
 
+def _vue_pieces(demande: dict[str, Any], relances: int = 0) -> dict[str, Any]:
+    etat = EtatDemande(demande=demande)
+    etat.compteurs.relances = relances
+    return vue_filtree(etat, Etat.PIECES)
+
+
 def _pieces(scenario: str, relances: int = 0) -> dict[str, Any]:
-    patch = AgentPieces()({"demande": _demande(scenario), "relances": relances})
+    patch = AgentPieces()(_vue_pieces(_demande(scenario), relances))
     assert set(patch) == {"pieces"}
     return patch["pieces"]
 
@@ -302,3 +312,9 @@ def test_regle_0_passe_avant_la_regle_1() -> None:
 def test_contrat_valide_ne_change_rien() -> None:
     issue = _issue(contrat={"statut_extraction": "valide", "violations": []})
     assert issue["decision"] == "acceptee"
+
+
+def test_l_agent_pieces_ne_lit_que_les_descripteurs() -> None:
+    vue = _vue_pieces(_demande("NOM-07"), relances=1)
+    assert "pieces" not in vue["demande"] and "espace_assure" not in vue["demande"]
+    assert AgentPieces()(vue)["pieces"]["statut"] == "complet"

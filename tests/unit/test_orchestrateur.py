@@ -19,6 +19,7 @@ from kaldera.agents_llm import SPECS, AgentLLM
 from kaldera.etat import AvisFraude, Bornes, ContratDemande, Estimation, EtatDemande
 from kaldera.llm import fidele
 from kaldera.machine import Etat
+from kaldera.ports import PieceRef
 from kaldera.orchestrateur import (
     ErreurEcriture,
     Orchestrateur,
@@ -466,3 +467,37 @@ def test_fiche_de_secours_contrat_non_exploitable_gestionnaire() -> None:
     etat = _etat_secours(SANS_AVIS, 2_000.0)
     etat.contrat = ContratDemande(statut_extraction="non_exploitable")
     assert construire_fiche(etat)["file"] == "gestionnaire"
+
+
+# --------------------------------------------------------------------- pièces par le port
+
+
+class DepotEspion:
+    def __init__(self) -> None:
+        self.lu = False
+
+    def initiales(self, demande: dict[str, Any]) -> list[PieceRef]:
+        self.lu = True
+        return [
+            PieceRef(type="facture", lisible=True, montant=600.0),
+            PieceRef(type="photo", lisible=True),
+        ]
+
+    def depots(self, demande: dict[str, Any]) -> list[PieceRef]:
+        return []
+
+
+def test_les_pieces_viennent_du_port() -> None:
+    depot = DepotEspion()
+    demande = _demande("NOM-09")  # photo absente du JSON : manquante au niveau 0
+    fiche = Orchestrateur(evaluer=_sans_partenaire, depot=depot).traiter(demande)
+    assert depot.lu and fiche["decision"] == "acceptee"
+
+
+def test_piece_de_type_inconnu_escalade_sans_planter() -> None:
+    demande = _demande("NOM-01")
+    demande["pieces"][0]["type"] = "devis"
+    fiche = _orchestrateur().traiter(demande)
+    etape = [e for e in fiche["trace"] if e["action"] == "pieces"][0]
+    assert etape["statut"] == "echec"
+    assert (fiche["issue"], fiche["file"]) == ("escalade", "gestionnaire")
