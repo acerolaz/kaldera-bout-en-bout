@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion fumee-vlm
 
 install:
 	uv sync
@@ -48,3 +48,18 @@ api:
 
 worker:
 	uv run python -m kaldera.worker
+
+generer:
+	uv run python tools/generer_pieces.py --seed 42
+
+worker-epreuve:
+	PARTENAIRE_URL=http://127.0.0.1:9 uv run python -m kaldera.worker
+
+seed:
+	uv run python -m tools.seed
+
+eval-ingestion:
+	uv run python -m tools.eval_ingestion
+
+fumee-vlm:
+	uv run python scripts/fumee_vlm.py
