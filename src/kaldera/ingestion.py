@@ -153,16 +153,5 @@ def demande_niveau_1(demande: dict[str, Any], contrat: dict[str, Any] | None) ->
             "violations": ["contrat absent"],
         }
     else:
-        termes = {
-            cle: contrat[cle]
-            for cle in (
-                "formule",
-                "date_souscription",
-                "statut_extraction",
-                "violations",
-                "modele",
-                "version_prompt",
-                "sha256",
-            )
-        }
+        termes = dict(contrat)  # formule, date, statut_extraction, violations, provenance
     return {**demande, "contrat": {**gestion, **termes, "source": "extraction_vlm"}}

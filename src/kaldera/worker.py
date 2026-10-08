@@ -67,6 +67,7 @@ def _analyser(
                 SCHEMAS[tache.tache].model_validate(brut)
             except ValidationError:
                 LOGGER.warning("sortie VLM non conforme, fichier %s", tache.sha256[:12])
+                brut = None  # validée une fois : en aval, brut est conforme ou absent
             else:
                 ingestion.mettre_en_cache(tache.sha256, vlm.modele, version, brut)
     texte = texte_pdf(tache.contenu) if tache.mime == "application/pdf" else ""
@@ -80,10 +81,7 @@ def _analyser(
 def _piece(
     ingestion: IngestionPostgres, tache: Tache, brut: dict[str, Any] | None, texte: str
 ) -> bool:
-    try:
-        analyse = None if brut is None else AnalysePiece.model_validate(brut)
-    except ValidationError:
-        analyse = None
+    analyse = None if brut is None else AnalysePiece.model_validate(brut)
     if analyse is None:
         violations = ["analyse impossible"]
     else:
