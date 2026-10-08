@@ -19,7 +19,7 @@ from kaldera.agents_llm import SPECS, AgentLLM
 from kaldera.etat import Bornes, EtatDemande
 from kaldera.llm import fidele
 from kaldera.machine import Etat
-from kaldera.orchestrateur import ErreurEcriture, Orchestrateur, fusionner
+from kaldera.orchestrateur import ErreurEcriture, Orchestrateur, fusionner, vue_filtree
 
 RACINE = Path(__file__).resolve().parents[2]
 SCENARIOS = {
@@ -343,3 +343,51 @@ def test_config_invalide_replie_sans_exception(monkeypatch: pytest.MonkeyPatch) 
     fiche = Orchestrateur(evaluer=_avis_faible).traiter(_demande("NOM-01"))
     etapes = [e for e in fiche["trace"] if e["agent"] != "orchestrateur"]
     assert etapes and all(e["cause"] == "llm_non_configure" for e in etapes)
+
+
+# --------------------------------------------------------------------- garde d'entrée T0
+
+
+class Espion:
+    def __init__(self) -> None:
+        self.appels = 0
+
+    def __call__(self, vue: dict[str, Any]) -> dict[str, Any]:
+        self.appels += 1
+        return {"eligibilite": {"eligible": True, "conditions_ko": []}}
+
+
+def _contrat(statut: str, scenario: str = "NOM-01") -> dict[str, Any]:
+    demande = _demande(scenario)
+    demande["contrat"]["statut_extraction"] = statut
+    return demande
+
+
+def test_is_eligible_non_appele_si_contrat_non_valide() -> None:
+    espion = Espion()
+    fiche = _orchestrateur(eligibilite=espion).traiter(_contrat("non_exploitable"))
+    assert espion.appels == 0
+    assert (fiche["issue"], fiche["file"], fiche["motif"]) == (
+        "escalade",
+        "gestionnaire",
+        "Contrat illisible ou incohérent",
+    )
+    assert [(e["de"], e["vers"], e["garde"]) for e in fiche["trace"]] == [
+        ("eligibilite", "decision", "T0"),
+        ("decision", "escalade", "T11"),
+    ]
+    assert fiche["trace"][0]["ecrit"] == [] and fiche["trace"][0]["agent"] == "orchestrateur"
+
+
+def test_contrat_valide_explicite_suit_le_chemin_nominal() -> None:
+    espion = Espion()
+    fiche = _orchestrateur(eligibilite=espion).traiter(_contrat("valide"))
+    assert espion.appels == 1 and fiche["decision"] == "acceptee"
+
+
+def test_decision_voit_la_provenance_du_contrat() -> None:
+    etat = EtatDemande(demande=_demande("NOM-01"))
+    assert vue_filtree(etat, Etat.DECISION)["contrat"] == {
+        "statut_extraction": "valide",
+        "violations": [],
+    }

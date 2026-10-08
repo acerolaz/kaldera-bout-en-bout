@@ -17,8 +17,8 @@ from . import llm, partenaire
 from .agents import Evaluateur, is_eligible
 from .agents_llm import AgentLLM, MesureAgent, creer_agent
 from .llm import ClientLLM, ConfigAgents
-from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, EtatDemande
-from .machine import TERMINAUX, Etat, TransitionInconnue, transition
+from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, ContratDemande, EtatDemande
+from .machine import TERMINAUX, Etat, TransitionInconnue, garde_entree, transition
 
 LOGGER = logging.getLogger(__name__)
 
@@ -82,13 +82,22 @@ class Orchestrateur:
 
     def executer(self, demande: dict[str, Any]) -> EtatDemande:
         etat = EtatDemande(demande=copy.deepcopy(demande))
+        self._executer(etat)
+        return etat
+
+    def _executer(self, etat: EtatDemande) -> None:
+        contrat = etat.demande.get("contrat")
+        # niveau 0 : provenance absente ⇒ valide ; contrat malformé ⇒ l'éligibilité échouera, tracée
+        etat.contrat = ContratDemande.model_validate(contrat if isinstance(contrat, dict) else {})
         courant = Etat.ELIGIBILITE
         while courant not in TERMINAUX:
             if courant is not Etat.DECISION and self._garde_globale(etat, courant):
                 courant = Etat.DECISION  # TG : escalade forcée, l'issue reste à decision
                 continue
+            if (entree := garde_entree(courant, etat, self.bornes)) is not None:
+                courant = self._sauter(etat, courant, *entree)  # T0 : action non exécutée
+                continue
             courant = self._etape(etat, courant)
-        return etat
 
     # ------------------------------------------------------------------ un tour
 
@@ -141,6 +150,25 @@ class Orchestrateur:
                 "garde": garde,
                 "appels_externes": externes,
                 **(mesure.model_dump() if mesure else {}),
+            }
+        )
+        etat.etat_courant = suivant.value
+        return suivant
+
+    def _sauter(self, etat: EtatDemande, courant: Etat, suivant: Etat, garde: str) -> Etat:
+        """Garde d'entrée vraie : l'action de l'état n'est pas exécutée, l'étape est tracée."""
+        etat.compteurs.etapes += 1
+        etat.trace.append(
+            {
+                "agent": PROPRIETAIRES[SECTION_DE[courant]],
+                "action": courant.value,
+                "ecrit": [],
+                "statut": "ok",
+                "duree_ms": 0.0,
+                "de": courant.value,
+                "vers": suivant.value,
+                "garde": garde,
+                "appels_externes": 0,
             }
         )
         etat.etat_courant = suivant.value
@@ -229,6 +257,10 @@ def vue_filtree(etat: EtatDemande, courant: Etat, bornes: Bornes = BORNES) -> di
         },
         "arret": etat.arret.model_dump() if etat.arret else None,
         "escalade_forcee": etat.escalade_forcee,
+        "contrat": {
+            "statut_extraction": etat.contrat.statut_extraction,
+            "violations": list(etat.contrat.violations),
+        },
     }
 
 
