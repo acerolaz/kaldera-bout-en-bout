@@ -14,9 +14,14 @@ REF = "KAL-26-9001"
 FICHE = {"reference": REF, "issue": "escalade", "file": "gestionnaire"}
 
 
-@pytest.fixture(params=["memoire"])
+@pytest.fixture(params=["memoire", pytest.param("postgres", marks=pytest.mark.integration)])
 def ports(request: pytest.FixtureRequest) -> tuple[Snapshots, RegistreA2A]:
-    return SnapshotsEnMemoire(), RegistreA2AEnMemoire()
+    if request.param == "memoire":
+        return SnapshotsEnMemoire(), RegistreA2AEnMemoire()
+    from kaldera.postgres import RegistreA2APostgres, SnapshotsPostgres
+
+    base = request.getfixturevalue("base")
+    return SnapshotsPostgres(base), RegistreA2APostgres(base)
 
 
 def _etat(reference: Any = REF) -> EtatDemande:

@@ -13,7 +13,7 @@ from collections.abc import Callable, Mapping
 from time import monotonic, perf_counter
 from typing import Any
 
-from . import llm, partenaire, regles
+from . import llm, partenaire, postgres, regles
 from .agents import NIVEAUX_AVIS, Evaluateur, is_eligible
 from .agents_llm import AgentLLM, MesureAgent, creer_agent
 from .llm import ClientLLM, ConfigAgents
@@ -54,7 +54,9 @@ class Orchestrateur:
     ) -> None:
         self.bornes = bornes or BORNES
         self.depot = depot or NIVEAU_0
-        self.snapshots = snapshots
+        # sans base configurée : aucune persistance ; les pièces restent lues dans la demande
+        # (niveau 0) tant que l'ingestion (SP3) ne remplit pas la table pieces
+        self.snapshots = snapshots if snapshots is not None else postgres.snapshots_par_defaut()
         cfg = config or self._charger_config()
         if llms is None:
             llms = {nom: llm.fabrique_llm(cfg, nom) for nom in llm.AGENTS_LLM}

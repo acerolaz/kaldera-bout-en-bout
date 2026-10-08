@@ -13,6 +13,11 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-08 | lot unitaire (8 demandes de 0,2 s, `test_lot_traite_les_demandes_en_parallele`) | lot traité en séquentiel : durée = somme des demandes | §12 : une demande n'en retarde pas une autre (EX-D15) | `traiter_lot` en `ThreadPoolExecutor` | 1,63 s → 0,21 s *(lots `panne` en acceptance non discriminants : 0,01 s, la requête non projetée est rejetée avant le délai — à remesurer au chantier 2)* |
 | 2026-10-08 | contrat non exploitable (`test_is_eligible_non_appele_si_contrat_non_valide`) | `is_eligible()` appelé sur un contrat non validé | EX-D40 | garde d'entrée T0 + règle 0 (escalade gestionnaire) | 1 appel → 0 appel |
 | 2026-10-08 | exception imprévue (`test_exception_imprevue_rattrapee_par_le_filet`) | `RuntimeError` dans un agent remonte à l'appelant | EX-01 | filet niveau 1 dans `traiter`, file prudente | exception → escalade motivée |
+| 2026-10-08 | invariance (`tests/unit/test_invariance.py`) | pièces lues directement dans la demande | EX-D28 (claim check) | pièces chargées par le port `DepotPieces`, vue de `pieces` seule à les recevoir | 34/34 issues identiques avant → après |
+| 2026-10-08 | processus tué (`test_demande_morte_escaladee_depuis_le_snapshot`) | demande perdue si le processus meurt | EX-D24, EX-01 | snapshot après chaque transition + reaper (`en_cours` → `secours`, CAS) | aucune fiche → escalade de secours classée |
+| 2026-10-08 | schéma 2.6 bis | la fiche n'est persistée nulle part ; une demande sans contrat ne peut être snapshotée | file humaine consultable ; EX-01 | écarts : `demandes.fiche jsonb`, `numero_contrat` nullable | — |
+| 2026-10-08 | port `DepotPieces` | le niveau 0 a besoin du JSON, pas seulement de la référence | EX-D28 | `DepotPieces.initiales(demande)` au lieu de `(reference)` | — |
+| 2026-10-08 | tests d'intégration | le rollback par test (`CLAUDE.md`) empêche d'éprouver la concurrence | 2 reapers, 1 seule réservation A2A | isolation par `TRUNCATE` | — |
 
 ## Bornes provisoires en vigueur
 

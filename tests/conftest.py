@@ -17,6 +17,10 @@ def _sans_llm_reel(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(variable)
     monkeypatch.setattr(llm, "charger_config", lambda: llm.ConfigAgents(_env_file=None))
 
+    from kaldera import postgres
+
+    monkeypatch.setattr(postgres, "snapshots_par_defaut", lambda: None)
+
 
 @pytest.fixture
 def base() -> Iterator[Any]:
