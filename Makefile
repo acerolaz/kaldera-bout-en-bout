@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration fmt lint typecheck
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper fmt lint typecheck
 
 install:
 	uv sync
@@ -39,3 +39,6 @@ lint:
 
 typecheck:
 	uv run mypy src
+
+reaper:
+	uv run python -m kaldera.reaper

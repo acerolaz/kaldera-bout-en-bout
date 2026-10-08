@@ -7,6 +7,7 @@ prudente. Il ne rejoue jamais la machine : le partenaire refuserait un second ap
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from pydantic import ValidationError
@@ -14,7 +15,8 @@ from pydantic import ValidationError
 from .etat import EtatDemande
 from .machine import Etat
 from .orchestrateur import _etape_sans_action, construire_fiche
-from .ports import Snapshots
+from .ports import ErreurPersistance, Snapshots
+from .postgres import ConfigBase, SnapshotsPostgres, pool
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,3 +60,30 @@ def fiche_de_secours(reference: str, brut: dict[str, Any]) -> dict[str, Any]:
         )
     )
     return construire_fiche(etat)
+
+
+PERIODE_S = 10.0
+
+
+def main() -> None:
+    """``python -m kaldera.reaper`` : fauche toutes les 10 s, indépendamment des workers."""
+    logging.basicConfig(level=logging.INFO)
+    config = ConfigBase()
+    if not config.database_url:
+        raise SystemExit("KALDERA_DATABASE_URL absente : rien à faucher")
+    snapshots = SnapshotsPostgres(pool(config.database_url))
+    while True:
+        try:
+            for fiche in faucher(snapshots, config.reaper_age_s):
+                LOGGER.warning(
+                    "demande %s escaladée par le reaper (file %s)",
+                    fiche["reference"],
+                    fiche["file"],
+                )
+        except ErreurPersistance as exc:
+            LOGGER.error("reaper : %s ; nouvel essai dans %s s", exc, PERIODE_S)
+        time.sleep(PERIODE_S)
+
+
+if __name__ == "__main__":
+    main()
