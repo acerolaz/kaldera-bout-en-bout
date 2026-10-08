@@ -83,3 +83,24 @@ def test_verifier_sortie_cumule_les_violations() -> None:
 def test_le_gabarit_passe_son_propre_garde_fou() -> None:
     ref: dict[str, Any] = {**REF_ESTIM, "explication": "Franchise 150.00 €, plafond 3000.00 €."}
     assert verifier_sortie(ref, ref, VUE, "explication", (), controle_estimation) == []
+
+
+def test_controle_estimation_compare_les_nombres_entiers() -> None:
+    ref_decimale = {"franchise": 12.5, "plafond": 3000.0}
+    assert controle_estimation("franchise 12,5 €, plafond 3 000 €", ref_decimale) == []
+    assert controle_estimation("plafond 1500 €", REF_ESTIM) == [
+        "explication sans la franchise",
+        "explication sans le plafond",
+    ]
+
+
+def test_controle_estimation_franchise_nulle() -> None:
+    ref_nulle = {"franchise": 0.0, "plafond": 3000.0}
+    assert controle_estimation("plafond 3 000 €", ref_nulle) == ["explication sans la franchise"]
+    assert controle_estimation("sans franchise, plafond 3 000 €", ref_nulle) == []
+
+
+def test_donnees_sensibles_variantes() -> None:
+    assert donnees_sensibles("iban fr76 3000 6000 0112 3456 7890 189", VUE) == ["iban"]
+    assert donnees_sensibles("appeler le 0033 6 12 34 56 78", VUE) == ["telephone"]
+    assert donnees_sensibles("appeler le +33 (0)6 12 34 56 78", VUE) == ["telephone"]

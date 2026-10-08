@@ -15,9 +15,12 @@ Controle = Callable[[str | None, dict[str, Any]], list[str]]
 
 MOTIFS_SENSIBLES = {
     "email": re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"),
-    "iban": re.compile(r"\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){2,}"),
-    "telephone": re.compile(r"(?:\+33\s?|\b0)[1-9](?:[ .]?\d{2}){4}\b"),
+    "iban": re.compile(r"\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){2,}", re.IGNORECASE),
+    "telephone": re.compile(r"(?:\+33\s?(?:\(0\)\s?)?|0033\s?|\b0)[1-9](?:[ .]?\d{2}){4}\b"),
 }
+# nombre avec séparateurs de milliers (espace, espace insécable, espace fine insécable)
+NOMBRE = re.compile(r"\d+(?:[   ]\d{3}(?!\d))*(?:[.,]\d+)?")
+SEPARATEURS_MILLIERS = re.compile(r"[   ]")
 
 
 def champs_differents(patch: dict[str, Any], ref: dict[str, Any], ignores: set[str]) -> list[str]:
@@ -40,12 +43,11 @@ def donnees_sensibles(texte: str | None, vue: dict[str, Any]) -> list[str]:
     return trouvees
 
 
-def _compact(texte: str) -> str:
-    return re.sub(r"[\s  ]", "", texte).replace(",", ".")
-
-
-def _nombre(valeur: float) -> str:
-    return str(int(valeur)) if valeur == int(valeur) else f"{valeur:.2f}"
+def _nombres(texte: str) -> list[float]:
+    return [
+        float(SEPARATEURS_MILLIERS.sub("", m.group()).replace(",", "."))
+        for m in NOMBRE.finditer(texte)
+    ]
 
 
 def controle_pieces(texte: str | None, ref: dict[str, Any]) -> list[str]:
@@ -57,11 +59,14 @@ def controle_pieces(texte: str | None, ref: dict[str, Any]) -> list[str]:
 def controle_estimation(texte: str | None, ref: dict[str, Any]) -> list[str]:
     if not texte:
         return ["explication vide"]
-    compact = _compact(texte)
+    nombres = _nombres(texte)
+    franchise_citee = any(abs(n - ref["franchise"]) < 0.005 for n in nombres) or (
+        ref["franchise"] == 0 and re.search(r"sans\s+franchise", texte, re.IGNORECASE) is not None
+    )
+    plafond_cite = any(abs(n - ref["plafond"]) < 0.005 for n in nombres)
     return [
-        f"explication sans {libelle}"
-        for libelle, champ in (("la franchise", "franchise"), ("le plafond", "plafond"))
-        if _nombre(ref[champ]) not in compact
+        *([] if franchise_citee else ["explication sans la franchise"]),
+        *([] if plafond_cite else ["explication sans le plafond"]),
     ]
 
 
