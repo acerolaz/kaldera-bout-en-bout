@@ -116,7 +116,7 @@ def _variante(lisible: bool, rng: random.Random) -> str:
 
 
 def _piece(
-    p: dict[str, Any], d: dict[str, Any], rng: random.Random, extra: str | None
+    p: dict[str, Any], d: dict[str, Any], rng: random.Random, extra: str | None, nom: str
 ) -> tuple[bytes, str, str]:
     v = "nette" if extra else _variante(p.get("lisible", True), rng)  # ING-03 : texte à lire
     ref, sinistre = d["reference"], d["sinistre"]
@@ -124,14 +124,14 @@ def _piece(
         return _photo(sinistre["type"], v, rng), "png", v
     if p["type"] == "facture":
         lignes = [
-            f"Dossier : {ref}",
+            f"Dossier : {ref} · document {nom}",
             f"Prestation : réparation {sinistre['type']}",
             f"Montant TTC : {p.get('montant') or 0:.2f} €",
         ]
         if extra:
             lignes.append(extra)  # ING-03 : un texte qui donne des ordres
         return _pdf("FACTURE", lignes, v, rng), "pdf", v
-    lignes = [f"Dossier : {ref}", f"Faits du {sinistre['date_survenance']}"]
+    lignes = [f"Dossier : {ref} · document {nom}", f"Faits du {sinistre['date_survenance']}"]
     return _pdf("RÉCÉPISSÉ DE DÉPÔT DE PLAINTE", lignes, v, rng), "pdf", v
 
 
@@ -242,10 +242,11 @@ def generer(scenarios: Path, ingestion: Path, sortie: Path, seed: int) -> list[d
         for role, relance, pieces in groupes:
             for i, p in enumerate(pieces, start=1):
                 extra = variante.get("facture_extra") if p["type"] == "facture" else None
-                octets, ext, v = _piece(p, d, rng, extra)
+                nom = f"{role}{relance or ''}_{i:02d}"  # imprimé : un fichier distinct par dépôt
+                octets, ext, v = _piece(p, d, rng, extra, nom)
                 ligne = fichier(
                     ref,
-                    f"{role}{relance or ''}_{i:02d}_{p['type']}.{ext}",
+                    f"{nom}_{p['type']}.{ext}",
                     octets,
                     role,
                     relance,

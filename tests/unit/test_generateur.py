@@ -87,3 +87,9 @@ def test_relance_k_vers_depots_k_moins_1(manifeste: tuple[Path, list[dict[str, A
         "photo",
         "KAL-26-0107/depot1_01_photo.png",
     )
+
+
+def test_un_fichier_distinct_par_depot(manifeste: tuple[Path, list[dict[str, Any]]]) -> None:
+    _, lignes = manifeste  # sinon un redépôt (BCL-01) serait pris pour un doublon (HTTP 200)
+    depots = [(x["reference"], x["sha256"]) for x in lignes if x.get("http") == 202]
+    assert len(depots) == len(set(depots))
