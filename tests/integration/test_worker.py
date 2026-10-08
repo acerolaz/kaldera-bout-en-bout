@@ -269,3 +269,67 @@ def test_ing03_facture_qui_donne_des_ordres(
     vider(ingestion, vlm)
     temoin, fiche = _fiche(client, saine["reference"]), _fiche(client, "KAL-26-0903")
     assert {k: fiche[k] for k in DECISIFS} == {k: temoin[k] for k in DECISIFS}
+
+
+def test_fichier_qui_fait_planter_le_worker_finit_en_echec(
+    client: TestClient, ingestion: IngestionPostgres, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from kaldera import worker
+
+    demande = SCENARIOS["NOM-01"]["demandes"][0]
+    vlm = FakeVLM(deposer_dossier(client, demande))
+    contrat = next(sha for sha, v in vlm.verites.items() if "numero" in v)
+    texte_reel = worker.texte_pdf
+
+    def plante(octets: bytes) -> str:
+        if _sha(octets) == contrat:  # seul ce fichier fait planter le worker
+            raise AttributeError("pypdf : objet absent")
+        return texte_reel(octets)
+
+    with monkeypatch.context() as m:
+        m.setattr(worker, "texte_pdf", plante)
+        for _ in range(worker.ESSAIS_MAX):
+            with pytest.raises(AttributeError):
+                travailler(ingestion, vlm, CONFIG)
+            with ingestion.connexions.connection() as conn:  # le worker suivant la reprend
+                conn.execute(
+                    "UPDATE file_ingestion SET pris_le = now() - interval '1 hour' "
+                    "WHERE statut = 'en_cours'"
+                )
+        vider(ingestion, vlm)  # au-delà de ESSAIS_MAX : échec, plus de reprise
+    fiche = _fiche(client, demande["reference"])  # jamais bloquée en admission
+    assert (fiche["issue"], fiche["file"]) == ("escalade", "gestionnaire")
+
+
+def test_valeurs_refusees_par_la_base_jamais_de_boucle(
+    client: TestClient, ingestion: IngestionPostgres
+) -> None:
+    demande = SCENARIOS["NOM-01"]["demandes"][0]
+    verites = deposer_dossier(client, demande)
+    for verite in verites.values():
+        if "plafond" in verite:
+            verite["plafond"] = -1.0
+        if verite.get("type") == "facture":
+            verite["montant"] = 1e12
+    vider(ingestion, FakeVLM(verites))
+    assert _fiche(client, demande["reference"])["motif"] == "Contrat illisible ou incohérent"
+
+
+def test_contrat_valide_jamais_remplace(client: TestClient, ingestion: IngestionPostgres) -> None:
+    premiere = SCENARIOS["NOM-01"]["demandes"][0]
+    vlm = FakeVLM(deposer_dossier(client, premiere))
+    vider(ingestion, vlm)
+    # une seconde demande sur le même contrat dépose un autre PDF, aux termes « premium »
+    seconde = {**copy.deepcopy(premiere), "reference": "KAL-26-0904"}
+    seconde["contrat"] = {**seconde["contrat"], "formule": "premium"}
+    vlm.verites.update(deposer_dossier(client, seconde))
+    vider(ingestion, vlm)
+    with ingestion.connexions.connection() as conn:
+        (formule,) = conn.execute(
+            "SELECT formule FROM contrats WHERE numero = %s", (premiere["contrat"]["numero"],)
+        ).fetchone()
+    assert formule == "confort"  # extrait une fois par contrat : le premier valide fait foi
+    assert (
+        _fiche(client, "KAL-26-0904")["montant_rembourse"]
+        == _fiche(client, premiere["reference"])["montant_rembourse"]
+    )

@@ -125,9 +125,20 @@ class IngestionPostgres:
 
     # ------------------------------------------------------------------ worker
 
-    def reprendre_bloquees(self, age_s: float) -> int:
-        """Tâches prises par un worker mort : de nouveau en attente."""
-        with _connexion(self.connexions) as conn:
+    def reprendre_bloquees(self, age_s: float, essais_max: int) -> int:
+        """Tâches d'un worker mort : reprises, ou en échec après ``essais_max`` prises."""
+        with _connexion(self.connexions) as conn, conn.transaction():
+            # un fichier qui fait planter chaque worker ne bloque jamais sa demande
+            conn.execute(
+                "WITH abandonnees AS (UPDATE file_ingestion SET statut = 'echec' "
+                "WHERE statut = 'en_cours' AND pris_le < now() - make_interval(secs => %s) "
+                "AND essais >= %s RETURNING reference, sha256, tache) "
+                "UPDATE pieces p SET statut_analyse = 'echec', lisible = false "
+                "FROM abandonnees a WHERE a.tache = 'analyser_piece' "
+                "AND p.reference = a.reference AND p.sha256 = a.sha256 "
+                "AND p.statut_analyse = 'en_attente'",
+                (age_s, essais_max),
+            )
             curseur = conn.execute(
                 "UPDATE file_ingestion SET statut = 'en_attente', pris_le = NULL "
                 "WHERE statut = 'en_cours' AND pris_le < now() - make_interval(secs => %s)",
@@ -146,7 +157,8 @@ class IngestionPostgres:
                 if ligne is None:
                     return None
                 conn.execute(
-                    "UPDATE file_ingestion SET statut = 'en_cours', pris_le = now() WHERE id = %s",
+                    "UPDATE file_ingestion SET statut = 'en_cours', pris_le = now(), "
+                    "essais = essais + 1 WHERE id = %s",
                     (ligne[0],),
                 )
             contenu, mime = _ligne(
@@ -237,7 +249,9 @@ class IngestionPostgres:
                 "franchise = EXCLUDED.franchise, plafond = EXCLUDED.plafond, "
                 "statut_extraction = EXCLUDED.statut_extraction, "
                 "violations = EXCLUDED.violations, modele = EXCLUDED.modele, "
-                "version_prompt = EXCLUDED.version_prompt",
+                "version_prompt = EXCLUDED.version_prompt "
+                # extrait une fois par contrat : un contrat valide n'est jamais remplacé
+                "WHERE contrats.statut_extraction = 'non_exploitable'",
                 (
                     numero,
                     sha256,
