@@ -10,6 +10,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
@@ -56,11 +57,7 @@ class IngestionPostgres:
         return ligne is not None
 
     def statut(self, reference: str) -> str | None:
-        with _connexion(self.connexions) as conn:
-            ligne = conn.execute(
-                "SELECT statut FROM demandes WHERE reference = %s", (reference,)
-            ).fetchone()
-        return None if ligne is None else str(ligne[0])
+        return (self.lire(reference) or {}).get("statut")
 
     def lire(self, reference: str) -> dict[str, Any] | None:
         with _connexion(self.connexions) as conn:
@@ -284,23 +281,17 @@ class IngestionPostgres:
 
     def contrat(self, numero: str) -> dict[str, Any] | None:
         with _connexion(self.connexions) as conn:
-            ligne = conn.execute(
-                "SELECT formule, date_souscription, statut_extraction, violations, modele, "
-                "version_prompt, sha256 FROM contrats WHERE numero = %s",
-                (numero,),
-            ).fetchone()
-        if ligne is None:
+            contrat = (
+                conn.cursor(row_factory=dict_row)
+                .execute(
+                    "SELECT formule, date_souscription, statut_extraction, violations, modele, "
+                    "version_prompt, sha256 FROM contrats WHERE numero = %s",
+                    (numero,),
+                )
+                .fetchone()
+            )
+        if contrat is None:
             return None
-        cles = (
-            "formule",
-            "date_souscription",
-            "statut_extraction",
-            "violations",
-            "modele",
-            "version_prompt",
-            "sha256",
-        )
-        contrat = dict(zip(cles, ligne))
         if contrat["date_souscription"] is not None:
             contrat["date_souscription"] = contrat["date_souscription"].isoformat()
         contrat["violations"] = list(contrat["violations"])
