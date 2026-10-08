@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from typing import Any, Protocol
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as DelaiDepasse
+from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AppelOutil(BaseModel):
@@ -121,3 +124,125 @@ def saboteur(mode: str, champ: str, rediger: Rediger, mensonge: dict[str, Any]) 
     if mode not in scripts:
         raise ValueError(f"saboteur inconnu : {mode!r}")
     return scripts[mode]
+
+
+# ------------------------------------------------------------------ configuration
+
+AGENTS_LLM = ("pieces", "estimation", "antifraude", "decision")
+
+
+class ConfigLLM(BaseModel):
+    """Le LLM d'un agent : le modèle est une configuration, pas du code (dossier 1.4 ter)."""
+
+    fournisseur: Literal["azure"] = "azure"
+    modele: str
+    delai_agent_s: float = Field(default=1.2, gt=0)
+    jetons_max: int = Field(default=3000, gt=0)
+    tours_max: int = Field(default=3, ge=1)
+    temperature: float = 0.0
+
+
+class ConfigAgents(BaseSettings):
+    """Un ``ConfigLLM`` par agent : ``KALDERA_<AGENT>__MODELE=…`` dans le .env."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="KALDERA_", env_nested_delimiter="__", env_file=".env", extra="ignore"
+    )
+
+    pieces: ConfigLLM | None = None
+    estimation: ConfigLLM | None = None
+    antifraude: ConfigLLM | None = None
+    decision: ConfigLLM | None = None
+    azure_ai_endpoint: str | None = Field(
+        default=None, validation_alias=AliasChoices("AZURE_AI_ENDPOINT")
+    )
+    azure_ai_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("AZURE_AI_API_KEY")
+    )
+
+
+def charger_config() -> ConfigAgents:
+    """Lit le .env à chaque appel (pas de cache global) ; remplacée dans les tests."""
+    return ConfigAgents()
+
+
+def fabrique_llm(cfg: ConfigAgents, nom: str) -> ClientLLM | None:
+    """Le ClientLLM d'un agent, ou None s'il n'est pas configuré (⇒ repli tracé)."""
+    config: ConfigLLM | None = getattr(cfg, nom)
+    if config is None or not cfg.azure_ai_endpoint or cfg.azure_ai_api_key is None:
+        return None
+    return AzureLLM.depuis(config, cfg.azure_ai_endpoint, cfg.azure_ai_api_key.get_secret_value())
+
+
+# ------------------------------------------------------------------ adaptateur Azure
+
+
+class AzureLLM:
+    """Azure AI (langchain-azure-ai) derrière le port ClientLLM."""
+
+    def __init__(self, config: ConfigLLM, chat_model: Any) -> None:
+        self.modele = config.modele
+        self._chat = chat_model
+
+    @classmethod
+    def depuis(cls, config: ConfigLLM, endpoint: str, cle: str) -> AzureLLM:
+        from langchain_azure_ai.chat_models import AzureAIChatCompletionsModel
+
+        chat = AzureAIChatCompletionsModel(
+            endpoint=endpoint,
+            credential=cle,
+            model=config.modele,
+            temperature=config.temperature,
+            max_tokens=config.jetons_max,
+        )
+        return cls(config, chat)
+
+    def completer(
+        self,
+        systeme: str,
+        messages: list[dict[str, Any]],
+        outils: list[dict[str, Any]],
+        timeout_s: float,
+    ) -> ReponseLLM:
+        from azure.core.exceptions import AzureError
+        from langchain_core.messages import SystemMessage
+
+        historique = [SystemMessage(systeme), *map(_vers_langchain, messages)]
+        modele = self._chat.bind_tools(outils) if outils else self._chat
+        pool = ThreadPoolExecutor(max_workers=1)
+        try:
+            reponse = pool.submit(modele.invoke, historique).result(timeout=timeout_s)
+        except DelaiDepasse as exc:
+            raise ErreurLLM(f"délai de {timeout_s:.2f} s dépassé") from exc
+        except AzureError as exc:
+            raise ErreurLLM(f"erreur du fournisseur : {exc}") from exc
+        finally:
+            # ponytail: au délai, le thread de l'appel HTTP est abandonné (il finit seul) ;
+            # passer à l'API async du SDK si les threads orphelins deviennent un problème
+            pool.shutdown(wait=False)
+        contenu = (
+            reponse.content if isinstance(reponse.content, str) else json.dumps(reponse.content)
+        )
+        return ReponseLLM(
+            texte=None if reponse.tool_calls else (contenu or None),
+            appels_outils=[
+                AppelOutil(id=a.get("id") or a["name"], nom=a["name"], arguments=a["args"])
+                for a in reponse.tool_calls
+            ],
+            jetons=(reponse.usage_metadata or {}).get("total_tokens", 0),
+        )
+
+
+def _vers_langchain(message: dict[str, Any]) -> Any:
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+    if message["role"] == "user":
+        return HumanMessage(message["content"])
+    if message["role"] == "tool":
+        return ToolMessage(message["content"], tool_call_id=message["id"])
+    return AIMessage(
+        content=message.get("content") or "",
+        tool_calls=[
+            {"name": a["nom"], "args": a["arguments"], "id": a["id"]} for a in message["appels"]
+        ],
+    )
