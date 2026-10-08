@@ -7,11 +7,13 @@ from types import SimpleNamespace
 import pytest
 
 from kaldera.machine import (
+    GARDES_ENTREE,
     TERMINAUX,
     TOUJOURS,
     TRANSITIONS,
     Etat,
     TransitionInconnue,
+    garde_entree,
     peut_atteindre,
     transition,
 )
@@ -113,3 +115,21 @@ def test_transitions_de_l_estimation(estime: float, attendu: tuple[Etat, str]) -
 
 def test_antifraude_mene_toujours_a_la_decision() -> None:
     assert transition(Etat.ANTIFRAUDE, _etat(), BORNES) == (Etat.DECISION, "T8")
+
+
+def test_t0_mene_a_decision() -> None:
+    assert (Etat.ELIGIBILITE, Etat.DECISION) in {(d, s) for d, _, s in GARDES_ENTREE}
+
+
+@pytest.mark.parametrize(
+    ("statut", "attendu"),
+    [("non_exploitable", (Etat.DECISION, "T0")), ("valide", None)],
+)
+def test_garde_d_entree_sur_le_contrat(statut: str, attendu: tuple[Etat, str] | None) -> None:
+    etat = _etat(contrat=SimpleNamespace(statut_extraction=statut))
+    assert garde_entree(Etat.ELIGIBILITE, etat, BORNES) == attendu
+
+
+def test_garde_d_entree_absente_hors_eligibilite() -> None:
+    etat = _etat(contrat=SimpleNamespace(statut_extraction="non_exploitable"))
+    assert garde_entree(Etat.PIECES, etat, BORNES) is None

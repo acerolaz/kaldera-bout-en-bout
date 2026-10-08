@@ -2,7 +2,8 @@
 
 Les gardes sont des fonctions pures : elles lisent l'état de la demande et les bornes,
 ne le modifient jamais. La garde globale (TG) n'est pas dans la table : le moteur
-l'évalue avant chaque action (voir ``orchestrateur``).
+l'évalue avant chaque action (voir ``orchestrateur``). T0 vit dans ``GARDES_ENTREE``, évaluée
+avant l'action de l'état.
 """
 
 from __future__ import annotations
@@ -53,6 +54,15 @@ TRANSITIONS: tuple[tuple[Etat, Garde, Etat], ...] = (
     (Etat.DECISION, TOUJOURS, Etat.ESCALADE),  # T11
 )
 
+# gardes d'ENTRÉE : évaluées AVANT l'action de l'état (is_eligible() n'est pas appelé)
+GARDES_ENTREE: tuple[tuple[Etat, Garde, Etat], ...] = (
+    (
+        Etat.ELIGIBILITE,
+        lambda e, b: e.contrat.statut_extraction != "valide",
+        Etat.DECISION,
+    ),  # T0
+)
+
 
 class TransitionInconnue(Exception):
     """Aucune garde vraie pour l'état courant : la table est incomplète."""
@@ -66,6 +76,14 @@ def transition(courant: Etat, etat: Any, bornes: Any) -> tuple[Etat, str]:
     raise TransitionInconnue(courant)
 
 
+def garde_entree(courant: Etat, etat: Any, bornes: Any) -> tuple[Etat, str] | None:
+    """État suivant si une garde d'entrée est vraie (l'action est alors sautée), sinon None."""
+    for numero, (depart, garde, suivant) in enumerate(GARDES_ENTREE):
+        if depart == courant and garde(etat, bornes):
+            return suivant, f"T{numero}"
+    return None
+
+
 def peut_atteindre(depart: Etat, cibles: set[Etat] | frozenset[Etat]) -> bool:
     """Parcours en largeur de la table : existe-t-il un chemin de depart vers une cible ?"""
     vus, file = {depart}, [depart]
@@ -73,7 +91,7 @@ def peut_atteindre(depart: Etat, cibles: set[Etat] | frozenset[Etat]) -> bool:
         e = file.pop(0)
         if e in cibles:
             return True
-        for d, _, s in TRANSITIONS:
+        for d, _, s in TRANSITIONS + GARDES_ENTREE:  # T0 compris
             if d == e and s not in vus:
                 vus.add(s)
                 file.append(s)
