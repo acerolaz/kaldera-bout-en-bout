@@ -31,3 +31,15 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 
 Le plan estimait ~49 verts sur 56 en acceptance, en supposant que des INV passeraient via le
 mode dégradé ; ils vérifient aussi la forme de la requête, d'où 42/56.
+
+## 2026-10-08 — Agents LLM (dossier v3, EX-D30 → EX-D36)
+
+**Constat.** Les 4 agents étaient des fonctions : un workflow, pas une équipe d'agents.
+**Ajustement.** Chaque agent a son LLM (Azure, modèle lu dans le `.env` par agent), son prompt
+versionné, ses outils exclusifs et un garde-fou de sortie ; le code déterministe d'avant devient
+la référence et le repli. Machine à états, orchestrateur, propriété des sections et A2A inchangés.
+**Mesure** (chiffres réellement observés). Critère d'invariance : 34 demandes, issue / file /
+montant / mode dégradé identiques en mode fake et en mode repli. Les 7 saboteurs du FakeLLM
+finissent tous en repli tracé, patch identique. Partenaire appelé une seule fois par demande
+dans tous les cas. Suite complète : 14 rouges (A2A), 268 verts.
+**Reste au chantier 2.** `make eval` (matrice agent × modèle), disjoncteur LLM, 14 tests A2A.
