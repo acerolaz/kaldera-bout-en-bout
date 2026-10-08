@@ -29,7 +29,7 @@ def main() -> None:
         for e in (e for e in fiche["trace"] if "mode" in e):
             print(
                 f"  {e['agent']:<11} {e['mode']:<6} {e['cause'] or '':<18} "
-                f"{e['modele']:<12} {e['latence_llm_ms']:>8.1f} ms  {e['violations']}"
+                f"{e['modele'] or '-':<12} {e['latence_llm_ms']:>8.1f} ms  {e['violations']}"
             )
 
 

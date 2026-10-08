@@ -108,6 +108,8 @@ def test_agent_configure_obtient_azure(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AZURE_AI_API_KEY", "cle")
     client = fabrique_llm(ConfigAgents(_env_file=None), "pieces")
     assert isinstance(client, AzureLLM) and client.modele == "Kimi-K2.6"
+    kw = client._chat.client_kwargs
+    assert kw["retry_total"] == 0 and kw["read_timeout"] == 3 and kw["connection_timeout"] == 2
 
 
 def test_isolation_des_tests() -> None:
@@ -189,3 +191,17 @@ def test_azure_reponse_mal_formee_leve_erreur_llm() -> None:
     chat.invoke = lambda messages: _SansArgs()  # type: ignore[method-assign,assignment,return-value]
     with pytest.raises(ErreurLLM):
         AzureLLM(ConfigLLM(modele="m"), chat).completer("sys", [], [], timeout_s=2)
+
+
+def test_azure_reponse_sans_tool_calls_leve_erreur_llm() -> None:
+    chat = _ChatFactice(AIMessage(content=""))
+    chat.invoke = lambda messages: object()  # type: ignore[method-assign,assignment,return-value]
+    with pytest.raises(ErreurLLM):
+        AzureLLM(ConfigLLM(modele="m"), chat).completer("sys", [], [], timeout_s=2)
+
+
+def test_azure_ids_d_appel_uniques_sans_id_fournisseur() -> None:
+    appels = [{"name": "calculer", "args": {}, "id": None}] * 2
+    chat = _ChatFactice(AIMessage(content="", tool_calls=appels))  # type: ignore[arg-type]
+    rep = AzureLLM(ConfigLLM(modele="m"), chat).completer("sys", [], OUTILS, timeout_s=2)
+    assert [a.id for a in rep.appels_outils] == ["calculer-0", "calculer-1"]

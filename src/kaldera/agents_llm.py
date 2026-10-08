@@ -99,7 +99,7 @@ def _outils_pieces(vue: Vue, ref: dict[str, Any]) -> list[Outil]:
 
     def lire_depot(args: dict[str, Any]) -> Any:
         k = args.get("k")
-        if k != relances or relances < 1:
+        if not isinstance(k, int) or isinstance(k, bool) or k != relances or relances < 1:
             return {"refus": f"seul le dépôt n°{relances} est lisible"}
         return [d for t in requises if (d := espace_assure.demander_piece(demande, t, k - 1))]
 
@@ -317,7 +317,10 @@ class AgentLLM:
                 appels += 1
                 if appel.nom not in outils or appels > self.bornes.appels_outil_max:
                     raise OutilRefuse(appel.nom)
-                resultat = outils[appel.nom].fn(appel.arguments)
+                try:
+                    resultat = outils[appel.nom].fn(appel.arguments)
+                except (TypeError, KeyError, IndexError, AttributeError) as exc:
+                    raise OutilRefuse(appel.nom) from exc
                 messages.append(
                     {
                         "role": "tool",
@@ -348,6 +351,13 @@ def _message(vue: Vue) -> str:
     if "demande" in vue:
         assure = vue["demande"].get("assure", {})
         vue["demande"]["assure"] = {k: v for k, v in assure.items() if k not in IDENTITE}
+        # minimisation locale du numéro de contrat et du texte libre (cf. orchestrateur._minimisee)
+        vue["demande"].get("contrat", {}).pop("numero", None)
+        vue["demande"].get("sinistre", {}).pop("description", None)
+    avis = vue.get("avis_fraude")
+    if isinstance(avis, dict) and avis.get("avis"):
+        brut = avis["avis"]
+        avis["avis"] = {"niveau": brut.get("niveau"), "score": brut.get("score")}
     contenu = json.dumps(vue, ensure_ascii=False, default=str)
     return f"<donnees_non_fiables>{contenu}</donnees_non_fiables>"
 
