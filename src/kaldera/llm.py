@@ -7,6 +7,7 @@ Azure. ``FakeLLM`` rejoue un script : il sert aux tests (niveaux ① et ② du p
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as DelaiDepasse
@@ -195,6 +196,12 @@ class AzureLLM:
             model=config.modele,
             temperature=config.temperature,
             max_tokens=config.jetons_max,
+            # bornes HTTP : l'appel abandonné au délai ne survit pas plus de ~delai + 1 s
+            client_kwargs={
+                "connection_timeout": 2,
+                "read_timeout": math.ceil(config.delai_agent_s) + 1,
+                "retry_total": 0,
+            },
         )
         return cls(config, chat)
 
@@ -219,18 +226,20 @@ class AzureLLM:
             return ReponseLLM(
                 texte=None if reponse.tool_calls else (contenu or None),
                 appels_outils=[
-                    AppelOutil(id=a.get("id") or a["name"], nom=a["name"], arguments=a["args"])
-                    for a in reponse.tool_calls
+                    AppelOutil(
+                        id=a.get("id") or f"{a['name']}-{i}", nom=a["name"], arguments=a["args"]
+                    )
+                    for i, a in enumerate(reponse.tool_calls)
                 ],
                 jetons=(reponse.usage_metadata or {}).get("total_tokens", 0),
             )
         except DelaiDepasse as exc:
             raise ErreurLLM(f"délai de {timeout_s:.2f} s dépassé") from exc
-        except (AzureError, ValueError, KeyError, TypeError) as exc:
+        except (AzureError, ValueError, KeyError, TypeError, AttributeError) as exc:
             raise ErreurLLM(f"erreur du fournisseur ou réponse mal formée : {exc!r}") from exc
         finally:
-            # ponytail: au délai, le thread de l'appel HTTP est abandonné (il finit seul) ;
-            # passer à l'API async du SDK si les threads orphelins deviennent un problème
+            # ponytail: au délai, le thread HTTP est abandonné mais borné par client_kwargs
+            # (read_timeout, pas de retry) ; API async du SDK si cela ne suffit plus
             pool.shutdown(wait=False)
 
 
