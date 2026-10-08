@@ -158,3 +158,34 @@ def test_azure_delai_depasse_leve_erreur_llm() -> None:
     client = AzureLLM(ConfigLLM(modele="m"), _ChatFactice(AIMessage(content="{}"), latence_s=0.5))
     with pytest.raises(ErreurLLM):
         client.completer("sys", [], [], timeout_s=0.05)
+
+
+def test_cle_vide_n_a_pas_de_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KALDERA_PIECES__MODELE", "Kimi-K2.6")
+    monkeypatch.setenv("AZURE_AI_ENDPOINT", "https://exemple.services.ai.azure.com/models")
+    monkeypatch.setenv("AZURE_AI_API_KEY", "")
+    assert fabrique_llm(ConfigAgents(_env_file=None), "pieces") is None
+
+
+def test_azure_erreur_fournisseur_leve_erreur_llm() -> None:
+    from azure.core.exceptions import HttpResponseError
+
+    class _Casse(_ChatFactice):
+        def invoke(self, messages: list[Any]) -> AIMessage:
+            raise HttpResponseError("boom")
+
+    client = AzureLLM(ConfigLLM(modele="m"), _Casse(AIMessage(content="")))
+    with pytest.raises(ErreurLLM):
+        client.completer("sys", [], [], timeout_s=2)
+
+
+def test_azure_reponse_mal_formee_leve_erreur_llm() -> None:
+    class _SansArgs:
+        content = ""
+        tool_calls = [{"name": "calculer", "id": "c1"}]
+        usage_metadata = None
+
+    chat = _ChatFactice(AIMessage(content=""))
+    chat.invoke = lambda messages: _SansArgs()  # type: ignore[method-assign,assignment,return-value]
+    with pytest.raises(ErreurLLM):
+        AzureLLM(ConfigLLM(modele="m"), chat).completer("sys", [], [], timeout_s=2)
