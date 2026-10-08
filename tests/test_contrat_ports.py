@@ -53,7 +53,8 @@ def test_demande_inactive_fauchee_une_seule_fois(ports: tuple[Snapshots, Registr
     ((reference, brut),) = snapshots.faucher(0)
     assert reference == REF and brut["etat_courant"] == "pieces"
     assert EtatDemande.model_validate(brut).demande["reference"] == REF
-    assert snapshots.faucher(0) == []
+    snapshots.classer(REF, FICHE)
+    assert snapshots.faucher(0) == []  # classée : jamais escaladée deux fois
     assert snapshots.terminer(etat, FICHE) is False  # le reaper a gagné
 
 
@@ -75,3 +76,12 @@ def test_un_seul_appel_partenaire_reserve(ports: tuple[Snapshots, RegistreA2A]) 
     assert registre.reserver(REF) is True
     assert registre.reserver(REF) is False
     registre.noter(REF, "EVA-1")
+
+
+def test_demande_fauchee_sans_fiche_reprise_au_passage_suivant(
+    ports: tuple[Snapshots, RegistreA2A],
+) -> None:
+    snapshots, _ = ports
+    snapshots.debuter(_etat())
+    assert [r for r, _ in snapshots.faucher(0)] == [REF]  # le reaper meurt avant classer
+    assert [r for r, _ in snapshots.faucher(0)] == [REF]  # repris, jamais oublié

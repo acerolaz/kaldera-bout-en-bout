@@ -66,8 +66,10 @@ def test_deux_reapers_ne_prennent_jamais_la_meme_demande(base: Any) -> None:
     references = [f"KAL-26-{i:04d}" for i in range(20)]
     for reference in references:
         snapshots.debuter(EtatDemande(demande={"reference": reference}))
+    with base.connection() as conn:  # mortes depuis une heure ; une fauchée a maj = now()
+        conn.execute("UPDATE demandes SET maj = now() - interval '1 hour'")
     with ThreadPoolExecutor(2) as pool:
-        lots = list(pool.map(lambda _: faucher(snapshots, 0), range(2)))
+        lots = list(pool.map(lambda _: faucher(snapshots, 60), range(2)))
     fauchees = [fiche["reference"] for lot in lots for fiche in lot]
     assert sorted(fauchees) == references  # chacune exactement une fois
 

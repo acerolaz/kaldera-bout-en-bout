@@ -76,7 +76,12 @@ class SnapshotsEnMemoire:
             mortes = [
                 (reference, ligne)
                 for reference, ligne in self.lignes.items()
-                if ligne["statut"] == "en_cours" and ligne["maj"] < limite
+                # en_cours inactive, ou fauchée sans fiche (reaper mort avant classer)
+                if ligne["maj"] < limite
+                and (
+                    ligne["statut"] == "en_cours"
+                    or (ligne["statut"] == "secours" and not ligne["fiche"])
+                )
             ]
             for _, ligne in mortes:
                 ligne.update(statut="secours", maj=monotonic())

@@ -215,15 +215,17 @@ class Orchestrateur:
         """Écrit un snapshot ; la base ne bloque jamais une décision (EX-01)."""
         if self.snapshots is None:
             return None
-        try:
-            return ecrire(self.snapshots)
-        except ErreurPersistance as exc:
-            LOGGER.warning(
-                "persistance en échec, demande %s : %s", etat.demande.get("reference"), exc
-            )
-            if etat.trace:
-                etat.trace[-1]["persistance"] = "echec"
-            return None
+        if not etat._persistance_coupee:
+            try:
+                return ecrire(self.snapshots)
+            except ErreurPersistance as exc:
+                etat._persistance_coupee = True  # une seule attente par demande, pas une par étape
+                LOGGER.warning(
+                    "persistance coupée, demande %s : %s", etat.demande.get("reference"), exc
+                )
+        if etat.trace:
+            etat.trace[-1]["persistance"] = "echec"
+        return None
 
     def _suivre_relances(self, etat: EtatDemande, suivant: Etat) -> None:
         if suivant is Etat.PIECES:  # T4
@@ -294,12 +296,12 @@ def vue_filtree(
 ) -> dict[str, Any]:
     """Ce que voit l'action de l'état courant — des copies : la demande reste immuable."""
     demande = copy.deepcopy(etat.demande)
+    # claim check : seule la vue de pieces reçoit des pièces, chargées par le port
+    demande.pop("pieces", None)
+    demande.pop("espace_assure", None)
     if courant is Etat.ELIGIBILITE:
         return {"demande": demande}
     if courant is Etat.PIECES:
-        # claim check : l'agent ne voit que des descripteurs, chargés par le port
-        demande.pop("pieces", None)
-        demande.pop("espace_assure", None)
         return {
             "demande": demande,
             "relances": etat.compteurs.relances,

@@ -11,7 +11,7 @@ from time import monotonic
 from types import MappingProxyType
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 
 class Bornes(BaseModel):
@@ -157,3 +157,5 @@ class EtatDemande(BaseModel):
     debut: float = Field(default_factory=monotonic)
     arret: Arret | None = None
     escalade_forcee: str | None = None  # raison d'une escalade forcée (borne, échec)
+    # base en échec pour cette demande : plus aucune écriture (jamais une attente par transition)
+    _persistance_coupee: bool = PrivateAttr(default=False)
