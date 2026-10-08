@@ -123,3 +123,10 @@ def test_bornes_llm() -> None:
         1.0,
         4,
     )
+
+
+def test_bornes_llm_refusent_les_valeurs_nulles() -> None:
+    with pytest.raises(ValidationError):
+        Bornes(delai_min_llm_s=0)
+    with pytest.raises(ValidationError):
+        Bornes(appels_outil_max=0)

@@ -23,9 +23,10 @@ class Bornes(BaseModel):
     duree_max_s: float = Field(default=8, gt=0, le=10)  # engagement de service §12 : 10 s
     relances_pieces_max: int = 1
     delai_partenaire_s: float = 3
-    delai_min_llm_s: float = 0.3  # en dessous : repli direct, 0 appel LLM (dossier 2.3 bis)
-    reserve_decision_s: float = 1.0  # toujours gardé pour decision
-    appels_outil_max: int = 4  # appels d'outils par agent
+    # en dessous : repli direct, 0 appel LLM (dossier 2.3 bis)
+    delai_min_llm_s: float = Field(default=0.3, gt=0)
+    reserve_decision_s: float = Field(default=1.0, ge=0)  # toujours gardé pour decision
+    appels_outil_max: int = Field(default=4, ge=1)  # appels d'outils par agent
 
 
 BORNES = Bornes()  # bornes en vigueur : seule source pour bornes() et l'orchestrateur
