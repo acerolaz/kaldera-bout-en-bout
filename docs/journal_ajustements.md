@@ -26,6 +26,10 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-08 | PDF abîmé (revue finale SP3a, 185/3000 PDF mutés) | `AttributeError` de pypdf : le worker meurt, chaque reprise replante, demande bloquée en `admission` | EX-01 : jamais de blocage silencieux | erreurs de pypdf rattrapées ; migration `003` : `essais`, échec après 3 prises (`ESSAIS_MAX`) | boucle infinie → escalade motivée |
 | 2026-10-08 | sortie VLM hors des bornes de la base (`montant=1e12`, `plafond ≤ 0`) | CHECK refusé avant la fin de la tâche : reprise sans fin | EX-01 | bornes `numeric(10,2)` dans les schémas `AnalysePiece` / `ExtractionContrat` | boucle → pièce en échec / contrat non exploitable |
 | 2026-10-08 | deux demandes sur un même contrat | un second PDF (erroné ou forgé) écrasait la ligne `contrats` partagée | « extrait une fois par contrat » (2.4 quater) | un contrat `valide` n'est jamais remplacé | termes écrasés → premier contrat valide fait foi |
+| 2026-10-09 | générateur (`generer_pieces.py` du dossier) | lisait une demande par ligne (34 demandes perdues), barème limité à `essentiel` (`KeyError`), police Linux seule | EX-D42 | `tools/generer_pieces.py` : `scenario["demandes"]`, barème `regles.FORMULES`, police Pillow ; un numéro de contrat par scénario ING ; identifiant du document imprimé (le redépôt BCL-01 n'est plus un doublon) | 0 → 39 demandes générées, déterministes |
+| 2026-10-09 | VLM réel (dossier 1.4 ter) | API vision Azure : images seules | verrou ③ indépendant du VLM | `pypdfium2` : page 1 rendue en PNG, aucun texte du fichier envoyé ; `ConfigLLM.vision` ; consigne `{"illisible": true}` | — |
+| 2026-10-09 | épreuve FakeVLM (`test_chaine_complete_fakevlm`) | outillage d'épreuve à prouver indépendamment du modèle | contrats 100 %, ING-01 → 05, invariance 28/28 | seed par l'API + worker + épreuve | contrats 100 %, ING-01 → 05 ✅, invariance 28/28, protocole ✅ |
+| 2026-10-09 | épreuve réelle (`make eval-ingestion`) | précision du VLM (aucun modèle configuré) | contrats nets 100 %, invariance 28/28 | — | non mesurée (aucun VLM configuré) |
 
 ## Bornes provisoires en vigueur
 
