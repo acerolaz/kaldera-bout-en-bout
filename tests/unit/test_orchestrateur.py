@@ -336,3 +336,10 @@ def test_demande_malformee_escalade_motivee_sans_planter(demande: dict[str, Any]
     assert fiche["reference"] == demande.get("reference")
     assert (fiche["issue"], fiche["file"]) == ("escalade", "gestionnaire")
     assert len(fiche["motif"]) >= 3
+
+
+def test_config_invalide_replie_sans_exception(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KALDERA_PIECES__DELAI_AGENT_S", "abc")
+    fiche = Orchestrateur(evaluer=_avis_faible).traiter(_demande("NOM-01"))
+    etapes = [e for e in fiche["trace"] if e["agent"] != "orchestrateur"]
+    assert etapes and all(e["cause"] == "llm_non_configure" for e in etapes)

@@ -27,7 +27,8 @@ def traiter_lot(
 ) -> dict[str, Any]:
     """Traite un lot de demandes ; retourne les fiches (dans l'ordre) et les métriques par agent."""
     # ponytail: séquentiel ; paralléliser (§12) si une mesure montre un lot trop lent
-    fiches = [traiter_demande(d, partenaire_url=partenaire_url) for d in demandes]
+    orchestrateur = Orchestrateur(partenaire_url)  # config lue et clients construits une fois
+    fiches = [orchestrateur.traiter(d) for d in demandes]
     return {"fiches": fiches, "metriques": _metriques_par_agent(fiches)}
 
 
