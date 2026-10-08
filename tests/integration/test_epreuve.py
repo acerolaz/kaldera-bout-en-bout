@@ -52,3 +52,13 @@ def test_epreuve_sur_base_vide(base: Any) -> None:
     assert rapport["reussi"] is False
     assert rapport["invariance"]["scenarios_ok"] == 0
     assert any("absente" in d["raison"] for d in rapport["invariance"]["divergences"])
+
+
+def test_numero_mesure_par_le_verrou_1(api: TestClient, base: Any) -> None:
+    manifeste = [x for x in lire_manifeste() if x["reference"] == "KAL-26-0101"]
+    deposer(api, manifeste)
+    while travailler(IngestionPostgres(base), FakeVLM(verites_fake(manifeste)), CONFIG):
+        pass
+    with base.connection() as conn:  # le VLM a lu un autre numéro que celui de la demande
+        conn.execute("UPDATE contrats SET violations = '{\"① numéro ≠ demande\"}'")
+    assert evaluer(base, manifeste)["contrats"]["numero"] == (0, 1)
