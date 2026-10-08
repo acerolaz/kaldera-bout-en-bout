@@ -136,7 +136,8 @@ class AgentAntifraude:
         indicateurs = indicateurs_fraude(demande, vue["estimation"]["justifie"])
         if not indicateurs:
             return {"avis_fraude": {"requis": False, "statut": "non_requis"}}
-        avis = self.evaluer(demande, timeout=self.delai_s)
+        # le moteur peut réduire le délai au temps restant de la demande
+        avis = self.evaluer(demande, timeout=min(self.delai_s, vue.get("delai_s", self.delai_s)))
         return {
             "avis_fraude": {
                 "requis": True,

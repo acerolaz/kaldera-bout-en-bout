@@ -23,6 +23,9 @@ class Bornes(BaseModel):
     delai_partenaire_s: float = 3
 
 
+BORNES = Bornes()  # bornes en vigueur : seule source pour bornes() et l'orchestrateur
+
+
 # ------------------------------------------------------------ sections métier
 
 
