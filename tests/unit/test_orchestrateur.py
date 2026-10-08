@@ -5,12 +5,14 @@ from __future__ import annotations
 import copy
 import json
 import socket
+import threading
 import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+import kaldera
 from kaldera import partenaire
 from kaldera.agents import AgentDecision, AgentEstimation, AgentPieces
 from kaldera.etat import Bornes, EtatDemande
@@ -178,7 +180,7 @@ def test_garde_globale_sur_la_duree() -> None:
 
 
 def test_decision_toujours_executee_meme_borne_depassee() -> None:
-    bornes = Bornes(duree_max_s=0)
+    bornes = Bornes(duree_max_s=1e-9)
     fiche = _orchestrateur(bornes).traiter(_demande("NOM-01"))
     assert _actions(fiche) == ["decision"] and fiche["issue"] == "escalade"
 
@@ -249,3 +251,48 @@ def test_partenaire_muet_abandonne_au_delai() -> None:
         assert avis is None and time.monotonic() - debut < 2
     finally:
         serveur.close()
+
+
+def test_partenaire_au_compte_gouttes_abandonne_au_delai_total(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """httpx borne chaque lecture, pas la durée totale : l'échéance doit être globale."""
+    monkeypatch.setenv("PARTENAIRE_JETON", "jeton-de-test")  # sinon en-tête illégal, échec immédiat
+    serveur = socket.socket()
+    serveur.bind(("127.0.0.1", 0))
+    serveur.listen()
+    arret = threading.Event()
+
+    def goutte_a_goutte() -> None:
+        connexion, _ = serveur.accept()
+        connexion.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n")
+        while not arret.wait(0.1):  # un octet toutes les 100 ms, bien sous le délai par lecture
+            try:
+                connexion.sendall(b" ")
+            except OSError:
+                break
+        connexion.close()
+
+    threading.Thread(target=goutte_a_goutte, daemon=True).start()
+    try:
+        debut = time.monotonic()
+        avis = partenaire.evaluer_risque(
+            {"reference": "KAL-26-0000"},
+            f"http://127.0.0.1:{serveur.getsockname()[1]}",
+            timeout=0.5,
+        )
+        assert avis is None and time.monotonic() - debut < 1.0
+    finally:
+        arret.set()
+        serveur.close()
+
+
+# --------------------------------------------------------------------- entrée malformée (EX-01)
+
+
+@pytest.mark.parametrize("demande", [{}, {"reference": "KAL-26-9999"}, {"contrat": "?"}])
+def test_demande_malformee_escalade_motivee_sans_planter(demande: dict[str, Any]) -> None:
+    fiche = kaldera.traiter_demande(demande)
+    assert fiche["reference"] == demande.get("reference")
+    assert (fiche["issue"], fiche["file"]) == ("escalade", "gestionnaire")
+    assert len(fiche["motif"]) >= 3
