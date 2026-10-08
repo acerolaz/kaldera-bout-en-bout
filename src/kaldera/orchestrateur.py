@@ -19,7 +19,7 @@ from .agents_llm import AgentLLM, MesureAgent, creer_agent
 from .llm import ClientLLM, ConfigAgents
 from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, ContratDemande, EtatDemande
 from .memoire import DepotDepuisDemande
-from .ports import DepotPieces
+from .ports import DepotPieces, ErreurPersistance, Snapshots
 from .machine import TERMINAUX, Etat, TransitionInconnue, garde_entree, transition
 
 LOGGER = logging.getLogger(__name__)
@@ -50,9 +50,11 @@ class Orchestrateur:
         llms: Mapping[str, ClientLLM | None] | None = None,
         config: ConfigAgents | None = None,
         depot: DepotPieces | None = None,
+        snapshots: Snapshots | None = None,
     ) -> None:
         self.bornes = bornes or BORNES
         self.depot = depot or NIVEAU_0
+        self.snapshots = snapshots
         cfg = config or self._charger_config()
         if llms is None:
             llms = {nom: llm.fabrique_llm(cfg, nom) for nom in llm.AGENTS_LLM}
@@ -89,7 +91,13 @@ class Orchestrateur:
             self._executer(etat)
         except Exception as exc:  # noqa: BLE001 — EX-01 : seule capture large du paquet (filet)
             self._filet(etat, exc)
-        return construire_fiche(etat)
+        fiche = construire_fiche(etat)
+        if self._persister(etat, lambda s: s.terminer(etat, fiche)) is False:
+            LOGGER.warning(
+                "demande %s déjà escaladée par le reaper : la base garde l'escalade de secours",
+                etat.demande.get("reference"),
+            )
+        return fiche
 
     @staticmethod
     def _filet(etat: EtatDemande, exc: Exception) -> None:
@@ -116,6 +124,7 @@ class Orchestrateur:
         contrat = etat.demande.get("contrat")
         # niveau 0 : provenance absente ⇒ valide ; contrat malformé ⇒ l'éligibilité échouera, tracée
         etat.contrat = ContratDemande.model_validate(contrat if isinstance(contrat, dict) else {})
+        self._persister(etat, lambda s: s.debuter(etat))
         courant = Etat.ELIGIBILITE
         while courant not in TERMINAUX:
             if courant is not Etat.DECISION and self._garde_globale(etat, courant):
@@ -180,6 +189,7 @@ class Orchestrateur:
             }
         )
         etat.etat_courant = suivant.value
+        self._persister(etat, lambda s: s.enregistrer(etat))  # exécution durable (2.5)
         return suivant
 
     def _sauter(self, etat: EtatDemande, courant: Etat, suivant: Etat, garde: str) -> Etat:
@@ -195,7 +205,23 @@ class Orchestrateur:
             )
         )
         etat.etat_courant = suivant.value
+        self._persister(etat, lambda s: s.enregistrer(etat))  # exécution durable (2.5)
         return suivant
+
+    # ponytail: base en panne puis processus mort ⇒ hors du reaper ; file d'écritures si mesuré
+    def _persister(self, etat: EtatDemande, ecrire: Callable[[Snapshots], Any]) -> Any:
+        """Écrit un snapshot ; la base ne bloque jamais une décision (EX-01)."""
+        if self.snapshots is None:
+            return None
+        try:
+            return ecrire(self.snapshots)
+        except ErreurPersistance as exc:
+            LOGGER.warning(
+                "persistance en échec, demande %s : %s", etat.demande.get("reference"), exc
+            )
+            if etat.trace:
+                etat.trace[-1]["persistance"] = "echec"
+            return None
 
     def _suivre_relances(self, etat: EtatDemande, suivant: Etat) -> None:
         if suivant is Etat.PIECES:  # T4
