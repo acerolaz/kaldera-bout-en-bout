@@ -19,6 +19,10 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-08 | port `DepotPieces` | le niveau 0 a besoin du JSON, pas seulement de la référence | EX-D28 | `DepotPieces.initiales(demande)` au lieu de `(reference)` | — |
 | 2026-10-08 | tests d'intégration | le rollback par test (`CLAUDE.md`) empêche d'éprouver la concurrence | 2 reapers, 1 seule réservation A2A | isolation par `TRUNCATE` | — |
 | 2026-10-08 | NOM-01, base tombée après l'ouverture du pool (revue finale SP2) | 2 s d'attente par écriture × 6 écritures : 12,03 s, `duree_max_s` atteinte, escalade au lieu de 1 700 € | EX-01, §12 (10 s) | persistance coupée pour la demande au 1er échec ; attente d'écriture 0,5 s ; échec de connexion mémorisé 30 s | 12,03 s escalade → 0,51 s acceptée 1 700 € |
+| 2026-10-08 | NOM-01 niveau 1 (`test_nom01_niveau_1_meme_issue_que_niveau_0`) | pièces et contrat lus dans le JSON | EX-D37, EX-D39 : fichier lu une fois, au dépôt ; le PDF fait foi | API de dépôt + worker + FakeVLM ; termes du contrat extraits sous 3 verrous | même issue niveau 0 → niveau 1 (acceptée 1 700 €) |
+| 2026-10-08 | admission (schéma 2.6 bis) | l'admission ne savait pas quand le dossier est complet ; la tâche ne connaissait pas sa demande | EX-D40 | migration `002` : `demandes.soumise_le`, `file_ingestion.reference`, `file_ingestion.pris_le` | — |
+| 2026-10-08 | invariants des pièces | une photo déposée comme facture passait l'analyse | descripteur fidèle au dépôt | invariant ajouté : type lu = type déclaré | — |
+| 2026-10-08 | ports d'ingestion (spec SP2) | `RegistrePieces` et `DepotContrats` : une implémentation, aucun équivalent mémoire | YAGNI | un seul dépôt `IngestionPostgres` (API + worker) | — |
 
 ## Bornes provisoires en vigueur
 

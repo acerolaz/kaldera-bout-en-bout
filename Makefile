@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration reaper fmt lint typecheck
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck
 
 install:
 	uv sync
@@ -42,3 +42,9 @@ typecheck:
 
 reaper:
 	uv run python -m kaldera.reaper
+
+api:
+	uv run uvicorn kaldera.api:app --port 8000
+
+worker:
+	uv run python -m kaldera.worker
