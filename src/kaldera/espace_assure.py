@@ -27,3 +27,13 @@ def demander_piece(
     if not depots:
         return None
     return dict(depots[min(tentative, len(depots) - 1)])
+
+
+def depot_pour(
+    depots: list[dict[str, Any]], type_piece: str, tentative: int
+) -> dict[str, Any] | None:
+    """Dépôt n°``tentative`` (0 = première relance) de ce type ; l'assuré re-soumet le dernier."""
+    du_type = [piece for piece in depots if piece.get("type") == type_piece]
+    if not du_type:
+        return None
+    return dict(du_type[min(tentative, len(du_type) - 1)])
