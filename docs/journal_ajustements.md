@@ -10,6 +10,9 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-08 | BCL-01 | relance sans fin possible (facture toujours illisible) | `relances_pieces_max` = 1 | garde T4 ; T5 sur borne pose `arret` | sans arrêt → escalade, `arret.borne = relances_pieces_max`, 4 étapes |
 | 2026-10-08 | PAN-02 (partenaire à 5 s) | appel A2A sans délai (`timeout=None`) | `delai_partenaire_s` = 3, `duree_max_s` = 8 | délai = min(3 s, temps restant de la demande) | non borné → ≤ 3 s *(non encore éprouvé en acceptance : la requête non projetée est rejetée avant le délai, voir chantier 2)* |
 | 2026-10-08 | test unitaire « compte-gouttes » (1 octet / 100 ms) | httpx borne chaque lecture, pas la durée totale : 103 s pour un délai de 0,5 s | échéance totale = délai | échéance globale autour de l'appel (fil abandonné au-delà) | 103 s → < 1 s |
+| 2026-10-08 | lot unitaire (8 demandes de 0,2 s, `test_lot_traite_les_demandes_en_parallele`) | lot traité en séquentiel : durée = somme des demandes | §12 : une demande n'en retarde pas une autre (EX-D15) | `traiter_lot` en `ThreadPoolExecutor` | 1,63 s → 0,21 s *(lots `panne` en acceptance non discriminants : 0,01 s, la requête non projetée est rejetée avant le délai — à remesurer au chantier 2)* |
+| 2026-10-08 | contrat non exploitable (`test_is_eligible_non_appele_si_contrat_non_valide`) | `is_eligible()` appelé sur un contrat non validé | EX-D40 | garde d'entrée T0 + règle 0 (escalade gestionnaire) | 1 appel → 0 appel |
+| 2026-10-08 | exception imprévue (`test_exception_imprevue_rattrapee_par_le_filet`) | `RuntimeError` dans un agent remonte à l'appelant | EX-01 | filet niveau 1 dans `traiter`, file prudente | exception → escalade motivée |
 
 ## Bornes provisoires en vigueur
 

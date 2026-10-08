@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 import kaldera
+from kaldera.orchestrateur import Orchestrateur
 
 RACINE = Path(__file__).resolve().parents[2]
 NOMINAUX = [
@@ -50,3 +55,37 @@ def test_metriques_llm_par_agent() -> None:
         assert m["tours_llm"] == 0 and m["jetons"] == 0 and m["latence_llm_ms"] == 0.0
         assert m["modeles"] == {"aucun": m["appels"]}
     assert "replis" not in metriques["orchestrateur"]
+
+
+def test_lot_traite_les_demandes_en_parallele(monkeypatch: pytest.MonkeyPatch) -> None:
+    def lente(self: Orchestrateur, demande: dict[str, Any]) -> dict[str, Any]:
+        time.sleep(0.2)
+        return {"reference": demande["reference"], "trace": []}
+
+    monkeypatch.setattr(Orchestrateur, "traiter", lente)
+    demandes = [{"reference": f"KAL-26-{i:04d}"} for i in range(8)]
+    debut = time.monotonic()
+    fiches = kaldera.traiter_lot(demandes)["fiches"]
+    assert time.monotonic() - debut < 0.8  # séquentiel : 1,6 s
+    assert [f["reference"] for f in fiches] == [d["reference"] for d in demandes]
+
+
+def test_une_demande_qui_plante_n_arrete_pas_le_lot(monkeypatch: pytest.MonkeyPatch) -> None:
+    original = Orchestrateur._executer
+    cible = NOMINAUX[1]["reference"]
+
+    def executer(self: Orchestrateur, etat: Any) -> None:
+        if etat.demande["reference"] == cible:
+            raise RuntimeError("imprévu")
+        original(self, etat)
+
+    monkeypatch.setattr(Orchestrateur, "_executer", executer)
+    fiches = kaldera.traiter_lot(NOMINAUX)["fiches"]
+    assert len(fiches) == len(NOMINAUX)
+    secours = [f for f in fiches if f["reference"] == cible][0]
+    assert secours["issue"] == "escalade" and secours["trace"][-1]["action"] == "filet_securite"
+    assert all(f["issue"] for f in fiches if f["reference"] != cible)
+
+
+def test_lot_vide() -> None:
+    assert kaldera.traiter_lot([]) == {"fiches": [], "metriques": {}}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from .etat import BORNES
@@ -25,10 +26,12 @@ def traiter_demande(
 def traiter_lot(
     demandes: list[dict[str, Any]], *, partenaire_url: str | None = None
 ) -> dict[str, Any]:
-    """Traite un lot de demandes ; retourne les fiches (dans l'ordre) et les métriques par agent."""
-    # ponytail: séquentiel ; paralléliser (§12) si une mesure montre un lot trop lent
+    """Traite un lot de demandes en parallèle (§12) ; fiches dans l'ordre, métriques par agent."""
     orchestrateur = Orchestrateur(partenaire_url)  # config lue et clients construits une fois
-    fiches = [orchestrateur.traiter(d) for d in demandes]
+    # un EtatDemande par demande : l'orchestrateur et les agents partagés ne gardent aucun état
+    # ponytail: pool par défaut ; borne explicite si le partenaire ou Azure limitent le débit
+    with ThreadPoolExecutor() as pool:
+        fiches = list(pool.map(orchestrateur.traiter, demandes))
     return {"fiches": fiches, "metriques": _metriques_par_agent(fiches)}
 
 
