@@ -18,6 +18,7 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-08 | schéma 2.6 bis | la fiche n'est persistée nulle part ; une demande sans contrat ne peut être snapshotée | file humaine consultable ; EX-01 | écarts : `demandes.fiche jsonb`, `numero_contrat` nullable | — |
 | 2026-10-08 | port `DepotPieces` | le niveau 0 a besoin du JSON, pas seulement de la référence | EX-D28 | `DepotPieces.initiales(demande)` au lieu de `(reference)` | — |
 | 2026-10-08 | tests d'intégration | le rollback par test (`CLAUDE.md`) empêche d'éprouver la concurrence | 2 reapers, 1 seule réservation A2A | isolation par `TRUNCATE` | — |
+| 2026-10-08 | NOM-01, base tombée après l'ouverture du pool (revue finale SP2) | 2 s d'attente par écriture × 6 écritures : 12,03 s, `duree_max_s` atteinte, escalade au lieu de 1 700 € | EX-01, §12 (10 s) | persistance coupée pour la demande au 1er échec ; attente d'écriture 0,5 s ; échec de connexion mémorisé 30 s | 12,03 s escalade → 0,51 s acceptée 1 700 € |
 
 ## Bornes provisoires en vigueur
 

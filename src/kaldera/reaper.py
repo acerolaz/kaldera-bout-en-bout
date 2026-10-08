@@ -26,7 +26,11 @@ def faucher(snapshots: Snapshots, age_s: float) -> list[dict[str, Any]]:
     fiches = []
     for reference, brut in snapshots.faucher(age_s):
         fiche = fiche_de_secours(reference, brut)
-        snapshots.classer(reference, fiche)
+        try:
+            snapshots.classer(reference, fiche)
+        except ErreurPersistance as exc:  # sans fiche : reprise au passage suivant
+            LOGGER.error("demande %s non classée : %s", reference, exc)
+            continue
         fiches.append(fiche)
     return fiches
 

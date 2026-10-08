@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import time
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
@@ -128,3 +129,54 @@ def test_lot_parallele_snapshots_partages() -> None:
         fiches = list(pool.map(orch.traiter, copy.deepcopy(NOMINAUX)))
     assert {f["reference"] for f in fiches} == set(snapshots.lignes)
     assert {ligne["statut"] for ligne in snapshots.lignes.values()} == {"terminee"}
+
+
+class EnPanneLente(SnapshotsEnMemoire):
+    """Base tombée après l'ouverture du pool : chaque écriture attend avant d'échouer."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.essais = 0
+
+    def _echouer(self) -> None:
+        self.essais += 1
+        time.sleep(0.5)
+        raise ErreurPersistance("PoolTimeout")
+
+    def debuter(self, etat: EtatDemande) -> None:
+        self._echouer()
+
+    def enregistrer(self, etat: EtatDemande) -> None:
+        self._echouer()
+
+    def terminer(self, etat: EtatDemande, fiche: dict[str, Any]) -> bool:
+        self._echouer()
+        return False
+
+
+def test_base_tombee_une_seule_attente_par_demande() -> None:
+    snapshots = EnPanneLente()
+    temoin = Orchestrateur(evaluer=_sans_partenaire).traiter(_demande())
+    fiche = Orchestrateur(evaluer=_sans_partenaire, snapshots=snapshots).traiter(_demande())
+    assert snapshots.essais == 1  # après le premier échec, plus aucune écriture
+    assert {k: fiche[k] for k in DECISIFS} == {k: temoin[k] for k in DECISIFS}
+
+
+def test_les_vues_hors_pieces_ne_contiennent_aucune_piece() -> None:
+    vues: dict[str, dict[str, Any]] = {}
+    orch = Orchestrateur(evaluer=_sans_partenaire)
+    for etat_machine in (Etat.ELIGIBILITE, Etat.ESTIMATION):
+        action = orch.actions[etat_machine]
+
+        def espion(vue: dict[str, Any], action: Any = action, nom: str = etat_machine.value) -> Any:
+            vues[nom] = vue
+            return (
+                action(vue)
+                if callable(action) and not hasattr(action, "executer")
+                else (action.executer(vue, 5.0)[0])
+            )
+
+        orch.actions[etat_machine] = espion
+    orch.traiter(_demande("NOM-07"))
+    for nom, vue in vues.items():
+        assert "pieces" not in vue["demande"] and "espace_assure" not in vue["demande"], nom

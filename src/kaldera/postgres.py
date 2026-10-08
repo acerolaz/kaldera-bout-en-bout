@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import functools
 import logging
+from time import monotonic
 from collections.abc import Iterator
 from contextlib import contextmanager
 from importlib import resources
@@ -23,6 +24,10 @@ from .ports import ErreurPersistance, PieceRef
 
 LOGGER = logging.getLogger(__name__)
 VERROU_MIGRATIONS = 20261008  # pg_advisory_lock : un seul processus migre à la fois
+ATTENTE_ECRITURE_S = 0.5  # base tombée en cours de route : une seule attente courte par demande
+REESSAI_S = 30.0  # base injoignable au démarrage : pas de nouvel essai avant ce délai
+# ponytail: échecs mémorisés par processus ; disjoncteur partagé si plusieurs workers
+_ECHECS: dict[str, float] = {}
 
 
 class ConfigBase(BaseSettings):
@@ -81,7 +86,7 @@ def pool(url: str) -> ConnectionPool:
 @contextmanager
 def _connexion(connexions: ConnectionPool) -> Iterator[psycopg.Connection]:
     try:
-        with connexions.connection() as conn:
+        with connexions.connection(timeout=ATTENTE_ECRITURE_S) as conn:
             yield conn
     except psycopg.Error as exc:
         raise ErreurPersistance(f"{type(exc).__name__}: {exc}") from exc
@@ -170,7 +175,8 @@ class SnapshotsPostgres:
         with _connexion(self.connexions) as conn:
             lignes = conn.execute(
                 "UPDATE demandes SET statut = 'secours', maj = now() "
-                "WHERE statut = 'en_cours' AND maj < now() - make_interval(secs => %s) "
+                "WHERE (statut = 'en_cours' OR (statut = 'secours' AND fiche IS NULL)) "
+                "AND maj < now() - make_interval(secs => %s) "
                 "RETURNING reference, etat",
                 (age_s,),
             ).fetchall()
@@ -213,10 +219,11 @@ def snapshots_par_defaut() -> SnapshotsPostgres | None:
     except ValidationError as exc:  # .env malformé : jamais bloquant
         LOGGER.warning("configuration de la base invalide, sans snapshot : %s", exc)
         return None
-    if not url:
+    if not url or monotonic() - _ECHECS.get(url, -REESSAI_S) < REESSAI_S:
         return None
     try:
         return SnapshotsPostgres(pool(url))
     except psycopg.Error as exc:
-        LOGGER.warning("PostgreSQL injoignable, traitement sans snapshot : %s", exc)
+        _ECHECS[url] = monotonic()
+        LOGGER.warning("PostgreSQL injoignable, sans snapshot pendant %s s : %s", REESSAI_S, exc)
         return None

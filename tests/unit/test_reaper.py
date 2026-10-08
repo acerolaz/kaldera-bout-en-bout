@@ -74,3 +74,20 @@ def test_snapshot_illisible_fiche_minimale() -> None:
 
 def test_rien_a_faucher() -> None:
     assert faucher(SnapshotsEnMemoire(), 0) == []
+
+
+def test_un_classement_en_echec_n_arrete_pas_les_autres() -> None:
+    from kaldera.ports import ErreurPersistance
+
+    class ClasserCasse(SnapshotsEnMemoire):
+        def classer(self, reference: str, fiche: dict[str, Any]) -> None:
+            if reference == "KAL-26-0001":
+                raise ErreurPersistance("base tombée")
+            super().classer(reference, fiche)
+
+    snapshots = ClasserCasse()
+    for reference in ("KAL-26-0001", "KAL-26-0002"):
+        snapshots.debuter(EtatDemande(demande={"reference": reference}))
+    fiches = faucher(snapshots, 0)
+    assert [f["reference"] for f in fiches] == ["KAL-26-0002"]
+    assert snapshots.lignes["KAL-26-0001"]["fiche"] is None  # repris au passage suivant
