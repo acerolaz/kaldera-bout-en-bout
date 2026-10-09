@@ -58,6 +58,7 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-09 | Agent Card | URL d'appel `/a2a` écrite en dur | contrat §1 : découverte par Agent Card | carte lue au démarrage (1 s, cache sur succès) ; `/a2a` en secours ; URL d'un autre hôte ignorée (le jeton ne la suit pas) | — |
 | 2026-10-09 | PAN-02 (partenaire à 5 s) | abandon à 3 s enfin éprouvé : la requête n'est plus rejetée avant le délai | `delai_partenaire_s` = 3 | aucun (mesure) ; analyse des bornes au C2b | durée du lot : 3,03 s |
 | 2026-10-09 | suite complète | 14 rouges A2A | critère de sortie C2a | — | acceptance 42/56 → 56/56 ; suite : 14 rouges → 0 (560 verts) |
+| 2026-10-09 | C2a · revue finale | URL partenaire malformée (`httpx.InvalidURL`, hors `HTTPError`) : exception par demande, worker arrêté, dossier laissé `en_cours` ; base configurée injoignable : registre en mémoire, envoi | EX-01 ; EX-D19 / spec §1 : base en panne ⇒ aucun envoi | `InvalidURL`, `ValueError`, `RecursionError` rattrapées (carte, envoi, corps) ; registre Postgres dès que la base est configurée, pool résolu à la réservation (échec ⇒ « registre indisponible ») ; jeton absent et montant infini refusés avant la réservation | exception → mode dégradé ; envoi → aucun envoi |
 
 ## Bornes provisoires en vigueur
 
