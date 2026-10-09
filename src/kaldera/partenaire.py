@@ -8,13 +8,16 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import uuid
 from dataclasses import dataclass
 from typing import Any, Literal
 
 import httpx
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from . import regles
 
 URL_PAR_DEFAUT = "http://localhost:8100"
 CODES_RPC = {
@@ -112,6 +115,55 @@ def _cause_schema(exc: ValidationError) -> str:
         }
     )
     return ", ".join(causes)
+
+
+class RequeteAntifraude(BaseModel):
+    """Les 7 champs du contrat §2, aucun autre (EX-D20)."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    reference_dossier: str = Field(pattern=r"^KAL-\d{2}-\d{4}$")
+    type_sinistre: Literal["degat_des_eaux", "incendie", "bris_de_glace", "vol"]
+    montant_declare: float = Field(gt=0)
+    date_survenance: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    anciennete_contrat_jours: int = Field(ge=0)
+    sinistres_12_mois: int = Field(ge=0)
+    departement: str = Field(pattern=r"^(\d{2}|2A|2B|97\d)$")
+
+
+def departement(code_postal: str) -> str:
+    """2 premiers chiffres ; Corse 2A / 2B ; outre-mer (97x) sur 3 chiffres (contrat §2)."""
+    if not re.fullmatch(r"\d{5}", code_postal):
+        raise ValueError("code postal mal formé")
+    if code_postal.startswith("20"):
+        return "2A" if int(code_postal) < 20200 else "2B"
+    return code_postal[:3] if code_postal.startswith("97") else code_postal[:2]
+
+
+def projeter(demande: dict[str, Any]) -> RequeteAntifraude:
+    """Liste blanche : seule porte de sortie des données vers le partenaire (C2-Q3)."""
+    sinistre, contrat = demande["sinistre"], demande["contrat"]
+    return RequeteAntifraude(
+        reference_dossier=demande["reference"],
+        type_sinistre=sinistre["type"],
+        montant_declare=sinistre["montant_declare"],
+        date_survenance=sinistre["date_survenance"],
+        anciennete_contrat_jours=regles.jours_entre(
+            contrat["date_souscription"], sinistre["date_survenance"]
+        ),
+        sinistres_12_mois=(demande.get("historique") or {}).get("sinistres_12_mois", 0),
+        departement=departement(demande["assure"]["code_postal"]),
+    )
+
+
+def cause_projection(exc: Exception) -> str:
+    """Noms de champs seulement, jamais les valeurs de la demande."""
+    if isinstance(exc, KeyError):
+        return f"projection : donnée absente ({exc.args[0]})"
+    if isinstance(exc, ValidationError):
+        champs = sorted({str(e["loc"][0]) for e in exc.errors() if e["loc"]})
+        return f"projection : {', '.join(champs) or 'donnée'} invalide"
+    return "projection : donnée invalide"
 
 
 def url_partenaire(url: str | None = None) -> str:

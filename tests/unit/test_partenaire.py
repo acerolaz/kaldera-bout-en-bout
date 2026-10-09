@@ -143,3 +143,100 @@ def test_seuils_du_niveau(score: float) -> None:
         "score": score,
         "niveau": niveau,
     }
+
+# ------------------------------------------------------------------ projection
+
+CHAMPS_CONTRAT = {
+    "reference_dossier",
+    "type_sinistre",
+    "montant_declare",
+    "date_survenance",
+    "anciennete_contrat_jours",
+    "sinistres_12_mois",
+    "departement",
+}
+
+
+def test_projection_exactement_les_7_champs() -> None:
+    requete = partenaire.projeter(_demande("AF-01")).model_dump()
+    assert set(requete) == CHAMPS_CONTRAT
+    assert requete == {
+        "reference_dossier": "KAL-26-0201",
+        "type_sinistre": "degat_des_eaux",
+        "montant_declare": 1200.0,
+        "date_survenance": "2026-08-30",
+        "anciennete_contrat_jours": 71,  # 2026-06-20 → 2026-08-30
+        "sinistres_12_mois": 0,
+        "departement": "13",
+    }
+
+
+@pytest.mark.parametrize("scenario", ["AF-01", "AF-04", "INV-02", "PAN-01"])
+def test_aucune_donnee_interdite_dans_la_requete(scenario: str) -> None:
+    for demande in SCENARIOS[scenario]["demandes"]:
+        brut = json.dumps(partenaire.projeter(demande).model_dump(), ensure_ascii=False)
+        assure = demande["assure"]
+        interdites = [
+            *(assure.get(k) for k in ("nom", "prenom", "email", "telephone", "iban", "adresse")),
+            assure.get("code_postal"),
+            assure.get("id_client"),
+            demande["contrat"].get("numero"),
+            demande["sinistre"].get("description"),
+        ]
+        assert not [v for v in interdites if v and str(v) in brut]
+
+
+@pytest.mark.parametrize(
+    ("code_postal", "attendu"),
+    [
+        ("69003", "69"),
+        ("01000", "01"),
+        ("20000", "2A"),
+        ("20199", "2A"),
+        ("20200", "2B"),
+        ("20620", "2B"),
+        ("97411", "974"),
+        ("97200", "972"),
+    ],
+)
+def test_departement(code_postal: str, attendu: str) -> None:
+    assert partenaire.departement(code_postal) == attendu
+
+
+@pytest.mark.parametrize("code_postal", ["", "6900", "690033", "AB123", None])
+def test_code_postal_mal_forme(code_postal: Any) -> None:
+    with pytest.raises((ValueError, TypeError)):
+        partenaire.departement(code_postal)
+
+
+def test_historique_absent_zero_sinistre() -> None:
+    demande = _demande("AF-01")
+    del demande["historique"]
+    assert partenaire.projeter(demande).sinistres_12_mois == 0
+
+
+@pytest.mark.parametrize(
+    ("chemin", "valeur", "cause"),
+    [
+        (("assure", "code_postal"), None, "projection : donnée invalide"),
+        (("sinistre", "montant_declare"), 0, "projection : montant_declare invalide"),
+        (("sinistre", "type"), "tempete", "projection : type_sinistre invalide"),
+        (("contrat", "date_souscription"), "2027-01-01", "projection : anciennete_contrat_jours invalide"),
+    ],
+)
+def test_projection_en_echec_cause_sans_valeur(
+    chemin: tuple[str, str], valeur: Any, cause: str
+) -> None:
+    demande = _demande("AF-01")
+    demande[chemin[0]][chemin[1]] = valeur
+    with pytest.raises((KeyError, TypeError, ValueError)) as exc:
+        partenaire.projeter(demande)
+    assert partenaire.cause_projection(exc.value) == cause
+
+
+def test_projection_donnee_absente() -> None:
+    demande = _demande("AF-01")
+    del demande["sinistre"]
+    with pytest.raises(KeyError) as exc:
+        partenaire.projeter(demande)
+    assert partenaire.cause_projection(exc.value) == "projection : donnée absente (sinistre)"
