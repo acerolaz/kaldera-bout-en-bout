@@ -73,12 +73,15 @@ sequenceDiagram
 | GET | `/assure/demandes/{ref}` | `VueDemande` : étape, branche, horodatages, temps restant, pièces, verdict |
 | POST | `/assure/demandes/{ref}/pieces` | dépôt (mêmes contrôles que l'existant) ; `avertissement_multipage` si le PDF a plusieurs pages ; 415 format, 413 taille, 409 après soumission |
 | POST | `/assure/demandes/{ref}/soumettre` | admission ; 409 `analyse_en_cours`, `confirmation_requise` (pièces manquantes, `confirmer=true` exigé), `deja_soumise` |
-| POST | `/assure/demandes/{ref}/messages` | message (1 à 1 000 caractères, 30 au plus par demande, sinon 429) → réponse de l'agent |
+| POST | `/assure/demandes/{ref}/messages` | message (1 à 1 000 caractères, 30 au plus par demande, sinon 429) → réponse de l'agent ; 409 `dossier_clos` après le verdict |
 | GET | `/assure/demandes/{ref}/flux` | SSE : événements `etape`, `piece`, `message`, `verdict` ; reprise avec `Last-Event-ID` |
 
 Le flux relit `evenements_assure` une fois par seconde (`run_in_threadpool`, psycopg est
 synchrone) et se termine au verdict. L'historique du chat est le même flux relu depuis 0 : les
-messages sont des événements `message`, il n'y a pas de table `messages_assure`.
+messages sont des événements `message`, il n'y a pas de table `messages_assure`. Le chat s'arrête
+donc au verdict : la page ne le propose plus, et la route des messages répond 409 `dossier_clos`
+(demande `terminee` ou `secours`), avant tout appel au LLM. Le flux s'arrête aussi quand le
+navigateur se déconnecte.
 
 ## 4. Correspondance entre phases internes et étapes affichées
 
@@ -183,6 +186,10 @@ seulement**. Il ne soumet rien, ne dépose rien et ne promet rien.
 - **Flux côté navigateur** : `useFluxDemande` rouvre le flux après une coupure ou une erreur HTTP
   (rejeu depuis 0, idempotent), mais une sonde signale une session expirée (401) ou une demande
   inconnue (404) au lieu de réessayer sans fin ; tout 401 renvoie vers `/connexion`.
+- **Panne au chargement** (503, réseau) : seuls 401 et 404 sont définitifs. Toute autre erreur
+  affiche le bandeau « service momentanément indisponible, vos fichiers n'ont pas été perdus » et
+  la vue est relue toutes les 3 s jusqu'au retour du service (spec §6). « Mes sinistres » propose
+  « Réessayer » ; la connexion distingue le mot de passe refusé (401) du service indisponible.
 
 ## 8. Lancer en local
 
