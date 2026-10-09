@@ -143,6 +143,16 @@ make seed             # dépose tout le manifeste par l'API et attend le traitem
 make eval-ingestion   # rapport dans eval/rapports/
 ```
 
+Épreuve de l'équipe (aucun service externe : partenaire simulé dans le processus) :
+
+```bash
+make epreuve          # rejoue les 28 scénarios ; rapport dans eval/rapports/epreuve-<date>.md
+```
+
+Le rapport donne un verdict par exigence (EX-01 → EX-06), la couverture des transitions,
+les seuils, les métriques par agent et d'équipe ; code de sortie 1 en cas d'échec.
+Le rapport de référence du chantier 2 est archivé dans `docs/epreuves/`.
+
 Espace sinistre de l'assuré (`KALDERA_DATABASE_URL`, `KALDERA_SESSION_SECRET` et
 `KALDERA_COOKIE_SECURE=false` requis ; détails dans `docs/interface_web.md`) :
 
@@ -228,8 +238,7 @@ make down       # arrête les services docker
 ## Known issues
 
 - Le disjoncteur LLM et `make eval` (matrice agent × modèle) relèvent encore du
-  chantier 2 (lot C2c) ; les métriques détaillées de l'agent `antifraude` et la
-  remesure des bornes, du lot C2b.
+  chantier 2 (lot C2c).
 - Les chemins réels Azure (agents LLM et VLM) n'ont pas été éprouvés dans
   l'environnement de développement. L'épreuve de l'ingestion avec le vrai VLM
   n'a pas encore été mesurée.
