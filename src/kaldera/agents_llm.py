@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from . import espace_assure, regles
 from .agents import AgentAntifraude, AgentDecision, AgentEstimation, AgentPieces, Evaluateur
+from .disjoncteur import Disjoncteur
 from .etat import AvisFraude, Bornes, Estimation, Issue, Pieces
 from .gardes_fous import (
     Controle,
@@ -239,9 +240,11 @@ class AgentLLM:
         llm: ClientLLM | None,
         config: ConfigLLM,
         bornes: Bornes,
+        disjoncteur: Disjoncteur | None = None,
     ) -> None:
         self.nom, self.spec, self.repli, self.llm = nom, spec, repli, llm
         self.config, self.bornes = config, bornes
+        self.disjoncteur = disjoncteur
         self.prompt = (resources.files("kaldera") / "prompts" / f"{nom}.md").read_text("utf-8")
         self.version_prompt = hashlib.sha256(self.prompt.encode()).hexdigest()[:8]
 
@@ -256,13 +259,25 @@ class AgentLLM:
         if self.llm is None:
             mesure.cause = "llm_non_configure"
             return {self.spec.section: ref}, mesure
+        if self.disjoncteur is not None and self.disjoncteur.ouvert():
+            mesure.cause = "disjoncteur"  # LLM en panne pour tous : aucun appel, rien de noté
+            return {self.spec.section: ref}, mesure
         # le temps des outils (dont l'A2A de la référence) ne compte pas dans le budget LLM
         budget = min(self.config.delai_agent_s, budget_s - (monotonic() - debut))
         if budget < self.bornes.delai_min_llm_s:
             mesure.cause = "budget"
             return {self.spec.section: ref}, mesure
+        patch = self._tenter(self.llm, vue, ref, budget, mesure)
+        if self.disjoncteur is not None:
+            self.disjoncteur.noter(repli=patch is None)
+        return {self.spec.section: ref if patch is None else patch}, mesure
+
+    def _tenter(
+        self, llm: ClientLLM, vue: Vue, ref: dict[str, Any], budget: float, mesure: MesureAgent
+    ) -> dict[str, Any] | None:
+        """Une tentative LLM : le patch accepté, ou None (repli, cause dans ``mesure``)."""
         try:
-            patch = self._boucle(self.llm, vue, ref, budget, mesure)
+            patch = self._boucle(llm, vue, ref, budget, mesure)
         except ErreurLLM:
             mesure.cause = "erreur_llm"
         except (
@@ -279,9 +294,9 @@ class AgentLLM:
             )
             if not mesure.violations:
                 mesure.mode = "llm"
-                return {self.spec.section: patch}, mesure
+                return patch
             mesure.cause, mesure.sortie_rejetee = "garde_fou", True
-        return {self.spec.section: ref}, mesure
+        return None
 
     def _reference(self, vue: Vue) -> dict[str, Any]:
         section: dict[str, Any] = self.repli(copy.deepcopy(vue))[self.spec.section]
@@ -368,6 +383,7 @@ def creer_agent(
     config: ConfigLLM | None,
     bornes: Bornes,
     evaluer: Evaluateur | None = None,
+    disjoncteur: Disjoncteur | None = None,
 ) -> AgentLLM:
     """Fabrique d'agents (EX-D36) : tout ce qui varie vient de ``SPECS[nom]``."""
     spec = SPECS[nom]
@@ -378,4 +394,5 @@ def creer_agent(
         llm,
         config or ConfigLLM(modele="aucun"),
         bornes,
+        disjoncteur,
     )
