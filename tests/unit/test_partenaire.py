@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 
 from kaldera import partenaire
@@ -240,3 +241,63 @@ def test_projection_donnee_absente() -> None:
     with pytest.raises(KeyError) as exc:
         partenaire.projeter(demande)
     assert partenaire.cause_projection(exc.value) == "projection : donnée absente (sinistre)"
+
+
+# ------------------------------------------------------------------ Agent Card
+
+BASE = "http://partenaire:8100"
+
+
+class Carte:
+    """Double de ``httpx.get`` : rejoue une réponse (ou une exception) et compte les appels."""
+
+    def __init__(self, reponse: httpx.Response | Exception) -> None:
+        self.reponse, self.appels = reponse, []
+
+    def __call__(self, url: str, *, timeout: float) -> httpx.Response:
+        self.appels.append((url, timeout))
+        if isinstance(self.reponse, Exception):
+            raise self.reponse
+        return self.reponse
+
+
+@pytest.fixture
+def carte(monkeypatch: pytest.MonkeyPatch) -> Any:
+    monkeypatch.setattr(partenaire, "_CARTES", {})
+
+    def installer(reponse: httpx.Response | Exception) -> Carte:
+        double = Carte(reponse)
+        monkeypatch.setattr(partenaire.httpx, "get", double)
+        return double
+
+    return installer
+
+
+def test_carte_lisible_url_retenue_une_seule_fois(carte: Any) -> None:
+    double = carte(httpx.Response(200, json={"url": f"{BASE}/rpc/v2"}))
+    assert partenaire.url_appel(BASE) == f"{BASE}/rpc/v2"
+    assert partenaire.url_appel(BASE) == f"{BASE}/rpc/v2"
+    assert double.appels == [(f"{BASE}/.well-known/agent.json", partenaire.DELAI_CARTE_S)]
+
+
+@pytest.mark.parametrize(
+    "reponse",
+    [
+        httpx.Response(503),
+        httpx.Response(200, text="pas du json"),
+        httpx.Response(200, json=["liste"]),
+        httpx.Response(200, json={"name": "sans url"}),
+        httpx.ConnectError("refusée"),
+    ],
+)
+def test_carte_illisible_a2a_en_secours_sans_cache(carte: Any, reponse: Any) -> None:
+    double = carte(reponse)
+    assert partenaire.url_appel(BASE) == f"{BASE}/a2a"
+    assert partenaire.url_appel(BASE) == f"{BASE}/a2a"
+    assert len(double.appels) == 2  # relue au prochain orchestrateur
+
+
+def test_carte_vers_un_autre_hote_ignoree(carte: Any) -> None:
+    """Review Focus 1 : le jeton Bearer ne part jamais vers un hôte choisi par la carte."""
+    carte(httpx.Response(200, json={"url": "https://ailleurs.example/a2a"}))
+    assert partenaire.url_appel(BASE) == f"{BASE}/a2a"

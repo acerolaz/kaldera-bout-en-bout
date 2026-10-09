@@ -13,6 +13,7 @@ import threading
 import uuid
 from dataclasses import dataclass
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -20,6 +21,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from . import regles
 
 URL_PAR_DEFAUT = "http://localhost:8100"
+DELAI_CARTE_S = 1.0
+_CARTES: dict[str, str] = {}  # URL de base → URL d'appel de l'Agent Card (succès seulement)
 CODES_RPC = {
     -32700: "corps illisible",
     -32600: "enveloppe invalide",
@@ -168,6 +171,27 @@ def cause_projection(exc: Exception) -> str:
 
 def url_partenaire(url: str | None = None) -> str:
     return (url or os.environ.get("PARTENAIRE_URL") or URL_PAR_DEFAUT).rstrip("/")
+
+
+def url_appel(base: str) -> str:
+    """URL d'appel lue dans l'Agent Card, une fois par processus ; ``/a2a`` en secours."""
+    if base in _CARTES:
+        return _CARTES[base]
+    try:
+        reponse = httpx.get(f"{base}/.well-known/agent.json", timeout=DELAI_CARTE_S)
+        url = reponse.json().get("url") if reponse.status_code == 200 else None
+    except (httpx.HTTPError, ValueError, AttributeError):  # réseau, JSON, carte non objet
+        url = None
+    # même origine que la base : le jeton ne part jamais vers un hôte annoncé par la carte
+    if isinstance(url, str) and _origine(url) == _origine(base):
+        _CARTES[base] = url
+        return url
+    return f"{base}/a2a"
+
+
+def _origine(url: str) -> tuple[str, str]:
+    parties = urlsplit(url)
+    return parties.scheme, parties.netloc
 
 
 def evaluer_risque(
