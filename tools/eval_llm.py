@@ -35,6 +35,7 @@ REPETITIONS = 5
 DECISIFS = ("issue", "decision", "montant_rembourse", "file", "mode_degrade")
 # seuils d'alerte (C2-Q14c), strictement dépassés ; latence : delai_agent_s de l'agent
 SEUILS = {"replis": 0.20, "sorties_rejetees": 0.05, "tours_moyen": 2.5}
+SANS_TENTATIVE = {"disjoncteur", "budget", "llm_non_configure"}  # le LLM n'a pas été appelé
 RAPPORTS = epreuve.RAPPORTS
 Fabrique = Callable[[ConfigAgents, str], ClientLLM | None]
 SANS_MODELE = (
@@ -81,23 +82,22 @@ def case(fiches: list[dict[str, Any]], agent: str, delai_s: float) -> dict[str, 
     n = len(etapes)
     if not n:  # agent jamais atteint (court-circuit) : rien à mesurer, rien à recommander
         vide: dict[str, Any] = dict.fromkeys(
-            (
-                "replis",
-                "sorties_rejetees",
-                "latence_llm_p95_ms",
-                "tours_moyen",
-                "jetons_par_demande",
-            )
+            "replis sorties_rejetees latence_llm_p95_ms tours_moyen jetons_par_demande".split()
         )
         return {"etapes": 0, **vide, "causes": {}, "alertes": []}
-    latences = sorted(e["latence_llm_ms"] for e in etapes)
+    # seules les étapes qui ont tenté le LLM jugent latence et tours ; une étape « erreur_llm »
+    # (délai dépassé ou erreur fournisseur) compte pour l'infini : > 5 % ⇒ p95 > délai ⇒ alerte
+    tentees = [e for e in etapes if e["cause"] not in SANS_TENTATIVE]
+    latences = sorted(
+        math.inf if e["cause"] == "erreur_llm" else e["latence_llm_ms"] for e in tentees
+    )
     # les alertes se jugent sur les valeurs brutes ; l'arrondi ne sert qu'à l'affichage
-    brut = {
+    brut: dict[str, Any] = {
         "replis": sum(e["mode"] == "repli" for e in etapes) / n,
         "sorties_rejetees": sum(bool(e["sortie_rejetee"]) for e in etapes) / n,
         # centile au rang le plus proche, comme metriques_equipe
-        "latence_llm_p95_ms": latences[math.ceil(0.95 * n) - 1],
-        "tours_moyen": sum(e["tours_llm"] for e in etapes) / n,
+        "latence_llm_p95_ms": latences[math.ceil(0.95 * len(latences)) - 1] if tentees else None,
+        "tours_moyen": sum(e["tours_llm"] for e in tentees) / len(tentees) if tentees else None,
     }
     limites = {**SEUILS, "latence_llm_p95_ms": delai_s * 1000}
     return {
@@ -105,10 +105,10 @@ def case(fiches: list[dict[str, Any]], agent: str, delai_s: float) -> dict[str, 
         "replis": round(brut["replis"], 4),
         "sorties_rejetees": round(brut["sorties_rejetees"], 4),
         "latence_llm_p95_ms": brut["latence_llm_p95_ms"],
-        "tours_moyen": round(brut["tours_moyen"], 2),
+        "tours_moyen": None if brut["tours_moyen"] is None else round(brut["tours_moyen"], 2),
         "jetons_par_demande": round(sum(e["jetons"] for e in etapes) / len(fiches), 1),
         "causes": dict(Counter(e["cause"] for e in etapes if e["mode"] == "repli")),
-        "alertes": [k for k, limite in limites.items() if brut[k] > limite],
+        "alertes": [k for k, limite in limites.items() if (v := brut[k]) is not None and v > limite],
     }
 
 
@@ -178,9 +178,14 @@ def _passe(
     ]
 
 
-def _bornes(fiches: list[dict[str, Any]]) -> dict[str, Any]:
+def _bornes(fiches: list[dict[str, Any]], reference: list[dict[str, Any]]) -> dict[str, Any]:
     equipe = kaldera.metriques_equipe(fiches)
     duree, etapes = equipe["duree_ms"], equipe["etapes"]["max"]
+    replis_budget = sum(e.get("cause") == "budget" for f in fiches for e in f["trace"])
+    arrets_duree = equipe["arrets"].get("duree_max_s", 0)
+    # la référence (sans LLM) fixe les arrêts de durée « normaux » ; ses fiches = une passe
+    arrets_ref = kaldera.metriques_equipe(reference)["arrets"].get("duree_max_s", 0)
+    arrets_ref *= len(fiches) / len(reference) if reference else 1
     return {
         "duree_p95_ms": duree["p95"],
         "duree_max_ms": duree["max"],
@@ -189,7 +194,11 @@ def _bornes(fiches: list[dict[str, Any]]) -> dict[str, Any]:
         "etapes_borne": BORNES.etapes_max,
         "arrets": equipe["arrets"],
         "disjoncteur": sum(e.get("cause") == "disjoncteur" for f in fiches for e in f["trace"]),
-        "ok": duree["max"] < BORNES.duree_max_s * 1000 and etapes <= BORNES.etapes_max,
+        "replis_budget": replis_budget,
+        "ok": duree["max"] < BORNES.duree_max_s * 1000
+        and etapes <= BORNES.etapes_max
+        and replis_budget == 0
+        and arrets_duree <= arrets_ref,
     }
 
 
@@ -220,7 +229,7 @@ def evaluer(
     par_modele = {m: [f for p in ps for f in p] for m, ps in passes.items()}
     mat = matrice(par_modele, cfg)
     inv = {m: invariance(reference, ps) for m, ps in passes.items()}
-    bornes = {m: _bornes(fiches) for m, fiches in par_modele.items()}
+    bornes = {m: _bornes(fiches, reference) for m, fiches in par_modele.items()}
     reussi = (
         all(not c["alertes"] for cases in mat.values() for c in cases.values())
         and all(i["taux"] == 1.0 for i in inv.values())
@@ -307,12 +316,12 @@ def ecrire_rapport(rapport: dict[str, Any], dossier: Path | None = None) -> Path
         "",
         "## Bornes remesurées",
         "",
-        "| Modèle | Durée p95 | Durée max | duree_max_s | Étapes max | Arrêts | Disjoncteur | |",
-        "|---|---|---|---|---|---|---|---|",
+        "| Modèle | Durée p95 | Durée max | duree_max_s | Étapes max | Arrêts | Disjoncteur | Replis budget | |",
+        "|---|---|---|---|---|---|---|---|---|",
         *(
             f"| {m} | {b['duree_p95_ms']} ms | {b['duree_max_ms']} ms | {b['duree_max_s']} s | "
             f"{b['etapes_max']} / {b['etapes_borne']} | {b['arrets'] or '—'} | "
-            f"{b['disjoncteur']} | {'✅' if b['ok'] else '⚠️'} |"
+            f"{b['disjoncteur']} | {b['replis_budget']} | {'✅' if b['ok'] else '⚠️'} |"
             for m, b in rapport["bornes"].items()
         ),
     ]

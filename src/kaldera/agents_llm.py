@@ -315,10 +315,14 @@ class AgentLLM:
             if restant <= 0:
                 raise ErreurLLM("budget épuisé")
             top = perf_counter()
-            reponse = llm.completer(self.prompt, messages, schemas, restant)
-            mesure.tours_llm += 1
+            try:
+                reponse = llm.completer(self.prompt, messages, schemas, restant)
+            finally:  # un appel hors délai compte : sa latence est le signal d'alerte
+                mesure.tours_llm += 1
+                mesure.latence_llm_ms = round(
+                    mesure.latence_llm_ms + (perf_counter() - top) * 1000, 2
+                )
             mesure.jetons += reponse.jetons
-            mesure.latence_llm_ms = round(mesure.latence_llm_ms + (perf_counter() - top) * 1000, 2)
             if not reponse.appels_outils:
                 return self._patch(reponse.texte, ref)
             messages.append(

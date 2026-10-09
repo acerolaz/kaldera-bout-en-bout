@@ -38,7 +38,7 @@ lint:
 	uv run ruff check .
 
 typecheck:
-	uv run mypy src
+	uv run mypy src tools/eval_llm.py
 
 reaper:
 	uv run python -m kaldera.reaper

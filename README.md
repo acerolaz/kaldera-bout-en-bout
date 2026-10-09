@@ -249,7 +249,9 @@ make down       # arrête les services docker
 ## Known issues
 
 - `make eval` n'a pas encore été lancé avec un LLM réel : la matrice agent × modèle et la
-  remesure des bornes `duree_max_s` / `delai_partenaire_s` attendent les clés Azure.
+  remesure des bornes `duree_max_s` et du disjoncteur attendent les clés Azure ;
+  `delai_partenaire_s` est à remesurer contre le partenaire réel (le simulateur de
+  `make eval` ne le mesure pas).
 - Les chemins réels Azure (agents LLM et VLM) n'ont pas été éprouvés dans
   l'environnement de développement. L'épreuve de l'ingestion avec le vrai VLM
   n'a pas encore été mesurée.

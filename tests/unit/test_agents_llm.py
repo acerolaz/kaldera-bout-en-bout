@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,7 @@ from kaldera.agents_llm import IDENTITE, SPECS, AgentLLM, creer_agent
 from kaldera.etat import Bornes, EtatDemande
 from kaldera.machine import Etat
 from kaldera.orchestrateur import vue_filtree
-from kaldera.llm import SABOTEURS, AppelOutil, ConfigLLM, FakeLLM, ReponseLLM, fidele, saboteur
+from kaldera.llm import SABOTEURS, AppelOutil, ConfigLLM, ErreurLLM, FakeLLM, ReponseLLM, fidele, saboteur
 
 RACINE = Path(__file__).resolve().parents[2]
 SCENARIOS = {
@@ -309,3 +310,16 @@ def test_repli_budget_ou_sans_llm_non_note(llm_present: bool) -> None:
     _, mesure = agent.executer(_vues()["estimation"], budget_s=0.1)
     assert mesure.cause == ("budget" if llm_present else "llm_non_configure")
     assert not disjoncteur.ouvert()  # noté en repli, il serait ouvert (1 sur 1)
+
+
+def test_tour_en_erreur_est_mesure() -> None:
+    class Lent:
+        modele = "lent"
+
+        def completer(self, *_: Any) -> Any:
+            time.sleep(0.02)
+            raise ErreurLLM("délai dépassé")
+
+    _, mesure = _agent("estimation", Lent()).executer(_vues()["estimation"], budget_s=5)
+    assert mesure.cause == "erreur_llm"
+    assert mesure.tours_llm == 1 and mesure.latence_llm_ms > 0 and mesure.jetons == 0

@@ -70,7 +70,7 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | `etapes_max` | 12 | chemin nominal le plus long : 6 étapes (avec relance) → marge ×2 | éprouvée (max observé : 6 étapes) |
 | `duree_max_s` | 8 | 10 s (§12) moins 2 s de marge | éprouvée en mode repli (max observé : 3,01 s, p95 3,01 s) ; à remesurer au premier `make eval` avec clés |
 | `relances_pieces_max` | 1 | déduite des scénarios NOM-07 / BCL-01 | à valider avec le métier |
-| `delai_partenaire_s` | 3 | abandon client du contrat partenaire | éprouvée en mode repli (antifraude max observé : 3,01 s, PAN-02 : abandon à 3 s) ; à remesurer au premier `make eval` avec clés |
+| `delai_partenaire_s` | 3 | abandon client du contrat partenaire | éprouvée en mode repli (antifraude max observé : 3,01 s, PAN-02 : abandon à 3 s) ; à remesurer contre le partenaire réel (le simulateur de `make eval` ne le mesure pas) |
 | `taux_repli_disjoncteur` | 0,5 | EX-D33 : plus d'un repli sur deux ⇒ LLM en panne | provisoire (à éprouver au premier `make eval` avec clés) |
 | `fenetre_disjoncteur_s` | 60 | EX-D33 : 1 min ; minimum 10 tentatives (choix C2c) | provisoire |
 
@@ -81,7 +81,8 @@ C2a (liaison A2A), C2b (monitorage et épreuve, `make epreuve`) et C2c (disjonct
 
 | Lot | Contenu |
 |---|---|
-| Mesure réelle | premier `make eval` avec les clés Azure : matrice remplie, modèle par rôle choisi et consigné, bornes `duree_max_s`, `delai_partenaire_s` et disjoncteur remesurées, rapport archivé dans `docs/epreuves/` |
+| Mesure réelle | premier `make eval` avec les clés Azure : matrice remplie, modèle par rôle choisi et consigné, bornes `duree_max_s` et disjoncteur remesurées, rapport archivé dans `docs/epreuves/` |
+| Mesure partenaire | `delai_partenaire_s` à remesurer contre le partenaire réel (hors `make eval`) |
 
 ## 2026-10-08 — Agents LLM (dossier v3, EX-D30 → EX-D36)
 

@@ -69,3 +69,7 @@ def test_depuis_les_bornes() -> None:
     assert (bornes.taux_repli_disjoncteur, bornes.fenetre_disjoncteur_s) == (0.5, 60)
     d = Disjoncteur.depuis(bornes)
     assert (d.taux, d.fenetre_s, d.minimum) == (0.5, 60, 10)
+
+
+def test_minimum_zero_fenetre_vide_reste_ferme() -> None:
+    assert _disjoncteur(minimum=0).ouvert() is False

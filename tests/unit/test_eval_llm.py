@@ -9,7 +9,15 @@ from typing import Any
 import pytest
 
 from kaldera.agents_llm import SPECS
-from kaldera.llm import ClientLLM, ConfigAgents, ConfigLLM, FakeLLM, ReponseLLM, fidele
+from kaldera.llm import (
+    ClientLLM,
+    ConfigAgents,
+    ConfigLLM,
+    FakeLLM,
+    ReponseLLM,
+    fidele,
+    saboteur,
+)
 from tools import eval_llm
 
 
@@ -65,11 +73,12 @@ def test_config_pour_garde_les_bornes_de_chaque_agent() -> None:
 
 
 def test_case_mesures_et_seuils_a_la_limite() -> None:
-    fiches = [_fiche(*([_etape("pieces")] * 4 + [_etape("pieces", "repli")]))]
+    repli = _etape("pieces", "repli", cause="garde_fou")
+    fiches = [_fiche(*([_etape("pieces")] * 4 + [repli]))]
     c = eval_llm.case(fiches, "pieces", delai_s=1.2)
     mesures = (c["etapes"], c["replis"], c["tours_moyen"], c["jetons_par_demande"])
     assert mesures == (5, 0.2, 2.0, 150.0)
-    assert c["causes"] == {"erreur_llm": 1} and c["alertes"] == []  # 20 % : vert (strict)
+    assert c["causes"] == {"garde_fou": 1} and c["alertes"] == []  # 20 % : vert (strict)
 
 
 def test_case_alertes_au_dessus_des_seuils() -> None:
@@ -198,3 +207,79 @@ def test_main_sort_en_2_sans_cles(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
         eval_llm.main()
     assert sortie.value.code == 2
     assert list(tmp_path.glob("eval-*.md"))
+
+
+def test_case_p95_sur_valeurs_distinctes() -> None:
+    etapes = [_etape("pieces", latence_llm_ms=float(i)) for i in range(1, 21)]
+    c = eval_llm.case([_fiche(*etapes)], "pieces", delai_s=1.2)
+    assert c["latence_llm_p95_ms"] == 19.0  # rang le plus proche
+
+
+def _erreurs(n_erreur: int, total: int = 100) -> list[dict[str, Any]]:
+    return [_etape("pieces", "repli", cause="erreur_llm", latence_llm_ms=0.0)] * n_erreur + [
+        _etape("pieces", latence_llm_ms=10.0)
+    ] * (total - n_erreur)
+
+
+def test_case_alerte_latence_quand_plus_de_5_pct_sans_reponse() -> None:
+    c = eval_llm.case([_fiche(*_erreurs(15))], "pieces", delai_s=1.2)
+    assert c["alertes"] == ["latence_llm_p95_ms"]  # 15 % de replis : sous le seuil des replis
+
+
+def test_case_pas_d_alerte_latence_sous_5_pct_sans_reponse() -> None:
+    c = eval_llm.case([_fiche(*_erreurs(4))], "pieces", delai_s=1.2)
+    assert "latence_llm_p95_ms" not in c["alertes"]
+
+
+def test_case_exclut_les_etapes_sans_tentative_llm() -> None:
+    sans = [_etape("pieces", "repli", cause=c, tours_llm=0, latence_llm_ms=0.0)
+            for c in ("disjoncteur", "budget", "llm_non_configure")]
+    tentee = _etape("pieces", tours_llm=2, latence_llm_ms=50.0)
+    c = eval_llm.case([_fiche(*sans, tentee)], "pieces", delai_s=1.2)
+    assert (c["etapes"], c["latence_llm_p95_ms"], c["tours_moyen"]) == (4, 50.0, 2.0)
+    assert c["replis"] == 0.75
+    seul = eval_llm.case([_fiche(*sans)], "pieces", delai_s=1.2)
+    assert seul["latence_llm_p95_ms"] is None and seul["tours_moyen"] is None
+    assert seul["alertes"] == ["replis"]
+
+
+def _fiche_bornes(*etapes: dict[str, Any], arret: str | None = None) -> dict[str, Any]:
+    f = _fiche(*etapes)
+    f["trace"] = [{**e, "duree_ms": 5.0} for e in f["trace"]]
+    f["arret"] = {"borne": arret} if arret else None
+    return f
+
+
+def test_bornes_replis_budget_et_arrets_en_plus_font_echouer() -> None:
+    ref = [_fiche_bornes(_etape("pieces"))]
+    assert eval_llm._bornes(ref, ref)["ok"]
+    budget = [_fiche_bornes(_etape("pieces", "repli", cause="budget"))]
+    b = eval_llm._bornes(budget, ref)
+    assert b["replis_budget"] == 1 and not b["ok"]
+    arrete = [_fiche_bornes(_etape("pieces"), arret="duree_max_s")]
+    assert not eval_llm._bornes(arrete, ref)["ok"]
+    assert eval_llm._bornes(arrete, arrete)["ok"]
+
+
+def test_invariance_100_pct_avec_un_menteur() -> None:
+    mensonges = {
+        "pieces": {"statut": "manquant"},
+        "estimation": {"estime": 1.0},
+        "antifraude": {"requis": False},
+        "decision": {"file": "autre_file"},
+    }
+
+    def menteur(cfg: ConfigAgents, nom: str) -> ClientLLM | None:
+        return saboteur("menteur", SPECS[nom].champ, SPECS[nom].gabarit, mensonges[nom])
+
+    rapport = eval_llm.evaluer(
+        [SCENARIOS["NOM-01"], SCENARIOS["NOM-07"]],
+        cfg=ConfigAgents.model_construct(),
+        brut_modeles="menteur",
+        fabrique=menteur,
+        repetitions=1,
+    )
+    assert rapport["invariance"]["menteur"]["taux"] == 1.0
+    # antifraude : « requis: False » égale la référence de ces scénarios, donc accepté (0 repli)
+    for agent in ("pieces", "estimation", "decision"):
+        assert "replis" in rapport["matrice"][agent]["menteur"]["alertes"], agent

@@ -42,4 +42,4 @@ class Disjoncteur:
                 self._tentatives.popleft()
             n = len(self._tentatives)
             replis = sum(repli for _, repli in self._tentatives)
-            return n >= self.minimum and replis / n > self.taux
+            return n >= max(self.minimum, 1) and replis / n > self.taux
