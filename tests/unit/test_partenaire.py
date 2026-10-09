@@ -472,6 +472,27 @@ def test_jeton_absent_aucune_reservation(
     assert ordre == [] and registre.evaluations == {}  # l'appel unique est préservé
 
 
+@pytest.mark.parametrize(
+    "url", ["http://localhost:81OO/a2a", "http://[::1/a2a", "pas une url", "ftp://h/a2a"]
+)
+def test_url_invalide_aucune_reservation(envoi: Envoi, ordre: list[str], url: str) -> None:
+    """Review Focus 5 : une erreur de configuration ne consomme pas l'appel unique."""
+    registre = Registre(ordre)
+    avis = partenaire.evaluer_risque(_demande(), url, registre=registre, timeout=3)
+    assert avis == Indisponible("URL partenaire invalide")
+    assert ordre == [] and registre.evaluations == {}
+
+
+def test_jeton_non_ascii_aucune_reservation(
+    envoi: Envoi, ordre: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PARTENAIRE_JETON", "jéton")
+    registre = Registre(ordre)
+    avis = partenaire.evaluer_risque(_demande(), URL, registre=registre, timeout=3)
+    assert avis == Indisponible("jeton invalide")
+    assert ordre == [] and registre.evaluations == {}
+
+
 # ------------------------------------------------------------------ registre par défaut
 
 
@@ -508,7 +529,10 @@ def test_registre_injecte_prioritaire_sur_la_base(
     assert isinstance(avis, dict) and ordre == ["reserver", "envoi"] and base_injoignable == []
 
 
-def test_sans_base_registre_en_memoire(envoi: Envoi, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sans_base_registre_en_memoire(
+    envoi: Envoi, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)  # aucun .env local lu
     monkeypatch.setattr(postgres, "registre_par_defaut", registre_par_defaut)
     monkeypatch.setattr(partenaire, "_CARTES", {BASE: URL})
     evaluer = client_partenaire(BASE, None)

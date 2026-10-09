@@ -299,7 +299,9 @@ def test_partenaire_muet_abandonne_au_delai(monkeypatch: pytest.MonkeyPatch) -> 
             registre=RegistreA2AEnMemoire(),
             timeout=0.3,
         )
-        assert avis == Indisponible("délai > 0.3 s") and time.monotonic() - debut < 2
+        # course légitime : l'échéance du fil ou le ReadTimeout de httpx (même délai) gagne
+        assert avis in (Indisponible("délai > 0.3 s"), Indisponible("couche ① : ReadTimeout"))
+        assert time.monotonic() - debut < 2
     finally:
         serveur.close()
 
@@ -534,5 +536,5 @@ def test_url_partenaire_malformee_mode_degrade(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setenv("PARTENAIRE_JETON", "jeton-de-test")
     fiche = Orchestrateur(partenaire_url="http://localhost:81OO").traiter(_demande("PAN-01", 3))
     (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
-    assert etape["statut"] == "echec" and etape["motif"] == "couche ① : InvalidURL"
+    assert etape["statut"] == "echec" and etape["motif"] == "URL partenaire invalide"
     assert fiche["mode_degrade"] is True and fiche["file"] == "cellule_fraude"
