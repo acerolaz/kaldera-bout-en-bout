@@ -87,12 +87,17 @@ Configuration (`.env`) :
 - `KALDERA_DATABASE_URL` : sans cette variable, aucune persistance n'est active. En local,
   avec le PostgreSQL de Docker Compose : `postgresql://kaldera:kaldera@localhost:5433/kaldera_test`
   (base partagée avec les tests d'intégration et `make front-e2e`, qui la vident).
+  `KALDERA_REAPER_AGE_S` (défaut 30) : âge au-delà duquel le reaper escalade une demande bloquée.
 - `KALDERA_INGESTION__VLM__MODELE` et `KALDERA_INGESTION__VLM__VISION=true` :
-  VLM d'ingestion. Sans eux, le worker refuse de démarrer.
+  VLM d'ingestion. Sans eux, le worker refuse de démarrer. Aussi `…__VLM__JETONS_MAX`,
+  `KALDERA_INGESTION__DELAI_ANALYSE_S` (défaut 60) et `KALDERA_INGESTION__TAILLE_MAX_MO`
+  (défaut 10, au-delà : 413).
 - `PARTENAIRE_URL`, `PARTENAIRE_JETON` : service anti-fraude.
 - `KALDERA_SESSION_SECRET` : secret de signature des sessions de l'espace assuré. Sans lui
   (ou s'il est vide), les routes `/assure/*` répondent 503. `KALDERA_FRONT_ORIGIN` (défaut
-  `http://localhost:5173`) et `KALDERA_COOKIE_SECURE=false` (seulement en local, en http).
+  `http://localhost:5173`), `KALDERA_DUREE_SESSION_H` (défaut 8) et `KALDERA_COOKIE_SECURE`
+  (défaut `true` : cookie envoyé en https seulement ; `false` en local, en http).
+- `KALDERA_API_URL` (défaut `http://localhost:8000`) : API visée par `make seed`.
 - `KALDERA_RELANCE__MODELE` (et `DELAI_AGENT_S`, `JETONS_MAX`, `TOURS_MAX`) : agent de relance.
   Sans profil, il répond par gabarits.
 
@@ -183,6 +188,14 @@ Connexion : `claire` / `kaldera-demo`. Ce mot de passe peut être changé par
 `make seed` créent tous deux `KAL-26-0101` : on n'en lance qu'un par base (sinon « base déjà
 préparée » ou « base déjà semée »).
 
+Recette manuelle (`docs/recette/cahier-recette.pdf`, régénéré par
+`uv run python docs/recette/generer_cahier_recette.py`) :
+
+```bash
+make recette        # repart d'une base vide (recette-reset), démarre PostgreSQL et prépare la démo
+make recette-reset  # vide la base de recette (docker compose --profile integration down -v)
+```
+
 Tests de fumée manuels, avec les vrais modèles (hors CI) :
 `uv run python scripts/fumee_llm.py` et `make fumee-vlm`.
 
@@ -215,8 +228,10 @@ docker compose --profile integration down -v        # vider la base (et tout arr
 
 - `src/kaldera/` : traitement des demandes
   - `machine.py`, `etat.py`, `orchestrateur.py` : machine à états, état partagé, moteur
-  - `agents.py`, `agents_llm.py`, `gardes_fous.py`, `llm.py`, `prompts/` : agents
-    déterministes (référence et repli), agents LLM, garde-fous, port LLM, consignes
+  - `agents.py`, `agents_llm.py`, `gardes_fous.py`, `llm.py`, `disjoncteur.py`, `prompts/` :
+    agents déterministes (référence et repli), agents LLM, garde-fous, port LLM, disjoncteur
+    LLM, consignes
+  - `cli.py` : rejeu des scénarios (`make scenarios`)
   - `partenaire.py`, `espace_assure.py`, `regles.py` : client A2A, espace assuré, référentiel métier
   - `ports.py`, `memoire.py`, `postgres.py`, `reaper.py`, `migrations/` : persistance
   - `api.py`, `worker.py`, `ingestion.py`, `ingestion_postgres.py`, `vlm.py` : ingestion des pièces
@@ -225,7 +240,9 @@ docker compose --profile integration down -v        # vider la base (et tout arr
     routes `/assure/*`, dépôt PostgreSQL)
 - `front/` : espace sinistre de l'assuré (React, Vite, Playwright dans `front/e2e/`)
 - `design-system/` : design system de l'interface web
-- `tools/` : `generer_pieces.py` (générateur), `seed.py`, `eval_ingestion.py` (épreuve)
+- `tools/` : `generer_pieces.py` (générateur), `seed.py`, `eval_ingestion.py` (épreuve de
+  l'ingestion), `epreuve.py` (`make epreuve`), `eval_llm.py` (`make eval`), `demo_assure.py`
+  (`make demo-assure`, `make recette`)
 - `fixtures/pieces/` : pièces factices générées et leur manifeste (versionnés)
 - `eval/scenarios.jsonl`, `eval/scenarios_ingestion.jsonl` : scénarios de recette et d'ingestion
 - `external_agent/` : service anti-fraude partenaire simulé et son contrat d'échange (`contrat.md`)
@@ -235,7 +252,10 @@ docker compose --profile integration down -v        # vider la base (et tout arr
 - `docs/specs_metier.md`, `docs/interface.md` : spécifications fonctionnelles, contrat d'intégration
 - `docs/interface_web.md` : espace sinistre de l'assuré (architecture, confidentialité, sécurité)
 - `docs/journal_ajustements.md` : ajustements consignés et bornes en vigueur
-- `docs/superpowers/` : specs et plans d'implémentation du chantier 1
+- `docs/addendum_conception.md` : écarts entre le dossier de conception et le code
+- `docs/recette/` : cahier de recette (PDF) et son générateur
+- `docs/epreuves/` : rapports de référence de `make epreuve`
+- `docs/superpowers/` : specs et plans d'implémentation des chantiers 1 et 2
 
 ## Useful commands
 
