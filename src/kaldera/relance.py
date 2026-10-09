@@ -22,7 +22,9 @@ TEXTE_MAX = 600
 # ni argent, ni issue, ni contrôle, ni service externe, ni mécanique interne (spec §5)
 TERMES_INTERDITS = re.compile(
     r"fraud|partenaire|score|repli|indicateur|suspic|soup[çc]on|rembours|indemni|accept|refus"
-    r"|d[ée]cision|montant|€|euro|contr[ôo]le|gestionnaire|agent",
+    r"|d[ée]cision|montant|€|euro|contr[ôo]le|gestionnaire|agent"
+    r"|\bEUR\b|\d\s*(?:€|eur)|vir(?:e)?ment|pai(?:e|ement)|pay[ée]|vers[ée]|approuv|couvert"
+    r"|prise? en charge|estimation|escalad|cellule|d[ée]grad|[ée]tat interne",
     re.IGNORECASE,
 )
 MOTS_PIECES = {
@@ -138,6 +140,8 @@ def repondre(
     question: str, pieces: list[PieceAttendue], assure: dict[str, Any], agent: AgentLLM
 ) -> str:
     """Réponse vérifiée (ou gabarit) ; l'identité de l'assuré sert au seul contrôle de fuite."""
+    # la question est une donnée non fiable : elle ne doit pas pouvoir fermer la balise qui l'isole
+    question = question.replace("<", "‹").replace(">", "›")
     vue = {
         "question": question,
         "pieces": [p.model_dump() for p in pieces],
