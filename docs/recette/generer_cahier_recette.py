@@ -137,8 +137,9 @@ ADMIN = [
         ("A-02", f"{m('make reaper')}, observer 20 s puis Ctrl+C.",
          "Aucune ligne « escaladée par le reaper » : aucune demande bloquée."),
         ("A-03", f"{m('make scenarios')}",
-         "Une fiche JSON par scénario de recette (« == NOM-01 — ... ») puis les métriques "
-         "par agent ; chaque scénario finit par une décision ou une escalade."),
+         "Une fiche JSON par scénario de recette (« == NOM-01 — ... ») puis une synthèse : "
+         "métriques par agent et bilan de l'équipe ; chaque scénario finit par une décision "
+         "ou une escalade."),
         ("A-04", f"Ctrl+C dans les 3 terminaux, puis {m('make recette-reset')}",
          "Services arrêtés et base vidée ; la recette peut être rejouée depuis S-01."),
     ]),
@@ -190,7 +191,8 @@ def construire():
             ["KALDERA_SESSION_SECRET", "une chaîne aléatoire non vide (sinon l'espace assuré "
                                        "répond 503)"],
             ["KALDERA_COOKIE_SECURE", "false (local en http)"],
-            ["AZURE_AI_ENDPOINT, AZURE_AI_API_KEY", "identifiants Azure AI"],
+            ["AZURE_AI_CHAT_ENDPOINT, AZURE_AI_CHAT_KEY",
+             "identifiants Azure AI Foundry (agents et VLM)"],
             ["KALDERA_INGESTION__VLM__MODELE, ..._VISION=true",
              "modèle VLM (sans eux, le worker refuse de démarrer)"],
             ["KALDERA_&lt;AGENT&gt;__MODELE, KALDERA_RELANCE__MODELE",
