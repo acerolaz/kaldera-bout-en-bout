@@ -104,4 +104,24 @@ describe("Chat", () => {
     await ecrireEtEnvoyer("Bonjour");
     expect(await screen.findByRole("alert")).toHaveTextContent("Message non envoyé. Réessayez.");
   });
+
+  it("défile jusqu'au dernier message à l'ouverture, puis à chaque nouveau message", async () => {
+    const defiler = vi.fn();
+    Element.prototype.scrollIntoView = defiler;
+    const { rerender } = render(<Chat reference="R" messages={MESSAGES} onDeposer={() => {}} />);
+    expect(defiler).not.toHaveBeenCalled();
+    await ouvrir();
+    await screen.findByRole("log");
+    expect(defiler).toHaveBeenCalledWith({ block: "end" });
+    defiler.mockClear();
+    rerender(<Chat reference="R" messages={[...MESSAGES, { auteur: "agent", texte: "Merci", actions: [] }]} onDeposer={() => {}} />);
+    await waitFor(() => expect(defiler).toHaveBeenCalled());
+  });
+
+  it("les bulles conservent les retours à la ligne et coupent les longues chaînes", async () => {
+    render(<Chat reference="R" messages={[{ auteur: "assure", texte: "x".repeat(900), actions: [] }]} onDeposer={() => {}} />);
+    await ouvrir();
+    const bulle = (await screen.findByRole("log")).querySelector("li");
+    expect(bulle).toHaveClass("whitespace-pre-wrap", "break-words");
+  });
 });

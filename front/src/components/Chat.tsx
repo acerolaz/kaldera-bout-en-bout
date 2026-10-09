@@ -1,5 +1,5 @@
 import { MessageCircle, X } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { ErreurApi, api, type MessageChat } from "../api";
 import { T } from "../textes";
 import { Button } from "@/components/ui/button";
@@ -34,10 +34,16 @@ export function Chat({ reference, messages, onDeposer, onExpire }: Props) {
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [lus, setLus] = useState(0);
-  const fin = useRef<HTMLLIElement>(null);
+  const fin = useRef<HTMLLIElement | null>(null);
   const versDepot = useRef(false);
   const nonLus = messages.slice(lus).some((m) => m.auteur === "agent");
 
+  // Le contenu du Sheet est monté après le premier rendu (Portal) : un ref objet serait encore nul dans
+  // l'effet d'ouverture. Le ref callback défile dès que le repère est attaché ; l'effet suit les nouveaux messages.
+  const reperer = useCallback((n: HTMLLIElement | null) => {
+    fin.current = n;
+    n?.scrollIntoView?.({ block: "end" });
+  }, []);
   useEffect(() => {
     if (ouvert) setLus(messages.length);
     fin.current?.scrollIntoView?.({ block: "end" });
@@ -95,10 +101,10 @@ export function Chat({ reference, messages, onDeposer, onExpire }: Props) {
             <span className="sr-only">{T.chat.fermer}</span>
           </Button>
         </SheetClose>
-        <div role="log" aria-live="polite" className="flex-1 overflow-y-auto px-4">
+        <div role="log" className="flex-1 overflow-y-auto px-4">
           <ul className="space-y-3">
             {messages.map((m, i) => (
-              <li key={i} className={`max-w-[85%] rounded-lg p-3 ${m.auteur === "agent" ? "bg-muted" : "ms-auto border bg-card"}`}>
+              <li key={i} className={`max-w-[85%] rounded-lg p-3 whitespace-pre-wrap break-words ${m.auteur === "agent" ? "bg-muted" : "ms-auto border bg-card"}`}>
                 <span className="sr-only">{m.auteur === "agent" ? T.chat.agent : T.chat.vous} : </span>
                 {m.texte}
                 {onDeposer && m.actions.includes("deposer") && (
@@ -115,7 +121,7 @@ export function Chat({ reference, messages, onDeposer, onExpire }: Props) {
                 )}
               </li>
             ))}
-            <li ref={fin} aria-hidden="true" />
+            <li ref={reperer} aria-hidden="true" />
           </ul>
         </div>
         <form onSubmit={envoyer} className="space-y-2 p-4">
