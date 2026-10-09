@@ -1,0 +1,60 @@
+<section class="page" id="llm-outils-gardes">
+  <style>
+    #llm-outils-gardes .tableau td, #llm-outils-gardes .tableau th { font-size: 10.5px; padding: 5px 7px; }
+    #llm-outils-gardes .tableau code { font-size: 9.5px; }
+    #llm-outils-gardes .carte ul { font-size: 11px; }
+  </style>
+  <div class="surtitre">Livrable 1 · Agents LLM</div>
+  <h2 class="titre"><span class="num">1.4 bis</span>🧩 Ce que fait le LLM de chaque agent · ① outils et garde-fous</h2>
+  <p class="chapo">Pour chaque agent : la part du LLM, ses outils exclusifs, son garde-fou de sortie et son repli. Les outils rendent la
+    <b>référence déterministe</b> (« fait foi ») : le LLM ne peut changer ni un statut, ni un montant, ni un avis, ni une issue.</p>
+
+  <table class="tableau">
+    <tr><th style="width:96px">Agent</th><th style="width:200px">🤖 Le LLM…</th><th style="width:250px">🧰 Outils exclusifs (garde dans l'outil)</th>
+      <th>🛡️ Garde-fou de sortie (vérifié par le code)</th><th style="width:150px">🛟 Repli</th></tr>
+    <tr><td><b>📄 pieces</b></td><td>rapproche les pièces jointes des pièces attendues, lit le dépôt de la relance en cours, rédige le <b>message de relance</b> à l'assuré</td>
+      <td><code>verifier_completude()</code> · <code>pieces_requises()</code> · <code>lister_pieces()</code> · <code>lire_depot(k)</code> (garde : k = n° de la relance en cours)</td>
+      <td><code>statut</code>, <code>manquantes</code>, <code>retenues</code> = référence ; message présent si <code>incomplet</code>, absent sinon</td>
+      <td>référence + gabarit de relance</td></tr>
+    <tr><td><b>💶 estimation</b></td><td>rédige l'<b>explication</b> lisible (déclaré → justifié → franchise → plafond)</td>
+      <td><code>calculer_estimation()</code> · <code>bareme()</code> (franchise et plafond de la formule)</td>
+      <td>tous les montants = référence ; l'explication cite <b>franchise et plafond</b></td>
+      <td>calcul + gabarit d'explication</td></tr>
+    <tr><td><b>🕵️ antifraude</b></td><td>lit les indicateurs et l'avis (niveau, score), rédige une <b>note de synthèse</b> pour la cellule</td>
+      <td><code>calculer_indicateurs()</code> · <code>consulter_partenaire()</code> : renvoie l'avis <b>déjà obtenu</b> par la référence, refuse sans indicateur, jamais de second appel</td>
+      <td><code>requis</code>, <code>indicateurs</code>, <code>statut</code> = référence ; <code>avis</code> et <code>cause</code> <b>privés</b> (recopiés, jamais vus) ; note sans réponse brute</td>
+      <td>indicateurs + appel A2A unique (registre) + gabarit</td></tr>
+    <tr style="outline:2px solid var(--or); outline-offset:-2px"><td><b>⚖️ decision</b></td><td>rédige le <b>motif</b> de la fiche</td>
+      <td><code>appliquer_regles_s10()</code> (issue, décision, montant, file) · <code>gabarit_motif()</code></td>
+      <td>issue, décision, montant et file = référence ; le motif <b>cite la règle</b></td>
+      <td>référence + motif type</td></tr>
+    <tr><td colspan="5" class="petit"><b>Pour tous :</b> aucune donnée sensible dans le texte (e-mail, IBAN, téléphone, nom ou prénom de l'assuré) ;
+      toute violation ⇒ repli, tracé <code>mode = repli</code>, <code>cause = garde_fou</code> (<code>gardes_fous.verifier_sortie</code>).</td></tr>
+  </table>
+
+  <div class="grille-3 pousse" style="gap:12px">
+    <div class="carte" style="background:var(--risque-fond); border-color:var(--risque-bord)">
+      <h3>⛔ Le LLM ne fait jamais</h3>
+      <ul class="liste">
+        <li>chiffrer, décider une issue ni décider d'appeler le partenaire</li>
+        <li>voir l'identité, l'IBAN, le numéro de contrat, la réponse brute du partenaire</li>
+        <li>appeler un autre agent ou un outil hors allowlist (≤ 4 appels)</li>
+        <li>écrire hors de sa section</li>
+        <li>lire un fichier brut : il ne voit que des descripteurs</li>
+      </ul>
+    </div>
+    <div class="carte" style="background:var(--llm-fond); border-color:var(--llm-bord)">
+      <h3>💡 Pourquoi un LLM ici ?</h3>
+      <ul class="liste">
+        <li><b>Rédiger pour un humain</b> : relance, explication, note, motif — sa vraie valeur ajoutée</li>
+        <li><b>S'appuyer sur des faits</b> : ses outils lui donnent statut, barème, indicateurs et avis, jamais à deviner</li>
+        <li><b>Choix de sûreté assumé</b> : l'issue reste identique avec ou sans LLM (invariance, mesurée par <code>make eval</code>) et le partenaire n'est appelé qu'une fois</li>
+      </ul>
+    </div>
+    <div class="carte" style="background:var(--jaune-clair); border-color:var(--or)">
+      <h3>🔭 Honnêteté de conception</h3>
+      <p class="petit">Les quatre LLM sont « minces » : ils rédigent. 💶 estimation l'est le plus. Si <code>make eval</code> montre un taux de
+        repli élevé ou aucune valeur ajoutée, l'agent redeviendra un tool — <b>décision consignée au journal</b>.</p>
+    </div>
+  </div>
+</section>

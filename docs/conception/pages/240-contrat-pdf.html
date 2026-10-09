@@ -1,0 +1,58 @@
+<section class="page" id="contrat-pdf">
+  <style>
+    #contrat-pdf .chaine { display:flex; align-items:stretch; gap:8px; }
+    #contrat-pdf .chaine .boite { flex:1; font-size:10.5px; display:flex; flex-direction:column; justify-content:center; }
+    #contrat-pdf .tableau td, #contrat-pdf .tableau th { font-size:10.5px; padding:4px 7px; }
+  </style>
+  <div class="surtitre">Livrable 2 · Contrat d'assurance</div>
+  <h2 class="titre"><span class="num">2.4 quater</span>📜 Le contrat PDF, source de vérité</h2>
+  <p class="chapo">Formule, franchise et plafond pilotent l'éligibilité et l'estimation. Les extraire par un VLM exige trois verrous
+    (<code>verrous_contrat</code>), et une escalade motivée si le doute persiste (EX-D39, EX-D40).</p>
+
+  <div class="note alerte petit">⚠️ <b>Principe</b> : le LLM ne peut changer ni un montant ni une issue à données validées ; une donnée extraite n'est validée que si elle passe les trois verrous.</div>
+
+  <div class="chaine">
+    <div class="boite tool"><b>📜 contrat.pdf</b>1 fois par contrat</div><span class="fleche" style="align-self:center">→</span>
+    <div class="boite llm"><b>🔍 extraire_contrat</b>VLM · 1 appel · page 1</div><span class="fleche" style="align-self:center">→</span>
+    <div class="boite"><b>🔒 ① Schéma</b>formule ∈ enum · date valide · franchise ≥ 0, plafond &gt; 0 · n° extrait = n° demande</div>
+    <div class="boite"><b>🔒 ② Barème</b>franchise, plafond = barème de la formule</div>
+    <div class="boite"><b>🔒 ③ Couche texte</b>numéro, franchise, plafond et date présents dans le PDF</div><span class="fleche" style="align-self:center">→</span>
+    <div style="flex:1.1; display:flex; flex-direction:column; gap:6px">
+      <div class="boite ok"><b>✅ valide</b>table <code>contrats</code> · tracée</div>
+      <div class="boite risque"><b>⚠️ non_exploitable</b>+ violations ⇒ T0 → règle 0</div>
+    </div>
+  </div>
+
+  <div class="grille-2" style="gap:14px; align-items:start">
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <table class="tableau">
+        <tr><th>Verrou</th><th>Attrape</th><th>Limite</th></tr>
+        <tr><td>① Schéma</td><td>formule inventée, date impossible, mauvais contrat</td><td>valeur plausible mais fausse</td></tr>
+        <tr><td>② Barème</td><td>franchise 3 000 au lieu de 300</td><td>suppose le barème toujours respecté (P-Q9)</td></tr>
+        <tr><td>③ Couche texte</td><td>valeur hallucinée</td><td>inopérant sur un scan ⇒ ① et ② seuls ; la formule n'y est pas cherchée</td></tr>
+      </table>
+      <table class="tableau">
+        <tr><th>Donnée</th><th>Source</th><th>Pourquoi</th></tr>
+        <tr><td><code>numero</code>, <code>formule</code>, <code>date_souscription</code>, <code>franchise</code>, <code>plafond</code></td><td>contrat PDF, extrait et validé</td><td>termes signés, stables</td></tr>
+        <tr><td><code>statut</code>, <code>cotisations_a_jour</code></td><td>système de gestion</td><td>état courant : un PDF signé ne le connaît pas</td></tr>
+      </table>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <table class="tableau">
+        <tr><th>Consommateur</th><th>Ce qu'il lit du contrat</th></tr>
+        <tr><td>🔧 <code>is_eligible()</code></td><td>le contrat validé ; jamais appelé si T0</td></tr>
+        <tr><td>💶 estimation</td><td>barème de la formule extraite (verrou ② ⇒ mêmes franchise et plafond)</td></tr>
+        <tr><td>🕵️ A2A</td><td>ancienneté = survenance − <code>date_souscription</code> extraite</td></tr>
+        <tr><td>🧾 trace</td><td>provenance : <code>source</code>, <code>modele</code>, <code>version_prompt</code>, <code>sha256</code></td></tr>
+      </table>
+      <p class="petit discret" style="margin:0">Extrait une fois par contrat (table <code>contrats</code>), réutilisé par les demandes suivantes ; la demande est
+        complétée par <code>demande_niveau_1()</code> à l'admission. 🏢 P-Q8 : contrat non exploitable ⇒ escalade, règle 0, ou demande de document ?</p>
+    </div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>Pourquoi le PDF fait foi</h3>Formule, franchise et plafond pilotent l'éligibilité et l'estimation : ce sont les termes signés, pas une copie saisie.</div>
+    <div class="note petit"><h3>Le doute escalade</h3>Un seul verrou en échec ⇒ <code>non_exploitable</code> ⇒ T0 ⇒ gestionnaire, motif « Contrat illisible ou incohérent ». Jamais un calcul sur une donnée douteuse.</div>
+    <div class="note petit"><h3>Seuil d'épreuve</h3>100 % de précision sur les champs des contrats nets (EX-D43, <code>make eval-ingestion</code>), sinon le PDF ne peut pas être une source de vérité.</div>
+  </div>
+</section>

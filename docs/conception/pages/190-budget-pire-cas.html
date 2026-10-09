@@ -1,0 +1,80 @@
+<section class="page" id="budget-pire-cas">
+  <style>
+    #budget-pire-cas .frise { display: grid; grid-template-columns: 190px 1fr; column-gap: 12px; padding-right: 18px; margin-top: 2px; }
+    #budget-pire-cas .etiq { display: flex; flex-direction: column; }
+    #budget-pire-cas .etiq div { height: 38px; display: flex; align-items: center; justify-content: flex-end; font-weight: 700; font-size: 12px; white-space: nowrap; }
+    #budget-pire-cas .etiq .axe { height: 22px; }
+    #budget-pire-cas .pistes { position: relative;
+      background: repeating-linear-gradient(to right, #e5e7eb 0 1px, transparent 1px 10%); background-position: 0 22px; background-repeat: no-repeat; background-size: 100.1% calc(100% - 22px); }
+    #budget-pire-cas .axe { position: relative; height: 22px; font-size: 10.5px; color: var(--gris-texte); }
+    #budget-pire-cas .axe span { position: absolute; transform: translateX(-50%); top: 2px; white-space: nowrap; }
+    #budget-pire-cas .piste { position: relative; height: 38px; }
+    #budget-pire-cas .barre { position: absolute; top: 6px; height: 26px; border-radius: 4px; border: 1.5px solid var(--llm-bord); background: var(--llm-fond);
+      font-size: 10.5px; display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+    #budget-pire-cas .barre.a2a { border-color: var(--ext-bord); background: var(--ext-fond); }
+    #budget-pire-cas .barre.dec { border-color: var(--decision-bord); background: var(--decision-fond); }
+    #budget-pire-cas .barre.tool { border-color: #4b5563; background: #fff; width: 5px; }
+    #budget-pire-cas .ligne8 { position: absolute; left: 80%; top: 22px; bottom: 0; border-left: 2px dashed #e03131; }
+    #budget-pire-cas .ligne10 { position: absolute; left: 100%; top: 22px; bottom: 0; border-left: 3px solid var(--vert); }
+    #budget-pire-cas .lib { position: absolute; font-size: 10.5px; white-space: nowrap; }
+    #budget-pire-cas .rogne { color: var(--gris-texte); font-size: 9.5px; margin-left: 5px; }
+  </style>
+
+  <div class="surtitre">Livrable 2 · Bornes LLM</div>
+  <h2 class="titre"><span class="num">2.3 bis</span>⏱️ Budget de temps : quatre LLM dans 8 secondes · ① le pire cas</h2>
+  <p class="chapo">Pire cas nominal : le parcours de NOM-07 (une relance des pièces) avec, en plus, un indicateur F1–F4, donc
+    l'appel au partenaire (≤ 3 s). Chaque agent a son modèle et son délai, rogné par un <b>budget dégressif</b> ; s'il ne
+    suffit pas, il passe en repli instantané.</p>
+
+  <div class="frise">
+    <div class="etiq">
+      <div class="axe"></div>
+      <div>🔧 is_eligible()</div>
+      <div>📄 pieces</div>
+      <div>📄 pieces (relance)</div>
+      <div>💶 estimation</div>
+      <div>🌐 A2A (référence antifraude)</div>
+      <div>🕵️ antifraude (LLM)</div>
+      <div>⚖️ decision</div>
+    </div>
+    <div class="pistes">
+      <div class="axe">
+        <span style="left:0%">0 s</span><span style="left:10%">1 s</span><span style="left:20%">2 s</span><span style="left:30%">3 s</span>
+        <span style="left:40%">4 s</span><span style="left:50%">5 s</span><span style="left:60%">6 s</span><span style="left:70%">7 s</span>
+        <span style="left:80%">8 s</span><span style="left:90%">9 s</span><span style="left:100%">10 s</span>
+      </div>
+      <div class="piste"><div class="barre tool" style="left:0"></div><span class="lib" style="left:1.2%; top:11px">µs · tool déterministe</span></div>
+      <div class="piste"><div class="barre" style="left:0; width:12%">LLM ≤ 1,2 s</div></div>
+      <div class="piste"><div class="barre" style="left:12%; width:12%">LLM ≤ 1,2 s</div></div>
+      <div class="piste"><div class="barre" style="left:24%; width:8%">≤ 0,8 s</div></div>
+      <div class="piste"><div class="barre a2a" style="left:32%; width:30%">≤ 3 s (contrat §5) · avant le LLM</div></div>
+      <div class="piste"><div class="barre" style="left:62%; width:8%">0,8 s</div><span class="lib rogne" style="right:38.6%; top:12px">budget rogné : 1,5 → 0,8 s</span></div>
+      <div class="piste"><div class="barre dec" style="left:70%; width:10%">1,0 s</div><span class="lib rogne" style="right:30.6%; top:12px">rogné : 1,2 → 1,0 s</span></div>
+      <div class="ligne8"></div>
+      <div class="ligne10"></div>
+      <span class="lib" style="left:81%; top:150px; color:#e03131">duree_max_s = 8</span>
+      <span class="lib" style="right:0.8%; top:200px; color:var(--vert); font-weight:650">engagement 10 s</span>
+    </div>
+  </div>
+
+  <p class="petit discret" style="margin:2px 0 0 202px">Lecture : chaque barre est le délai maximal consommé, et leur somme fait 8,0 s. Budget LLM
+    (<code>_budget</code>, puis <code>executer</code>) : pieces et estimation <code>min(delai_agent_s, restant − 3 s − 1 s)</code> ;
+    antifraude, après l'A2A, <code>min(1,5 s, restant − 1 s)</code> ; decision <code>min(1,2 s, restant)</code>.</p>
+
+  <div class="note alerte petit">📥 <b>Le temps VLM n'entre pas dans le budget</b> : toute analyse de fichier
+    (pièces, contrat PDF) est terminée <b>avant</b> le contrôle d'admission ; <code>etat.debut</code> (t = 0) est fixé quand
+    l'orchestrateur prend la demande. Le pire cas ci-dessus et le budget des 8 s ne concernent que l'équipe ; l'analyse a sa
+    propre borne, <code>delai_analyse_s = 60</code>, hors engagement (2.3, 2.4 ter).</div>
+
+  <div class="grille-3 pousse">
+    <div class="note"><h3>Les 10 s restent garanties</h3>
+      <p>Le repli est instantané : dans le pire cas, l'équipe conclut sans LLM, avec la <b>même issue</b> (la référence
+        déterministe est calculée avant tout appel).</p></div>
+    <div class="note"><h3>Le partenaire d'abord</h3>
+      <p>Les 3 s de l'A2A sont réservées dans le budget de pieces et d'estimation, et la référence antifraude appelle le
+        partenaire <b>avant</b> le LLM : on rogne le LLM, jamais l'unique appel au partenaire.</p></div>
+    <div class="note"><h3>Valeurs provisoires</h3>
+      <p>Éprouvées par <code>make epreuve</code> en repli (durée max 3,01 s, dominée par l'A2A). Latence p95 par agent et
+        taux de repli, mesurés par <code>make eval</code> avec les clés, décideront de l'ajustement, consigné au journal.</p></div>
+  </div>
+</section>

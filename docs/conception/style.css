@@ -1,0 +1,204 @@
+/* Dossier de conception Kaldera — A4 paysage, une <section class="page"> par page imprimée. */
+
+@font-face {
+  font-family: "Inter";
+  src: url("polices/inter-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("polices/inter-latin-ext-wght-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("polices/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 800;
+}
+
+:root {
+  /* palette du dossier */
+  --vert: #1b4332;          /* orchestrateur, titres, en-têtes de table */
+  --vert-texte: #1d4430;
+  --or: #d4a72c;            /* sur-titres, accents */
+  --or-fonce: #b8901f;
+  --creme: #f8f4e8;         /* encadrés */
+  --jaune-clair: #fdf6dc;   /* alerte, décision */
+  --gris-texte: #4b5563;
+  --gris-clair: #f3f4f6;
+  --bordure: #e2e5e9;
+  --encre: #1f2937;
+  /* code couleur des schémas (sommaire) */
+  --agent-fond: #f1f3f5;    --agent-bord: #c8ced6;
+  --llm-fond: #f3effc;      --llm-bord: #7c5cd6;
+  --ext-fond: #eaf2fe;      --ext-bord: #3b82f6;
+  --ok-fond: #e9f6ec;       --ok-bord: #2f9e44;
+  --risque-fond: #fdecec;   --risque-bord: #e03131;
+  --decision-fond: #fdf6dc; --decision-bord: #e0b52a;
+  --ingestion-bord: #9b7fe0;
+  --nominal: #2f9e44;  --boucle: #e8590c;  --court: #5c6672;  --garde: #6f2dbd;
+  --mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+}
+code, pre, .mono { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+
+@page { size: 297mm 210mm; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #888; }
+body {
+  font-family: "Inter", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12.5px; line-height: 1.45; color: var(--encre);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
+.page {
+  position: relative; width: 297mm; height: 210mm; overflow: hidden;
+  padding: 9mm 12mm 13mm; background: #fff; page-break-after: always; break-after: page;
+  display: flex; flex-direction: column; gap: 9px;
+}
+@media screen { .page { margin: 0 auto 12px; } }
+
+/* --- en-tête de page --- */
+.surtitre {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--or-fonce);
+}
+.titre {
+  display: flex; align-items: center; gap: 10px; margin: 0;
+  font-size: 25px; font-weight: 800; color: var(--vert-texte); letter-spacing: -.01em;
+}
+.titre .num {
+  background: var(--vert); color: var(--or); font-size: 19px; font-weight: 800;
+  padding: 2px 9px; border-radius: 6px; white-space: nowrap;
+}
+.titre .sous { font-weight: 800; }
+.chapo { margin: 0; color: var(--gris-texte); font-size: 13.5px; line-height: 1.5; }
+
+/* --- pied de page (rempli par rendre.cjs) --- */
+.pied {
+  position: absolute; left: 12mm; right: 12mm; bottom: 5.5mm;
+  display: flex; justify-content: space-between; font-size: 8.5px; color: #8a929c;
+}
+
+/* --- mise en page --- */
+.grille-2, .grille-3, .grille-4, .grille-5 { display: grid; gap: 10px; }
+.grille-2 { grid-template-columns: repeat(2, 1fr); }
+.grille-3 { grid-template-columns: repeat(3, 1fr); }
+.grille-4 { grid-template-columns: repeat(4, 1fr); }
+.grille-5 { grid-template-columns: repeat(5, 1fr); }
+.colonnes { display: grid; grid-template-columns: 1.55fr 1fr; gap: 14px; align-items: start; }
+.pousse { margin-top: auto; }   /* colle un bloc en bas de page */
+.ligne { display: flex; align-items: center; gap: 8px; }
+
+/* --- blocs --- */
+.carte {
+  background: #fff; border: 1px solid var(--bordure); border-radius: 9px; padding: 10px 12px;
+}
+.carte h3, .note h3 { margin: 0 0 4px; font-size: 13.5px; font-weight: 750; color: var(--encre); }
+.carte p, .note p { margin: 0; }
+.note {
+  background: var(--creme); border-left: 4px solid var(--or); border-radius: 4px;
+  padding: 10px 12px;
+}
+.note.alerte { background: var(--jaune-clair); border: 1px solid var(--or); border-left-width: 4px; }
+.note.violet { background: var(--llm-fond); border-left-color: var(--llm-bord); }
+.note.vert { background: var(--ok-fond); border-left-color: var(--ok-bord); }
+.note.rouge { background: var(--risque-fond); border-left-color: var(--risque-bord); }
+.note.bleu { background: var(--ext-fond); border-left-color: var(--ext-bord); }
+.petit { font-size: 11px; } .tres-petit { font-size: 10px; }
+.discret { color: var(--gris-texte); }
+.violet-texte { color: var(--llm-bord); font-weight: 650; }
+ul.liste { margin: 0; padding-left: 16px; } ul.liste li { margin: 2px 0; }
+
+/* puce numérotée (sommaire, règles) */
+.puce {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px;
+  padding: 0 6px; border-radius: 5px; background: var(--vert); color: var(--or);
+  font-weight: 800; font-size: 12px;
+}
+.pastille {
+  display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 650;
+  background: var(--gris-clair); border: 1px solid var(--bordure);
+}
+
+/* --- tables --- */
+table.tableau { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.tableau th {
+  background: var(--vert); color: #fff; text-align: left; font-weight: 650;
+  padding: 7px 9px; font-size: 11.5px;
+}
+.tableau td { padding: 6px 9px; border-bottom: 1px solid var(--bordure); vertical-align: top; }
+.tableau tr:nth-child(even) td { background: #fafbfc; }
+.tableau td.fort, .tableau th.fort { font-weight: 700; }
+
+/* --- code --- */
+code {
+  font-family: var(--mono); font-size: .86em; background: #eef0f2; border-radius: 3px;
+  padding: 1px 4px; color: #2b3440;
+}
+pre.code {
+  margin: 0; background: #1e3b2b; color: #e6efe8; border-left: 5px solid var(--or);
+  border-radius: 6px; padding: 10px 12px; font-family: var(--mono); font-size: 10px;
+  line-height: 1.5; white-space: pre; overflow: hidden;
+}
+pre.code .c { color: #9db8a6; font-style: italic; }   /* commentaire */
+pre.code .k { color: #f2c94c; }                        /* mot-clé */
+pre.code code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+/* --- nœuds de schéma (code couleur commun) --- */
+.boite {
+  border-radius: 8px; padding: 7px 10px; text-align: center; font-size: 11px;
+  border: 1.5px solid var(--agent-bord); background: var(--agent-fond);
+}
+.boite b { display: block; font-size: 12.5px; }
+.boite.orch { background: var(--vert); border-color: var(--vert); color: #fff; }
+.boite.orch b { color: #fff; }
+.boite.tool { background: #fff; border-style: dashed; }
+.boite.llm { background: var(--llm-fond); border-color: var(--llm-bord); }
+.boite.ext { background: var(--ext-fond); border-color: var(--ext-bord); }
+.boite.ok { background: var(--ok-fond); border-color: var(--ok-bord); }
+.boite.risque { background: var(--risque-fond); border-color: var(--risque-bord); }
+.boite.decision { background: var(--decision-fond); border-color: var(--decision-bord); }
+.boite.ingestion { background: #faf8ff; border: 1.5px dashed var(--ingestion-bord); }
+.fleche { color: #6b7280; font-size: 16px; }
+
+/* légende du code couleur */
+.legende { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 11px; align-items: center; }
+.legende span::before {
+  content: ""; display: inline-block; width: 18px; height: 11px; border-radius: 3px;
+  margin-right: 6px; vertical-align: -1px; border: 1.5px solid var(--agent-bord);
+  background: var(--agent-fond);
+}
+.legende .l-orch::before { background: var(--vert); border-color: var(--vert); }
+.legende .l-tool::before { background: #fff; border-style: dashed; }
+.legende .l-llm::before { background: var(--llm-fond); border-color: var(--llm-bord); }
+.legende .l-ext::before { background: var(--ext-fond); border-color: var(--ext-bord); }
+.legende .l-ok::before { background: var(--ok-fond); border-color: var(--ok-bord); }
+.legende .l-risque::before { background: var(--risque-fond); border-color: var(--risque-bord); }
+.legende .l-decision::before { background: var(--decision-fond); border-color: var(--decision-bord); }
+.legende .l-ingestion::before { background: #faf8ff; border: 1.5px dashed var(--ingestion-bord); }
+
+/* --- couverture --- */
+.page.couverture { padding: 9mm 12mm 13mm; }
+.couverture .fond {
+  flex: 1; background: var(--vert); border-radius: 12px; color: #fff;
+  padding: 18mm 20mm 14mm; display: flex; flex-direction: column;
+}
+.couverture .surtitre { color: var(--or); font-size: 12px; }
+.couverture h1 { margin: 6px 0 4px; font-size: 46px; font-weight: 800; letter-spacing: -.02em; }
+.couverture .sous-titre { color: #f2d77c; font-size: 19px; }
+.couverture .emojis { font-size: 36px; letter-spacing: 18px; margin: 18px 0 26px; }
+.couverture .meta { display: grid; grid-template-columns: auto auto auto 1fr; gap: 4px 32px; }
+.couverture .meta .etiquette {
+  color: var(--or); font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+}
+.couverture .meta div { font-size: 12.5px; }
+.couverture .bandeau {
+  margin-top: auto; align-self: flex-start; background: var(--or); color: var(--vert);
+  font-weight: 750; font-size: 13px; padding: 6px 12px; border-radius: 6px;
+}

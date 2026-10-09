@@ -1,0 +1,64 @@
+<section class="page" id="point-ambigu">
+  <style>
+    #point-ambigu { justify-content: space-between; }
+    #point-ambigu .question { border:1.5px solid #b7bec7; border-radius:9px; padding:10px; text-align:center; margin:0 50px; }
+    #point-ambigu .option { border-radius:9px; padding:12px; text-align:center; }
+    #point-ambigu .option h3 { font-size:14px; margin:0 0 6px; }
+    #point-ambigu .chaine { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; justify-content:center; }
+    #point-ambigu .maillon { border:1.5px solid #9aa3ad; border-radius:999px; padding:5px 12px; font-size:11.5px; font-weight:650; background:#f5f6f8; white-space:nowrap; }
+    #point-ambigu .maillon.ok { background:var(--ok-fond); border-color:var(--ok-bord); }
+    #point-ambigu .maillon.ko { background:var(--risque-fond); border-color:var(--risque-bord); }
+    #point-ambigu .f { color:var(--nominal); font-weight:800; }
+    #point-ambigu .fk { color:var(--risque-bord); font-weight:800; }
+  </style>
+  <div class="surtitre">Livrable 1 · Point ambigu</div>
+  <h2 class="titre"><span class="num">1.2</span>⚖️ Le point de frontière ambigu, tranché</h2>
+  <p class="chapo">La spec range le plafond de garantie dans l'Éligibilité, mais interdit à l'Éligibilité de chiffrer.
+    On tranche, preuve à l'appui.</p>
+
+  <div class="question">
+    <b>📜 §4 Éligibilité : « Aucune demande ne peut donner lieu à un remboursement supérieur au plafond de sa formule. »</b><br>
+    <span style="color:var(--risque-bord); font-weight:650">… mais §2 : « le contrôle d'éligibilité ne chiffre pas la demande ». ➜ Qui applique le plafond ?</span>
+  </div>
+
+  <div class="grille-3" style="gap:20px; margin:0 50px">
+    <div class="option boite risque"><h3>❌ Option A · 🔧 is_eligible()</h3>
+      Le plafond est rangé dans son chapitre…<br>… mais l'appliquer, c'est CHIFFRER<br>
+      <span style="color:var(--risque-bord)">→ viole la règle §2</span></div>
+    <div class="option boite risque"><h3>❌ Option B · ⚖️ decision</h3>
+      La décision recalcule le montant<br>Deux agents chiffrent la demande<br>
+      <span style="color:var(--risque-bord)">→ responsabilité diluée</span></div>
+    <div class="option boite ok"><h3>✅ Option C · 💶 estimation</h3>
+      Seul agent qui chiffre<br>Plafond appliqué APRÈS la franchise<br>
+      <span style="color:var(--ok-bord)">→ seul et unique responsable</span></div>
+  </div>
+
+  <div style="text-align:center; font-weight:750">🧪 Preuve par le scénario de recette NOM-05 (formule essentiel · franchise 300 € · plafond 3 000 €)</div>
+  <div class="chaine">
+    <span class="maillon">Déclaré 4 200 €</span><span class="f">▶</span>
+    <span class="maillon">Retenu = min(déclaré, justifié) = 4 200 €</span><span class="f">▶</span>
+    <span class="maillon">− franchise 300 € = 3 900 €</span><span class="f">▶</span>
+    <span class="maillon">plafond ⇒ 3 000 €</span><span class="f">▶</span>
+    <span class="maillon ok">✅ attendu : 3 000 €</span>
+  </div>
+  <div class="chaine">
+    <span style="color:var(--risque-bord); font-weight:700; font-size:11.5px">Ordre inverse :</span>
+    <span class="maillon">plafond d'abord : 3 000 €</span><span class="fk">▶</span>
+    <span class="maillon">− franchise 300 €</span><span class="fk">▶</span>
+    <span class="maillon">= 2 700 €</span><span class="fk">▶</span>
+    <span class="maillon ko">❌ ≠ attendu</span>
+  </div>
+
+  <div class="grille-2" style="gap:18px; margin:0 50px">
+    <div class="boite decision" style="padding:10px"><b>⚖️ Ambiguïté n°2 · « cohérence des pièces »</b>
+      Cohérence des TYPES de pièces → 📄 pieces<br>Écart de MONTANTS déclaré / justifié → F4 → 🕵️ antifraude</div>
+    <div class="boite decision" style="padding:10px"><b>⚖️ Ambiguïté n°3 · qui calcule F1–F4 ?</b>
+      → 🕵️ antifraude, en lecture seule sur l'estimation<br>« l'estimation ne se prononce pas sur la fraude » (§2)</div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note"><h3>Décision</h3>💶 estimation est le <b>seul responsable</b> du plafond.</div>
+    <div class="note"><h3>Formule</h3><code>estimé = min(max(min(déclaré, justifié) − franchise, 0), plafond)</code></div>
+    <div class="note"><h3>Preuve</h3>NOM-05 attend 3 000 € : seul l'ordre franchise → plafond le donne.</div>
+  </div>
+</section>

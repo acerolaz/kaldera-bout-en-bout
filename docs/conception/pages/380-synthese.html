@@ -1,0 +1,69 @@
+<section class="page" id="synthese">
+  <style>
+    #synthese .tableau { font-size: 10.6px; }
+    #synthese .tableau th { padding: 5px 8px; font-size: 10.8px; }
+    #synthese .tableau td { padding: 2.6px 8px; line-height: 1.35; }
+    #synthese .tableau td:first-child { color: var(--gris-texte); width: 22px; }
+    #synthese .tableau tr.nouveau td { background: var(--ok-fond); }
+    #synthese .evol { display: flex; flex-direction: column; gap: 5px; }
+    #synthese .evol .item { display: grid; grid-template-columns: 24px 1fr; gap: 6px; align-items: start;
+      font-size: 10.8px; line-height: 1.4; }
+    #synthese .evol .puce { min-width: 20px; height: 20px; font-size: 11px; }
+  </style>
+  <div class="surtitre">Synthèse</div>
+  <h2 class="titre"><span class="num">5</span>🎯 Choix tranchés et points ouverts</h2>
+  <p class="chapo">Les choix tranchés de la conception, tels que le code les applique, et ce qui a changé depuis le 8 octobre.
+    Les points ouverts suivent.</p>
+
+  <div class="colonnes" style="grid-template-columns: 1.72fr 1fr; gap: 12px">
+    <table class="tableau">
+      <tr><th>#</th><th>Choix tranché</th></tr>
+      <tr><td>1</td><td>🏆 <b>Machine à états finis</b> déterministe, classe <code>Orchestrateur</code> explicite (option A) — <b>sans LLM</b></td></tr>
+      <tr><td>2</td><td>🔧 Éligibilité = tool <code>is_eligible()</code> ; 4 agents LLM ; 1 section → 1 écrivain ; aucun appel direct entre agents</td></tr>
+      <tr><td>3</td><td>💶 Plafond appliqué par l'estimation, <b>après</b> la franchise</td></tr>
+      <tr><td>4</td><td>🕵️ F1–F4 calculés par antifraude ; types de pièces exigés vérifiés par pieces</td></tr>
+      <tr><td>5</td><td>⚡ L'état antifraude n'est jamais atteint si la demande est déjà conclue</td></tr>
+      <tr><td>6</td><td>🧠 État Pydantic, patchs contrôlés, propriété par section, <code>etat_courant</code></td></tr>
+      <tr><td>7</td><td>🔐 Projection 7 champs + validation 4 couches → 1 appel réservé, 0 relance — dans la <b>référence</b> d'antifraude, avant le LLM</td></tr>
+      <tr><td>8</td><td>🛑 <b>Bornes = gardes</b> : 12 étapes · 8 s · 1 relance · partenaire 3 s ; terminaison prouvée sur le graphe</td></tr>
+      <tr><td>9</td><td>🤖 <b>Chaque agent a son LLM</b>, modèle lu dans le <code>.env</code> ; prompt de rôle, outils exclusifs, 2 à 3 tours</td></tr>
+      <tr><td>10</td><td>🧱 Règles en outils ; <b>le LLM rédige, la référence décide</b> : champs décisifs = référence, sinon <b>repli déterministe</b></td></tr>
+      <tr><td>11</td><td>⏱️ <b>Budget dégressif</b> par agent ; 3 s A2A et 1 s décision réservées</td></tr>
+      <tr><td>12</td><td>🔌 Port <code>ClientLLM</code> : Azure AI Foundry (<code>ChatCompletionsClient</code>) seul fournisseur réel, <code>FakeLLM</code> en test</td></tr>
+      <tr><td>13</td><td>🛟 Filet de sécurité = exécution durable (filet + snapshot + reaper, ces deux derniers avec la base)</td></tr>
+      <tr><td>14</td><td>📎 Pièces = références derrière <code>DepotPieces</code> ; relance n°k = dépôt n°k du type manquant</td></tr>
+      <tr><td>15</td><td>🛡️ <b>Garde-fou de sortie</b> par agent ; decision : issue et file = <code>appliquer_regles_s10</code>, violation ⇒ repli</td></tr>
+      <tr><td>16</td><td>🏭 <b>Fabrique d'agents</b> : table <code>SPECS</code> + <code>creer_agent()</code>, sans hiérarchie de classes</td></tr>
+      <tr><td>17</td><td>📥 <b>Ingestion hors équipe</b> : fichier lu <b>une fois</b>, au dépôt ; VLM = outil, pas agent</td></tr>
+      <tr><td>18</td><td>📜 <b>Contrat PDF source de vérité</b>, sous 3 verrous (schéma, barème, couche texte)</td></tr>
+      <tr><td>19</td><td>🚪 <b>Soumission + contrôle d'admission + garde T0</b> : jamais d'éligibilité sur des données non validées</td></tr>
+      <tr><td>20</td><td>🐘 <b>PostgreSQL facultatif</b> : <code>bytea</code>, snapshots <code>jsonb</code>, registre à clé unique, file <code>SKIP LOCKED</code></td></tr>
+      <tr><td>21</td><td>💾 <b>Cache d'analyse</b> <code>(sha256, modele, version_prompt)</code> = reproductibilité</td></tr>
+      <tr><td>22</td><td>🏭 <b>Générateur déterministe</b> (<code>--seed 42</code>) + manifeste = vérité terrain de l'éval du VLM</td></tr>
+      <tr class="nouveau"><td>23</td><td>🧵 <b>Exécution synchrone</b> : LLM, VLM et A2A sous délai par thread ; <code>traiter_lot</code> en threads</td></tr>
+      <tr class="nouveau"><td>24</td><td>🔁 <b>Disjoncteur LLM</b> : &gt; 50 % de replis sur 60 s (≥ 10 tentatives) ⇒ repli des 4 agents, sans appel</td></tr>
+      <tr class="nouveau"><td>25</td><td>🧑 <b>Espace assuré</b> : vue projetée en liste blanche ; agent de relance borné aux pièces, hors machine</td></tr>
+      <tr class="nouveau"><td>26</td><td>📏 <b>Mesurer pour de vrai</b> : <code>make epreuve</code> (EX-01 → EX-06, T1–T11) et <code>make eval</code> (agent × modèle)</td></tr>
+    </table>
+
+    <div style="display:flex; flex-direction:column; gap:9px">
+      <div class="note violet">
+        <h3>🔄 Évolutions depuis la version du 8 octobre</h3>
+        <p class="petit discret" style="margin-bottom:6px">Chantier 2 : liaison A2A, monitorage, LLM réel, espace assuré.
+          Lignes 23 à 26 du tableau (fond vert) ajoutées.</p>
+        <div class="evol">
+          <div class="item"><span class="puce">1</span><span><b>Un seul fournisseur</b> : Azure AI Foundry via <code>azure-ai-inference</code>, pour les agents et le VLM ; plus d'adaptateur par fournisseur.</span></div>
+          <div class="item"><span class="puce">2</span><span><b>Rôle du LLM borné</b> : chaque agent calcule d'abord sa référence déterministe ; le LLM rédige le texte de sa section, sans changer l'issue ni l'appel au partenaire.</span></div>
+          <div class="item"><span class="puce">3</span><span><b>Exécution synchrone</b> sous délai par thread ; seuls le cycle de vie de l'API et le flux SSE sont <code>async</code>.</span></div>
+          <div class="item"><span class="puce">4</span><span><b>Persistance facultative</b> : sans <code>KALDERA_DATABASE_URL</code>, ni snapshot ni reaper, registre A2A en mémoire.</span></div>
+          <div class="item"><span class="puce">5</span><span><b>Disjoncteur LLM</b> (EX-D33), un par orchestrateur ; nouvelle cause de repli <code>disjoncteur</code>.</span></div>
+          <div class="item"><span class="puce">6</span><span><b>Espace assuré</b> (UI1) : front React, API <code>/assure/*</code>, flux SSE, vue projetée ; un 5ᵉ agent LLM, la <b>relance</b>.</span></div>
+          <div class="item"><span class="puce">7</span><span><b>A2A conforme au contrat v2.0</b> : Agent Card lue au démarrage, URL de même origine, nature de chaque appel tracée.</span></div>
+          <div class="item"><span class="puce">8</span><span><b>Mesure réelle</b> : <code>make epreuve</code> (référence archivée, verte) et <code>make eval</code>, qui attend encore les clés Azure.</span></div>
+        </div>
+      </div>
+      <div class="note vert petit">✅ <b>Vérifié dans le code</b> (commit <code>a5dc629</code>) : chaque ligne du tableau
+        nomme ce que le code fait aujourd'hui ; les écarts avec la version du 8 octobre sont résumés ci-dessus.</div>
+    </div>
+  </div>
+</section>

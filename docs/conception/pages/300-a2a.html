@@ -1,0 +1,77 @@
+<section class="page" id="a2a">
+  <style>
+    #a2a .schema { position:relative; height:358px; }
+    #a2a .schema > div { position:absolute; font-size:10.5px; }
+    #a2a svg { position:absolute; left:0; top:0; overflow:visible; z-index:2; }
+    #a2a .zone { border:1.5px dashed #9aa3ad; border-radius:10px; }
+    #a2a .zone-p { border:1.5px dashed var(--ext-bord); background:#f2f7ff; border-radius:10px; }
+    #a2a .couche { position:static !important; text-align:left; margin:3px 0; padding:3px 7px; font-size:9.5px; white-space:nowrap; line-height:1.35; }
+    #a2a .couche b { display:inline; font-size:10.5px; }
+  </style>
+  <div class="surtitre">Livrable 3 · Échange A2A</div>
+  <h2 class="titre"><span class="num">3.1</span>🤝 Parler au partenaire sans lui faire confiance</h2>
+  <p class="chapo">Un seul client A2A (<code>partenaire.py</code>), utilisé par la seule <b>référence déterministe</b> de l'agent antifraude, avant
+    son LLM : c'est le point unique où s'appliquent le filtre de sortie et la validation d'entrée.</p>
+
+  <div class="schema">
+    <svg width="1032" height="358">
+      <defs>
+        <marker id="av" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2f9e44"/></marker>
+        <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#e03131"/></marker>
+      </defs>
+      <line x1="248" y1="74" x2="272" y2="74" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#av)"/>
+      <line x1="442" y1="74" x2="466" y2="74" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#av)"/>
+      <line x1="658" y1="74" x2="736" y2="74" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#av)"/>
+      <text x="676" y="67" font-size="9.5" fill="#2f9e44" font-weight="700">requête</text>
+      <line x1="736" y1="168" x2="684" y2="168" stroke="#3b82f6" stroke-width="1.8" marker-end="url(#ab)"/>
+      <text x="676" y="161" font-size="9.5" fill="#3b82f6" font-weight="700">réponse</text>
+      <line x1="450" y1="214" x2="440" y2="214" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#av)"/>
+      <line x1="450" y1="290" x2="440" y2="290" stroke="#e03131" stroke-width="1.8" marker-end="url(#ar)"/>
+      <path d="M820,124 L820,334 L352,334 L352,322" fill="none" stroke="#e03131" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#ar)"/>
+      <text x="520" y="350" font-size="9.5" fill="#e03131" font-weight="700">⏱️ délai &gt; 3 s · HTTP 401 / 503 · réseau</text>
+    </svg>
+
+    <div class="zone" style="left:0; top:0; width:690px; height:342px"></div>
+    <div style="left:12px; top:6px; font-weight:750; color:#4b5563">🏢 Kaldera</div>
+    <div class="zone-p" style="left:706px; top:0; width:326px; height:342px"></div>
+    <div style="left:718px; top:6px; font-weight:750; color:var(--ext-bord)">🌐 Partenaire — A2A (contrat v2.0)</div>
+
+    <div class="boite" style="left:14px; top:36px; width:232px; height:78px"><b>🕵️ antifraude · référence</b>
+      ≥ 1 indicateur F1–F4 ? sinon : aucun appel<br><span class="discret">Agent Card lue au démarrage (1 s, même origine)</span></div>
+    <div class="boite ok" style="left:274px; top:36px; width:168px; height:78px"><b>🔐 Projection stricte</b>
+      7 champs, tous requis<br><code>extra="forbid"</code>, <code>strict</code><br>validée AVANT l'envoi</div>
+    <div class="boite ext" style="left:468px; top:36px; width:190px; height:78px"><b>📤 POST · message/send</b>
+      JSON-RPC 2.0 · Bearer jeton<br>1 appel / dossier · 0 relance<br>abandon à 3 s · registre</div>
+    <div class="boite ext" style="left:738px; top:36px; width:282px; height:88px; background:#fff"><b>🤖 Agent anti-fraude</b>
+      Agent Card : <code>/.well-known/agent.json</code><br>répond en ≤ 2 s (garanti) · tâche « completed » + artefact :
+      {reference_dossier, score, niveau, indicateurs, evaluation_id, version_modele}</div>
+
+    <div class="boite" style="left:452px; top:132px; width:232px; height:192px; background:#fff; padding:6px">
+      <b>🧪 Validation en 4 couches</b>
+      <div class="boite couche"><b>① Transport</b> : HTTP 200, JSON lisible<br><span class="discret">401 · 503 · INV-06</span></div>
+      <div class="boite couche"><b>② Enveloppe</b> : même id, tâche terminée<br><span class="discret">erreurs -32xxx, même sous 200 · INV-07</span></div>
+      <div class="boite couche"><b>③ Schéma strict</b> : 6 champs, enums<br><span class="discret">INV-03 · INV-05</span></div>
+      <div class="boite couche"><b>④ Cohérence</b> : score, seuils, réf.<br><span class="discret">INV-01 · 02 · 04</span></div>
+    </div>
+    <div class="boite ok" style="left:262px; top:186px; width:176px; height:58px"><b>✅ avis exploitable</b>4 couches ✓ → avis complet<br>LLM : niveau, score</div>
+    <div class="boite risque" style="left:262px; top:262px; width:176px; height:60px"><b>❌ avis indisponible</b>cause = code + couche<br>rien n'est recopié → §9</div>
+    <div class="boite decision" style="left:14px; top:186px; width:228px; height:136px; padding:12px"><b>⚖️ Règle d'or</b>
+      « une réponse qui ne respecte pas ces règles doit être écartée par le client, jamais exploitée »<br><span class="discret">— contrat §3 · spec §7</span></div>
+  </div>
+
+  <div class="grille-2" style="gap:12px">
+    <div class="boite ok" style="text-align:left"><b>📤 Envoyé — 7 champs, tous obligatoires (contrat §2)</b>
+      reference_dossier · type_sinistre · montant_declare (&gt; 0) · date_survenance · anciennete_contrat_jours · sinistres_12_mois · departement</div>
+    <div class="boite risque" style="text-align:left"><b>🚫 Jamais envoyé (contrat §2)</b>
+      nom · prénom · email · téléphone · adresse · code postal complet · IBAN · id_client · n° de contrat · description libre · pièces</div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>EX-03</h3>Projection sur les <b>7 champs</b> du contrat, validée avant l'envoi, testée par un espion sur la requête.
+      Le jeton ne part que vers la base configurée ou une URL de <b>même origine</b>.</div>
+    <div class="note petit"><h3>EX-04</h3>4 couches de validation ; une seule en échec ⇒ avis indisponible, rien recopié. La cause ne reprend jamais
+      le contenu de la réponse (EX-D22).</div>
+    <div class="note petit"><h3>7 variantes invalides</h3>Chaque couche est couverte par au moins un scénario <code>INV-*</code> (INV-01 à INV-07).</div>
+  </div>
+</section>

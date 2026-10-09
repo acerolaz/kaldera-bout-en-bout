@@ -1,0 +1,51 @@
+<section class="page" id="parcours-relance">
+  <style>
+    #parcours-relance .etapes { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; }
+    #parcours-relance .etapes .boite { font-size:10.5px; text-align:left; padding:6px 8px; }
+    #parcours-relance .etapes .n { display:inline-block; background:var(--vert); color:var(--or); border-radius:50%; width:20px; height:20px; text-align:center; font-weight:800; margin-right:4px; }
+    #parcours-relance .tableau td, #parcours-relance .tableau th { font-size:10.5px; padding:4px 7px; }
+  </style>
+  <div class="surtitre">Livrable 2 · Espace assuré (UI1)</div>
+  <h2 class="titre"><span class="num">2.8</span>🧭 L'espace sinistre de l'assuré · ② le parcours et l'agent de relance</h2>
+  <p class="chapo">Cinq étapes affichées, calculées côté serveur à partir des <b>phases</b> internes (<code>ETAPES_EN_COURS</code>) ; le flux SSE pousse chaque
+    changement. L'agent de relance aide l'assuré sur ses pièces, et sur rien d'autre.</p>
+
+  <div class="etapes">
+    <div class="boite"><span class="n">1</span><b style="display:inline">Demande reçue</b><br>dépôt et analyse des fichiers jusqu'à l'admission<br>
+      <span class="discret">↳ « En attente de vos pièces » si une pièce manque ou est à refaire, avant l'admission</span></div>
+    <div class="boite"><span class="n">2</span><b style="display:inline">Vérification de votre dossier</b><br>éligibilité, garde T0, pièces</div>
+    <div class="boite"><span class="n">3</span><b style="display:inline">Évaluation du dommage</b><br>estimation</div>
+    <div class="boite"><span class="n">4</span><b style="display:inline">Contrôles complémentaires</b><br>anti-fraude, libellé neutre, rien d'autre affiché</div>
+    <div class="boite decision"><span class="n">5</span><b style="display:inline">Décision</b><br>verdict expliqué (textes écrits à la main)<br>
+      <span class="discret">↳ « Transmise à un gestionnaire » pour toute escalade, quelle que soit la file</span></div>
+  </div>
+
+  <div class="colonnes" style="grid-template-columns:1.25fr 1fr">
+    <table class="tableau">
+      <tr><th>Méthode</th><th>Route</th><th>Réponse</th></tr>
+      <tr><td>POST / DELETE</td><td><code>/assure/session</code></td><td>ouvre ou ferme la session (cookie)</td></tr>
+      <tr><td>GET</td><td><code>/assure/demandes</code></td><td>mes sinistres : référence, date, étape</td></tr>
+      <tr><td>GET</td><td><code>/assure/demandes/{ref}</code></td><td><code>VueDemande</code> : étape, branche, horodatages, pièces, verdict</td></tr>
+      <tr><td>POST</td><td><code>…/pieces</code></td><td>202 <code>recu</code> ou 200 <code>deja_recu</code> ; avertissement si PDF multipage ; 415, 413, 409 après soumission</td></tr>
+      <tr><td>POST</td><td><code>…/soumettre</code></td><td>admission ; 409 <code>analyse_en_cours</code>, <code>confirmation_requise</code>, <code>deja_soumise</code></td></tr>
+      <tr><td>POST</td><td><code>…/messages</code></td><td>1 à 1 000 caractères, 30 par demande (429) ; 409 <code>dossier_clos</code> après le verdict</td></tr>
+      <tr><td>GET</td><td><code>…/flux</code></td><td>SSE <code>etape</code>, <code>piece</code>, <code>message</code>, <code>verdict</code> ; reprise <code>Last-Event-ID</code></td></tr>
+    </table>
+    <div class="carte" style="background:var(--llm-fond); border-color:var(--llm-bord)">
+      <h3>💬 Agent de relance (<code>relance.py</code>)</h3>
+      <ul class="liste petit">
+        <li><b>Même mécanique qu'<code>AgentLLM</code></b> : le code calcule les faits (pièces attendues, intention de la question) ; le LLM ne rédige que le texte.</li>
+        <li><b>Outils</b> : <code>reference_relance</code> (fait foi), <code>liste_pieces</code>, <code>consigne_depot</code>.</li>
+        <li><b>Entrée</b> : la question est une donnée non fiable, chevrons neutralisés ; le LLM ne voit que la question, les pièces et l'identité (pour le seul contrôle de fuite).</li>
+        <li><b>Garde-fou</b> : 600 caractères au plus, aucune pièce hors liste, aucun terme interdit (fraude, partenaire, argent, décision, état interne…).</li>
+        <li><b>Repli</b> : gabarit de l'intention (<code>liste</code>, <code>rejet</code>, <code>conseiller</code>), jamais signalé.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>Messages spontanés</h3>Après une analyse (pièce à refaire) ou quand la liste devient complète, le worker publie un gabarit : aucun LLM dans ce chemin.</div>
+    <div class="note petit"><h3>Le chat s'arrête au verdict</h3>Une fois le verdict affiché, la page ne propose plus ni le chat ni le dépôt ; la route des messages répond 409 avant tout appel au LLM.</div>
+    <div class="note petit"><h3>Éprouvé de bout en bout</h3><code>make front-e2e</code> (Playwright) : connexion, facture illisible, message spontané, question, nouveau dépôt, soumission, verdict, sans appel Azure.</div>
+  </div>
+</section>

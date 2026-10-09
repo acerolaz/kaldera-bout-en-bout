@@ -1,0 +1,57 @@
+<section class="page" id="ingestion">
+  <style>
+    #ingestion .pipe { display:grid; grid-template-columns: repeat(8, 1fr); gap:6px; align-items:stretch; }
+    #ingestion .pipe .boite { font-size:10px; padding:5px 5px; display:flex; flex-direction:column; justify-content:center; }
+    #ingestion .pipe .boite b { font-size:11px; }
+    #ingestion .n { display:inline-block; background:var(--vert); color:var(--or); border-radius:4px; padding:0 5px; font-weight:800; margin-right:3px; }
+    #ingestion pre.code { font-size:9.5px; }
+    #ingestion .tableau td, #ingestion .tableau th { font-size:10.5px; padding:4px 7px; }
+  </style>
+  <div class="surtitre">Livrable 2 · Ingestion des pièces</div>
+  <h2 class="titre"><span class="num">2.4 ter</span>📥 Le pipeline d'ingestion</h2>
+  <p class="chapo">Chaque fichier passe une seule fois par le même pipeline, quelle que soit son entrée (API, espace assuré, <code>make seed</code>).
+    Le VLM analyse, le code vérifie, PostgreSQL conserve. Avant l'admission, donc hors des 10 s.</p>
+
+  <div class="pipe">
+    <div class="boite ext"><b><span class="n">1</span>Dépôt</b><code>POST …/pieces</code> · API ou espace assuré</div>
+    <div class="boite tool"><b><span class="n">2</span>Contrôles</b>MIME lu sur les octets · ≤ 10 Mo · sha256 · contrat : PDF seul</div>
+    <div class="boite"><b><span class="n">3</span>blob</b><code>ON CONFLICT (sha256)</code> : déduplication</div>
+    <div class="boite"><b><span class="n">4</span>file_ingestion</b>tâche en attente · <b>202</b></div>
+    <div class="boite orch"><b><span class="n">5</span>Worker</b><code style="background:#2d5a44;color:#fff">FOR UPDATE SKIP LOCKED</code> · 3 essais</div>
+    <div class="boite tool"><b><span class="n">6</span>Cache ?</b>(sha256, modèle, version_prompt)</div>
+    <div class="boite llm"><b><span class="n">7</span>VLM · 1 appel</b>image de la page 1 · sortie Pydantic <code>extra="forbid"</code></div>
+    <div class="boite ok"><b><span class="n">8</span>Invariants → descripteur</b><code>pieces</code> / <code>contrats</code> · événement assuré</div>
+  </div>
+  <div class="ligne" style="justify-content:space-between; font-size:10.5px">
+    <span style="color:var(--risque-bord); font-weight:650">⛔ refus immédiat aux contrôles : 415 · 413 · aucune analyse</span>
+    <span style="color:var(--risque-bord); font-weight:650">écart, VLM en échec ou hors schéma ⇒ <code>statut_analyse = echec</code>, <code>lisible = false</code></span>
+  </div>
+
+  <div class="colonnes" style="grid-template-columns:1.15fr 1fr">
+<pre class="code"><span class="k">class</span> AnalysePiece(BaseModel):
+    model_config = ConfigDict(extra=<span class="k">"forbid"</span>)
+    type: Literal[<span class="k">"facture"</span>, <span class="k">"photo"</span>, <span class="k">"depot_plainte"</span>]
+    lisible: bool
+    montant: Decimal | None = None   <span class="c"># bornes de numeric(10,2)</span>
+
+<span class="k">def</span> invariants_piece(a, type_declare, texte) -> list[str]:
+    <span class="c"># montant hors facture · facture sans montant · montant ≤ 0</span>
+    <span class="c"># type lu ≠ type déclaré au dépôt</span>
+    <span class="c"># montant absent de la couche texte du PDF (contrôle croisé gratuit)</span>
+    ...</pre>
+    <table class="tableau">
+      <tr><th>Outil VLM</th><th>Entrée</th><th>Sortie (Pydantic)</th><th>Invariants (sans LLM)</th></tr>
+      <tr><td><code>analyser_piece</code></td><td>facture, photo, plainte</td><td><code>{type, lisible, montant?}</code></td><td>montant ⇔ facture ; montant &gt; 0 ; type = déclaré ; présent dans la couche texte</td></tr>
+      <tr><td><code>extraire_contrat</code></td><td>contrat PDF</td><td><code>{numero, formule, date_souscription, franchise, plafond}</code></td><td>3 verrous (2.4 quater)</td></tr>
+      <tr><td colspan="4" class="petit">🔌 Port <code>ClientVLM</code> : <code>AzureVLM</code> (Azure AI Foundry, vision) et <code>FakeVLM</code> en test (modes menteur, hallucine, casse, lent) ;
+        aucun appel VLM pendant <code>traiter_demande</code> (EX-D37, EX-D38). Sans VLM configuré, le worker refuse de démarrer.</td></tr>
+    </table>
+  </div>
+
+  <div class="grille-4 pousse">
+    <div class="note petit"><h3>Hors équipe</h3>Le VLM ne choisit aucune action : 1 fichier, 1 tâche, 1 sortie. Même statut que <code>is_eligible()</code>.</div>
+    <div class="note petit"><h3>Cache = reproductibilité</h3>Clé <code>(sha256, modele, version_prompt)</code> : même fichier ⇒ même résultat ; changer de modèle ou de consigne invalide le cache.</div>
+    <div class="note petit"><h3>Robustesse</h3>Tâche bloquée reprise après 2 × <code>delai_analyse_s</code> ; au 3ᵉ essai, échec tracé. Une facture qui contient « ignore tes règles » reste une donnée (ING-03).</div>
+    <div class="note petit"><h3>Admission</h3>Analyses terminées <b>et</b> demande <b>soumise</b> (<code>POST …/soumettre</code>) ⇒ le worker l'admet et la fait traiter. .NET : IFormFile + BackgroundService ; la file ≈ Hangfire sans Redis.</div>
+  </div>
+</section>
