@@ -59,16 +59,17 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-09 | PAN-02 (partenaire à 5 s) | abandon à 3 s enfin éprouvé : la requête n'est plus rejetée avant le délai | `delai_partenaire_s` = 3 | aucun (mesure) ; analyse des bornes au C2b | durée du lot : 3,03 s |
 | 2026-10-09 | suite complète | 14 rouges A2A | critère de sortie C2a | — | acceptance 42/56 → 56/56 ; suite : 14 rouges → 0 (560 verts) |
 | 2026-10-09 | C2a · revue finale | URL partenaire malformée (`httpx.InvalidURL`, hors `HTTPError`) : exception par demande, worker arrêté, dossier laissé `en_cours` ; base configurée injoignable : registre en mémoire, envoi | EX-01 ; EX-D19 / spec §1 : base en panne ⇒ aucun envoi | `InvalidURL`, `ValueError`, `RecursionError` rattrapées (carte, envoi, corps) ; registre Postgres dès que la base est configurée, pool résolu à la réservation (échec ⇒ « registre indisponible ») ; jeton absent et montant infini refusés avant la réservation | exception → mode dégradé ; envoi → aucun envoi |
-| 2026-10-09 | C2b · épreuve (`make epreuve`, 28 scénarios, 34 demandes) | appels comptés même non partis ; aucune vue d'équipe ni de couverture des transitions | C2-Q15, dossier 4.2 | nature de chaque appel (`ok` 7, `timeout` 2, `invalide` 7, `erreur` 2, `non_envoye` 0, `non_requis` 7), `appels_externes` = appels partis, métriques `equipe`, rapport archivé `docs/epreuves/epreuve-2026-10-09.md` | durée p95 3 004,51 ms, max 3 004,63 ms, étapes max 6 ; couverture T1 → T11 11/11 (T0 : ING-01 / ING-02) ; EX-01 → EX-06 ✅ |
+| 2026-10-09 | C2b · épreuve (`make epreuve`, 28 scénarios, 34 demandes) | appels comptés même non partis ; aucune vue d'équipe ni de couverture des transitions | C2-Q15, dossier 4.2 | nature de chaque appel (`ok` 7, `timeout` 2, `invalide` 7, `erreur` 2, `non_envoye` 0, `non_requis` 7), `appels_externes` = appels partis, métriques `equipe`, rapport archivé `docs/epreuves/epreuve-2026-10-09.md` | durée p95 3 005,49 ms, max 3 006,68 ms, étapes max 6 ; couverture T1 → T11 11/11 (T0 : ING-01 / ING-02) ; EX-01 → EX-06 ✅ |
+| 2026-10-09 | C2b · revue finale | EX-03 aveugle à une donnée personnelle échappée en `\uXXXX` (httpx < 0.28) ou portée par une entrée de journal sans référence ; en-tête du rapport sans le mode LLM réel | aucun faux vert (critère de sortie) | corps du journal normalisé en UTF-8, valeurs personnelles de toutes les demandes du scénario ; modes `llm` / `repli` au rapport ; jeton vide remplacé puis restauré ; catégorie sans fiche évaluée = écart ; `httpx >= 0.28` | faux vert possible → écart détecté ; « modèles » → « mode : llm 0 / repli 116 » |
 
 ## Bornes provisoires en vigueur
 
 | Borne | Valeur | Justification | Statut |
 |---|---|---|---|
 | `etapes_max` | 12 | chemin nominal le plus long : 6 étapes (avec relance) → marge ×2 | éprouvée (max observé : 6 étapes) |
-| `duree_max_s` | 8 | 10 s (§12) moins 2 s de marge | éprouvée (max observé : 3,0 s, p95 3,0 s) |
+| `duree_max_s` | 8 | 10 s (§12) moins 2 s de marge | éprouvée en mode repli (max observé : 3,01 s, p95 3,01 s) ; à remesurer en C2c avec LLM |
 | `relances_pieces_max` | 1 | déduite des scénarios NOM-07 / BCL-01 | à valider avec le métier |
-| `delai_partenaire_s` | 3 | abandon client du contrat partenaire | éprouvée (antifraude max observé : 3,0 s, PAN-02 : abandon à 3 s) |
+| `delai_partenaire_s` | 3 | abandon client du contrat partenaire | éprouvée en mode repli (antifraude max observé : 3,01 s, PAN-02 : abandon à 3 s) ; à remesurer en C2c |
 
 ## Restant (chantier 2)
 
