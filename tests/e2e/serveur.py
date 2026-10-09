@@ -20,9 +20,11 @@ ENV_LLM = re.compile(
 
 
 def main() -> None:
+    url = os.environ.get("TEST_DATABASE_URL", "")
+    if not url:  # sans URL, libpq se rabattrait sur les PG* par défaut et le TRUNCATE viderait n'importe quelle base
+        raise SystemExit("TEST_DATABASE_URL absente : base de test requise (elle est vidée)")
     for variable in [v for v in os.environ if ENV_LLM.match(v)]:
         del os.environ[variable]
-    url = os.environ["TEST_DATABASE_URL"]
     os.environ.update(
         KALDERA_DATABASE_URL=url,
         KALDERA_SESSION_SECRET=os.environ.get("KALDERA_SESSION_SECRET", "secret-e2e"),

@@ -16,7 +16,7 @@ export default defineConfig({
       url: "http://127.0.0.1:8000/docs",
       reuseExistingServer: false,
       timeout: 60_000,
-      env: { TEST_DATABASE_URL: process.env.TEST_DATABASE_URL ?? "" },
+      env: { TEST_DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://kaldera:kaldera@localhost:5433/kaldera_test" },
     },
     { command: "npm run dev", url: "http://localhost:5173", reuseExistingServer: false, timeout: 60_000 },
   ],
