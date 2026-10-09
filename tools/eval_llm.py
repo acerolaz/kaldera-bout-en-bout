@@ -39,7 +39,7 @@ SANS_TENTATIVE = {"disjoncteur", "budget", "llm_non_configure"}  # le LLM n'a pa
 RAPPORTS = epreuve.RAPPORTS
 Fabrique = Callable[[ConfigAgents, str], ClientLLM | None]
 SANS_MODELE = (
-    "aucun modèle configuré (AZURE_AI_ENDPOINT, AZURE_AI_API_KEY et KALDERA_EVAL__MODELES "
+    "aucun modèle configuré (AZURE_AI_CHAT_ENDPOINT, AZURE_AI_CHAT_KEY et KALDERA_EVAL__MODELES "
     "ou KALDERA_<AGENT>__MODELE dans le .env)"
 )
 

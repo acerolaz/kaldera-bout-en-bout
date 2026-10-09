@@ -53,7 +53,8 @@ sont lues par un VLM, utilisé comme outil, puis vérifiées par le code.
 - Python 3.11 (uv)
 - FastAPI / uvicorn (API d'ingestion, service partenaire simulé)
 - pydantic 2, pydantic-settings
-- langchain-azure-ai (agents LLM et VLM ; les modèles sont configurés dans le `.env`)
+- azure-ai-inference (`ChatCompletionsClient`, Azure AI Foundry) : agents LLM et VLM ; les
+  modèles sont configurés dans le `.env`
 - httpx (client A2A, seed)
 - PostgreSQL 16, psycopg 3 + psycopg_pool
 - pypdf, pypdfium2, Pillow ; reportlab (générateur, en dépendance de développement)
@@ -77,8 +78,9 @@ Sans Docker, le service partenaire se lance aussi en local : `make partenaire`.
 
 Configuration (`.env`) :
 
-- `AZURE_AI_ENDPOINT`, `AZURE_AI_API_KEY` : identifiants Azure AI, partagés par
-  les agents et le VLM.
+- `AZURE_AI_CHAT_ENDPOINT`, `AZURE_AI_CHAT_KEY` : endpoint d'inférence Azure AI Foundry
+  (`https://<ressource>.services.ai.azure.com/models`) et sa clé, partagés par les agents
+  et le VLM. Les `…__MODELE` sont des noms de déploiement Foundry.
 - `KALDERA_<AGENT>__MODELE` (et `DELAI_AGENT_S`, `JETONS_MAX`, `TOURS_MAX`), pour
   `PIECES`, `ESTIMATION`, `ANTIFRAUDE` et `DECISION`. Sans ces lignes, chaque
   agent tourne en repli déterministe, tracé `llm_non_configure`.

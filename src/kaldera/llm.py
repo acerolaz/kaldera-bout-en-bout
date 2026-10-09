@@ -1,7 +1,7 @@
 """Port LLM des agents métier (dossier 1.4 → 1.4 ter).
 
-Les agents ne connaissent que ``ClientLLM`` ; LangChain n'apparaît que dans l'adaptateur
-Azure. ``FakeLLM`` rejoue un script : il sert aux tests (niveaux ① et ② du plan d'épreuve).
+Les agents ne connaissent que ``ClientLLM`` ; le SDK Azure (azure-ai-inference) n'apparaît que
+dans l'adaptateur. ``FakeLLM`` rejoue un script : il sert aux tests (niveaux ① et ② du plan d'épreuve).
 """
 
 from __future__ import annotations
@@ -156,11 +156,11 @@ class ConfigAgents(BaseSettings):
     antifraude: ConfigLLM | None = None
     decision: ConfigLLM | None = None
     relance: ConfigLLM | None = None  # agent de relance de l'espace assuré (UI1), hors moteur
-    azure_ai_endpoint: str | None = Field(
-        default=None, validation_alias=AliasChoices("AZURE_AI_ENDPOINT")
+    azure_ai_chat_endpoint: str | None = Field(
+        default=None, validation_alias=AliasChoices("AZURE_AI_CHAT_ENDPOINT")
     )
-    azure_ai_api_key: SecretStr | None = Field(
-        default=None, validation_alias=AliasChoices("AZURE_AI_API_KEY")
+    azure_ai_chat_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("AZURE_AI_CHAT_KEY")
     )
 
 
@@ -172,40 +172,43 @@ def charger_config() -> ConfigAgents:
 def fabrique_llm(cfg: ConfigAgents, nom: str) -> ClientLLM | None:
     """Le ClientLLM d'un agent, ou None s'il n'est pas configuré (⇒ repli tracé)."""
     config: ConfigLLM | None = getattr(cfg, nom)
-    cle = cfg.azure_ai_api_key.get_secret_value() if cfg.azure_ai_api_key else ""
-    if config is None or not cfg.azure_ai_endpoint or not cle:
+    cle = cfg.azure_ai_chat_key.get_secret_value() if cfg.azure_ai_chat_key else ""
+    if config is None or not cfg.azure_ai_chat_endpoint or not cle:
         return None
-    return AzureLLM.depuis(config, cfg.azure_ai_endpoint, cle)
+    return AzureLLM.depuis(config, cfg.azure_ai_chat_endpoint, cle)
 
 
 # ------------------------------------------------------------------ adaptateur Azure
 
 
-class AzureLLM:
-    """Azure AI (langchain-azure-ai) derrière le port ClientLLM."""
+def client_azure(config: ConfigLLM, endpoint: str, cle: str, delai_s: float) -> Any:
+    """``ChatCompletionsClient`` (azure-ai-inference), partagé par les agents et le VLM."""
+    from azure.ai.inference import ChatCompletionsClient
+    from azure.core.credentials import AzureKeyCredential
 
-    def __init__(self, config: ConfigLLM, chat_model: Any) -> None:
+    return ChatCompletionsClient(
+        endpoint=endpoint,
+        credential=AzureKeyCredential(cle),
+        model=config.modele,
+        temperature=config.temperature,
+        max_tokens=config.jetons_max,
+        # bornes HTTP : l'appel abandonné au délai ne survit pas plus de ~delai + 1 s
+        connection_timeout=2,
+        read_timeout=math.ceil(delai_s) + 1,
+        retry_total=0,
+    )
+
+
+class AzureLLM:
+    """Azure AI Foundry (``ChatCompletionsClient``) derrière le port ClientLLM."""
+
+    def __init__(self, config: ConfigLLM, client: Any) -> None:
         self.modele = config.modele
-        self._chat = chat_model
+        self._client = client
 
     @classmethod
     def depuis(cls, config: ConfigLLM, endpoint: str, cle: str) -> AzureLLM:
-        from langchain_azure_ai.chat_models import AzureAIChatCompletionsModel
-
-        chat = AzureAIChatCompletionsModel(
-            endpoint=endpoint,
-            credential=cle,
-            model=config.modele,
-            temperature=config.temperature,
-            max_tokens=config.jetons_max,
-            # bornes HTTP : l'appel abandonné au délai ne survit pas plus de ~delai + 1 s
-            client_kwargs={
-                "connection_timeout": 2,
-                "read_timeout": math.ceil(config.delai_agent_s) + 1,
-                "retry_total": 0,
-            },
-        )
-        return cls(config, chat)
+        return cls(config, client_azure(config, endpoint, cle, config.delai_agent_s))
 
     def completer(
         self,
@@ -215,46 +218,55 @@ class AzureLLM:
         timeout_s: float,
     ) -> ReponseLLM:
         from azure.core.exceptions import AzureError
-        from langchain_core.messages import SystemMessage
 
-        historique = [SystemMessage(systeme), *map(_vers_langchain, messages)]
-        modele = self._chat.bind_tools(outils) if outils else self._chat
+        historique = [{"role": "system", "content": systeme}, *map(_vers_azure, messages)]
         pool = ThreadPoolExecutor(max_workers=1)
         try:
-            reponse = pool.submit(modele.invoke, historique).result(timeout=timeout_s)
-            contenu = (
-                reponse.content if isinstance(reponse.content, str) else json.dumps(reponse.content)
-            )
+            reponse = pool.submit(
+                self._client.complete, messages=historique, tools=outils or None
+            ).result(timeout=timeout_s)
+            message = reponse.choices[0].message
+            appels = message.tool_calls or []
             return ReponseLLM(
-                texte=None if reponse.tool_calls else (contenu or None),
+                texte=None if appels else (message.content or None),
                 appels_outils=[
                     AppelOutil(
-                        id=a.get("id") or f"{a['name']}-{i}", nom=a["name"], arguments=a["args"]
+                        id=a.id or f"{a.function.name}-{i}",
+                        nom=a.function.name,
+                        arguments=json.loads(a.function.arguments or "{}"),
                     )
-                    for i, a in enumerate(reponse.tool_calls)
+                    for i, a in enumerate(appels)
                 ],
-                jetons=(reponse.usage_metadata or {}).get("total_tokens", 0),
+                jetons=reponse.usage.total_tokens if reponse.usage else 0,
             )
         except DelaiDepasse as exc:
             raise ErreurLLM(f"délai de {timeout_s:.2f} s dépassé") from exc
-        except (AzureError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        except (AzureError, ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
             raise ErreurLLM(f"erreur du fournisseur ou réponse mal formée : {exc!r}") from exc
         finally:
-            # ponytail: au délai, le thread HTTP est abandonné mais borné par client_kwargs
-            # (read_timeout, pas de retry) ; API async du SDK si cela ne suffit plus
+            # ponytail: au délai, le thread HTTP est abandonné mais borné par read_timeout
+            # (pas de retry) ; client async du SDK (azure.ai.inference.aio) si cela ne suffit plus
             pool.shutdown(wait=False)
 
 
-def _vers_langchain(message: dict[str, Any]) -> Any:
-    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-
+def _vers_azure(message: dict[str, Any]) -> dict[str, Any]:
+    """Message interne → format chat completions (les appels d'outils en ``tool_calls``)."""
     if message["role"] == "user":
-        return HumanMessage(message["content"])
+        return {"role": "user", "content": message["content"]}
     if message["role"] == "tool":
-        return ToolMessage(message["content"], tool_call_id=message["id"])
-    return AIMessage(
-        content=message.get("content") or "",
-        tool_calls=[
-            {"name": a["nom"], "args": a["arguments"], "id": a["id"]} for a in message["appels"]
+        return {"role": "tool", "content": message["content"], "tool_call_id": message["id"]}
+    return {
+        "role": "assistant",
+        "content": message.get("content") or "",
+        "tool_calls": [
+            {
+                "id": a["id"],
+                "type": "function",
+                "function": {
+                    "name": a["nom"],
+                    "arguments": json.dumps(a["arguments"], ensure_ascii=False),
+                },
+            }
+            for a in message["appels"]
         ],
-    )
+    }

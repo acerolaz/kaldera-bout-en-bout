@@ -177,7 +177,7 @@ def main() -> None:
     if vlm is None:
         raise SystemExit(
             "aucun VLM : KALDERA_INGESTION__VLM__MODELE, KALDERA_INGESTION__VLM__VISION=true, "
-            "AZURE_AI_ENDPOINT et AZURE_AI_API_KEY sont requis"
+            "AZURE_AI_CHAT_ENDPOINT et AZURE_AI_CHAT_KEY sont requis"
         )
     ingestion = IngestionPostgres(pool(url))
     disjoncteur = Disjoncteur.depuis(BORNES)  # vit autant que le worker
