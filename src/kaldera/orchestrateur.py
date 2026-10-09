@@ -18,8 +18,8 @@ from .agents import NIVEAUX_AVIS, Evaluateur, is_eligible
 from .agents_llm import AgentLLM, MesureAgent, creer_agent
 from .llm import ClientLLM, ConfigAgents
 from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, ContratDemande, EtatDemande
-from .memoire import DepotDepuisDemande
-from .ports import DepotPieces, ErreurPersistance, Snapshots
+from .memoire import DepotDepuisDemande, RegistreA2AEnMemoire
+from .ports import DepotPieces, ErreurPersistance, RegistreA2A, Snapshots
 from .machine import TERMINAUX, Etat, TransitionInconnue, garde_entree, transition
 
 LOGGER = logging.getLogger(__name__)
@@ -41,6 +41,20 @@ class ErreurEcriture(Exception):
     """Patch refusé : section d'un autre agent, ou section déjà écrite."""
 
 
+def client_partenaire(partenaire_url: str | None, registre: RegistreA2A | None) -> Evaluateur:
+    """Évaluateur réel : Agent Card lue une fois, un appel par dossier (contrat §6).
+
+    Sans base, un registre en mémoire propre à l'orchestrateur : la durabilité vient de Postgres.
+    """
+    appel = partenaire.url_appel(partenaire.url_partenaire(partenaire_url))
+    reserve: RegistreA2A = registre or postgres.registre_par_defaut() or RegistreA2AEnMemoire()
+
+    def evaluer(demande: dict[str, Any], timeout: float) -> dict[str, Any] | partenaire.Indisponible:
+        return partenaire.evaluer_risque(demande, appel, registre=reserve, timeout=timeout)
+
+    return evaluer
+
+
 class Orchestrateur:
     def __init__(
         self,
@@ -51,6 +65,7 @@ class Orchestrateur:
         config: ConfigAgents | None = None,
         depot: DepotPieces | None = None,
         snapshots: Snapshots | None = None,
+        registre: RegistreA2A | None = None,
     ) -> None:
         self.bornes = bornes or BORNES
         self.depot = depot or NIVEAU_0
@@ -61,13 +76,11 @@ class Orchestrateur:
         if llms is None:
             llms = {nom: llm.fabrique_llm(cfg, nom) for nom in llm.AGENTS_LLM}
 
-        def evaluer_partenaire(demande: dict[str, Any], timeout: float) -> dict[str, Any] | None:
-            return partenaire.evaluer_risque(demande, partenaire_url, timeout=timeout)
+        if evaluer is None:  # client réel : Agent Card lue ici, au démarrage
+            evaluer = client_partenaire(partenaire_url, registre)
 
         def agent(nom: str) -> AgentLLM:
-            return creer_agent(
-                nom, llms.get(nom), getattr(cfg, nom), self.bornes, evaluer or evaluer_partenaire
-            )
+            return creer_agent(nom, llms.get(nom), getattr(cfg, nom), self.bornes, evaluer)
 
         # état → action (agent-as-tool) ; l'éligibilité est un tool appelé directement
         self.actions: dict[Etat, Action | AgentLLM] = {

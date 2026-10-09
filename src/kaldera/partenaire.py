@@ -7,6 +7,7 @@ stricte sur 7 champs, un appel par dossier (registre), validation de chaque rép
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import threading
@@ -19,6 +20,9 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from . import regles
+from .ports import ErreurPersistance, RegistreA2A
+
+LOGGER = logging.getLogger(__name__)
 
 URL_PAR_DEFAUT = "http://localhost:8100"
 DELAI_CARTE_S = 1.0
@@ -195,45 +199,64 @@ def _origine(url: str) -> tuple[str, str]:
 
 
 def evaluer_risque(
-    demande: dict[str, Any], url: str | None = None, *, timeout: float | None = None
-) -> dict[str, Any] | None:
-    """Demande l'avis anti-fraude du partenaire pour une demande.
+    demande: dict[str, Any],
+    url: str,
+    *,
+    registre: RegistreA2A,
+    timeout: float | None = None,
+) -> dict[str, Any] | Indisponible:
+    """Avis anti-fraude validé, ou ``Indisponible`` ; aucune relance, quel que soit le cas (§6).
 
-    Retourne l'évaluation du partenaire, ou ``None`` si elle n'a pas pu être obtenue
-    (y compris au-delà de ``timeout`` secondes).
+    ``url`` est l'URL d'appel (``url_appel``). Projection, puis réservation, puis envoi : si l'une
+    échoue, rien ne part et l'appel unique du dossier n'est pas gaspillé.
     """
-    requete = {
+    try:
+        requete = projeter(demande)
+    except (KeyError, TypeError, ValueError) as exc:
+        return Indisponible(cause_projection(exc))
+    reference = requete.reference_dossier
+    try:
+        if not registre.reserver(reference):
+            return Indisponible("registre : dossier déjà soumis")
+    except ErreurPersistance:
+        return Indisponible("registre indisponible")
+
+    id_rpc = str(uuid.uuid4())
+    enveloppe = {
         "jsonrpc": "2.0",
-        "id": str(uuid.uuid4()),
+        "id": id_rpc,
         "method": "message/send",
         "params": {
             "message": {
                 "role": "user",
                 "messageId": str(uuid.uuid4()),
-                "parts": [{"kind": "data", "data": demande}],
+                "parts": [{"kind": "data", "data": requete.model_dump()}],
             }
         },
     }
     entetes = {"Authorization": f"Bearer {os.environ.get('PARTENAIRE_JETON', '')}"}
 
-    def appeler() -> dict[str, Any] | None:
+    def appeler() -> dict[str, Any] | Indisponible:
         try:
-            reponse = httpx.post(
-                f"{url_partenaire(url)}/a2a", json=requete, headers=entetes, timeout=timeout
-            )
-            reponse.raise_for_status()
-            resultat = reponse.json()["result"]
-            return resultat["artifacts"][0]["parts"][0]["data"]
-        except (httpx.HTTPError, KeyError, IndexError, ValueError):
-            return None
+            reponse = httpx.post(url, json=enveloppe, headers=entetes, timeout=timeout)
+        except httpx.HTTPError as exc:
+            return Indisponible(f"couche ① : {type(exc).__name__}")
+        return valider_reponse(reponse.status_code, reponse.text, id_rpc, reference)
 
     if timeout is None:
-        return appeler()
-    # httpx borne chaque phase (connexion, lecture…), pas la durée totale : échéance globale.
-    # ponytail: le fil abandonné finit seul (timeout httpx par phase) ; client async si le
-    # nombre d'appels simultanés devient important
-    avis: list[dict[str, Any] | None] = []
-    fil = threading.Thread(target=lambda: avis.append(appeler()), daemon=True)
-    fil.start()
-    fil.join(timeout)
-    return avis[0] if avis else None
+        avis = appeler()
+    else:
+        # httpx borne chaque phase (connexion, lecture…), pas la durée totale : échéance globale.
+        # ponytail: le fil abandonné finit seul (timeout httpx par phase) ; client async si le
+        # nombre d'appels simultanés devient important
+        recus: list[dict[str, Any] | Indisponible] = []
+        fil = threading.Thread(target=lambda: recus.append(appeler()), daemon=True)
+        fil.start()
+        fil.join(timeout)
+        avis = recus[0] if recus else Indisponible(f"délai > {timeout:g} s")
+    if isinstance(avis, dict):
+        try:
+            registre.noter(reference, avis["evaluation_id"])
+        except ErreurPersistance as exc:  # avis gardé : la réservation empêche déjà un second appel
+            LOGGER.warning("evaluation_id non noté pour %s : %s", reference, exc)
+    return avis

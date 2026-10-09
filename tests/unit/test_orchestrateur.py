@@ -19,6 +19,7 @@ from kaldera.agents_llm import SPECS, AgentLLM
 from kaldera.etat import AvisFraude, Bornes, ContratDemande, Estimation, EtatDemande
 from kaldera.llm import fidele
 from kaldera.machine import Etat
+from kaldera.memoire import RegistreA2AEnMemoire
 from kaldera.partenaire import Indisponible
 from kaldera.ports import PieceRef
 from kaldera.orchestrateur import (
@@ -285,18 +286,20 @@ def test_sans_llm_les_agents_tracent_le_repli() -> None:
 # --------------------------------------------------------------------- partenaire
 
 
-def test_partenaire_muet_abandonne_au_delai() -> None:
+def test_partenaire_muet_abandonne_au_delai(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PARTENAIRE_JETON", "jeton-de-test")
     serveur = socket.socket()
     serveur.bind(("127.0.0.1", 0))
     serveur.listen()  # accepte la connexion, ne répond jamais
     try:
         debut = time.monotonic()
         avis = partenaire.evaluer_risque(
-            {"reference": "KAL-26-0000"},
-            f"http://127.0.0.1:{serveur.getsockname()[1]}",
+            _demande("AF-01"),
+            f"http://127.0.0.1:{serveur.getsockname()[1]}/a2a",
+            registre=RegistreA2AEnMemoire(),
             timeout=0.3,
         )
-        assert avis is None and time.monotonic() - debut < 2
+        assert avis == Indisponible("délai > 0.3 s") and time.monotonic() - debut < 2
     finally:
         serveur.close()
 
@@ -325,11 +328,12 @@ def test_partenaire_au_compte_gouttes_abandonne_au_delai_total(
     try:
         debut = time.monotonic()
         avis = partenaire.evaluer_risque(
-            {"reference": "KAL-26-0000"},
-            f"http://127.0.0.1:{serveur.getsockname()[1]}",
+            _demande("AF-01"),
+            f"http://127.0.0.1:{serveur.getsockname()[1]}/a2a",
+            registre=RegistreA2AEnMemoire(),
             timeout=0.5,
         )
-        assert avis is None and time.monotonic() - debut < 1.0
+        assert avis == Indisponible("délai > 0.5 s") and time.monotonic() - debut < 1.0
     finally:
         arret.set()
         serveur.close()

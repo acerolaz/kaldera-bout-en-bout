@@ -212,18 +212,30 @@ class RegistreA2APostgres:
             )
 
 
-def snapshots_par_defaut() -> SnapshotsPostgres | None:
-    """Snapshots PostgreSQL si ``KALDERA_DATABASE_URL`` est configurée et joignable, sinon aucun."""
+def _pool_par_defaut() -> ConnectionPool | None:
+    """Pool si ``KALDERA_DATABASE_URL`` est configurée et joignable, sinon aucun."""
     try:
         url = ConfigBase().database_url
     except ValidationError as exc:  # .env malformé : jamais bloquant
-        LOGGER.warning("configuration de la base invalide, sans snapshot : %s", exc)
+        LOGGER.warning("configuration de la base invalide, sans persistance : %s", exc)
         return None
     if not url or monotonic() - _ECHECS.get(url, -REESSAI_S) < REESSAI_S:
         return None
     try:
-        return SnapshotsPostgres(pool(url))
+        return pool(url)
     except psycopg.Error as exc:
         _ECHECS[url] = monotonic()
-        LOGGER.warning("PostgreSQL injoignable, sans snapshot pendant %s s : %s", REESSAI_S, exc)
+        LOGGER.warning("PostgreSQL injoignable, sans persistance pendant %s s : %s", REESSAI_S, exc)
         return None
+
+
+def snapshots_par_defaut() -> SnapshotsPostgres | None:
+    """Snapshots PostgreSQL si la base est configurée et joignable, sinon aucun."""
+    connexions = _pool_par_defaut()
+    return SnapshotsPostgres(connexions) if connexions is not None else None
+
+
+def registre_par_defaut() -> RegistreA2APostgres | None:
+    """Registre ``appels_partenaire`` si la base est configurée et joignable, sinon aucun."""
+    connexions = _pool_par_defaut()
+    return RegistreA2APostgres(connexions) if connexions is not None else None

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,8 @@ import httpx
 import pytest
 
 from kaldera import partenaire
+from kaldera.memoire import RegistreA2AEnMemoire
+from kaldera.ports import ErreurPersistance
 from kaldera.partenaire import Indisponible, valider_reponse
 
 RACINE = Path(__file__).resolve().parents[2]
@@ -301,3 +304,104 @@ def test_carte_vers_un_autre_hote_ignoree(carte: Any) -> None:
     """Review Focus 1 : le jeton Bearer ne part jamais vers un hôte choisi par la carte."""
     carte(httpx.Response(200, json={"url": "https://ailleurs.example/a2a"}))
     assert partenaire.url_appel(BASE) == f"{BASE}/a2a"
+
+
+# ------------------------------------------------------------------ appel complet
+
+URL = "http://partenaire:8100/a2a"
+
+
+class Envoi:
+    """Double de ``httpx.post`` : répond comme le partenaire, enregistre chaque envoi."""
+
+    def __init__(self, ordre: list[str], evaluation: dict[str, Any] | None = None,
+                 attente_s: float = 0.0) -> None:
+        self.ordre, self.evaluation, self.attente_s = ordre, evaluation, attente_s
+        self.recus: list[dict[str, Any]] = []
+
+    def __call__(self, url: str, *, json: Any, headers: Any, timeout: Any) -> httpx.Response:
+        self.ordre.append("envoi")
+        self.recus.append({"url": url, "json": json, "headers": headers})
+        time.sleep(self.attente_s)
+        reference = json["params"]["message"]["parts"][0]["data"]["reference_dossier"]
+        evaluation = self.evaluation or {**EVALUATION, "reference_dossier": reference}
+        return httpx.Response(200, json={**_corps(evaluation), "id": json["id"]})
+
+
+class Registre(RegistreA2AEnMemoire):
+    def __init__(self, ordre: list[str], panne: bool = False) -> None:
+        super().__init__()
+        self.ordre, self.panne = ordre, panne
+
+    def reserver(self, reference: str) -> bool:
+        self.ordre.append("reserver")
+        if self.panne:
+            raise ErreurPersistance("base tombée")
+        return super().reserver(reference)
+
+
+@pytest.fixture
+def ordre() -> list[str]:
+    return []
+
+
+@pytest.fixture
+def envoi(monkeypatch: pytest.MonkeyPatch, ordre: list[str]) -> Envoi:
+    monkeypatch.setenv("PARTENAIRE_JETON", "jeton-de-test")
+    double = Envoi(ordre)
+    monkeypatch.setattr(partenaire.httpx, "post", double)
+    return double
+
+
+def test_appel_conforme(envoi: Envoi, ordre: list[str]) -> None:
+    registre = Registre(ordre)
+    avis = partenaire.evaluer_risque(_demande(), URL, registre=registre, timeout=3)
+    assert avis == {**EVALUATION, "reference_dossier": "KAL-26-0201"}
+    assert ordre == ["reserver", "envoi"]  # réservation avant l'envoi (EX-D19)
+    (recu,) = envoi.recus
+    assert recu["url"] == URL and recu["headers"] == {"Authorization": "Bearer jeton-de-test"}
+    assert recu["json"]["method"] == "message/send"
+    (partie,) = recu["json"]["params"]["message"]["parts"]
+    assert partie["kind"] == "data" and set(partie["data"]) == CHAMPS_CONTRAT
+    assert registre.evaluations == {"KAL-26-0201": "EVA-3f9a1c2b7d"}
+
+
+def test_projection_en_echec_aucun_envoi_registre_intact(envoi: Envoi, ordre: list[str]) -> None:
+    demande = _demande()
+    demande["assure"]["code_postal"] = "inconnu"
+    registre = Registre(ordre)
+    avis = partenaire.evaluer_risque(demande, URL, registre=registre, timeout=3)
+    assert avis == Indisponible("projection : donnée invalide")
+    assert ordre == [] and registre.evaluations == {}  # l'appel unique est préservé
+
+
+def test_dossier_deja_soumis_aucun_envoi(envoi: Envoi, ordre: list[str]) -> None:
+    registre = Registre(ordre)
+    registre.reserver("KAL-26-0201")
+    ordre.clear()
+    avis = partenaire.evaluer_risque(_demande(), URL, registre=registre, timeout=3)
+    assert avis == Indisponible("registre : dossier déjà soumis") and ordre == ["reserver"]
+
+
+def test_registre_en_panne_aucun_envoi(envoi: Envoi, ordre: list[str]) -> None:
+    avis = partenaire.evaluer_risque(_demande(), URL, registre=Registre(ordre, panne=True))
+    assert avis == Indisponible("registre indisponible") and ordre == ["reserver"]
+
+
+def test_reponse_ecartee_jamais_notee(envoi: Envoi, ordre: list[str]) -> None:
+    envoi.evaluation = {**EVALUATION, "reference_dossier": "KAL-26-9999"}
+    registre = Registre(ordre)
+    avis = partenaire.evaluer_risque(_demande(), URL, registre=registre, timeout=3)
+    assert avis == Indisponible("couche ④ : référence différente de la requête")
+    assert registre.evaluations == {"KAL-26-0201": None}  # réservé, jamais noté
+    assert len(envoi.recus) == 1  # aucune relance
+
+
+def test_reponse_valide_apres_l_echeance_ignoree(envoi: Envoi, ordre: list[str]) -> None:
+    """Review Focus 4."""
+    envoi.attente_s = 0.5
+    registre = Registre(ordre)
+    avis = partenaire.evaluer_risque(_demande(), URL, registre=registre, timeout=0.1)
+    assert avis == Indisponible("délai > 0.1 s")
+    time.sleep(0.6)  # la réponse finit par arriver : elle ne doit rien changer
+    assert registre.evaluations == {"KAL-26-0201": None}
