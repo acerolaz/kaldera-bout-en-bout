@@ -51,6 +51,13 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-09 | UI1 · horodatages (revue finale) | « Demande reçue » datée du premier dépôt (événement `piece`, colonne `etape` = 1) ; l'étape 5 sans heure en direct (vue construite avant l'insertion) | décision 7 : étape 1 = `cree_le` | `cree_le` l'emporte sur la colonne ; la vue publiée reçoit l'heure de sa propre étape | heure du dépôt → heure de création ; étape 5 sans heure → avec |
 | 2026-10-09 | UI1 · repli de l'agent de relance (revue finale) | `MesureAgent` jeté : un repli ne laissait aucune trace | repli tracé (`AgentLLM`) | journal INFO `mode` et `cause` seulement (jamais le texte, la question ni l'identité) | repli muet → repli journalisé |
 | 2026-10-09 | UI1 · flux SSE abandonné (revue finale) | un flux déconnecté interrogeait la base chaque seconde jusqu'à 900 s | §12 : rien ne tourne pour rien | sortie dès que `request.is_disconnected()` | jusqu'à 900 requêtes → 0 |
+| 2026-10-09 | AF-01 → AF-07 | requête refusée par le partenaire (`-32602`, champs hors contrat : identité, IBAN, contrat…) | contrat §2, EX-03 / EX-D20 | projection `RequeteAntifraude` (7 champs, `extra="forbid"`, `strict`) dans l'adaptateur ; projection en échec ⇒ aucun envoi | 7 rouges → 7 verts |
+| 2026-10-09 | INV-01 → INV-07 | réponse du partenaire reprise sans contrôle | contrat §3, EX-04 / EX-D21 | `valider_reponse` : ① transport, ② enveloppe (`error.code` lu même sous HTTP 200), ③ schéma strict, ④ cohérence ; rejet ⇒ `avis_fraude = null`, mode dégradé §9 | 7 rouges → 7 verts |
+| 2026-10-09 | tests unitaires de validation | les messages Pydantic recopient la valeur fautive, et une clé hors contrat est un texte libre du partenaire (vu par le LLM) | EX-D22 : rejet sans le contenu | cause construite depuis `loc` et `type` ; clé inconnue ⇒ « champ hors contrat » ; `error.code` non entier ⇒ `?` | fuite possible → aucune valeur ni clé du partenaire |
+| 2026-10-09 | registre A2A (EX-D19) | port `RegistreA2A` défini au SP2, jamais appelé | 1 appel par dossier, réservation avant l'envoi | `client_partenaire` : `RegistreA2APostgres` si base, sinon registre en mémoire par orchestrateur ; doublon ou base en panne ⇒ aucun envoi | aucune garantie → 1 appel, même entre deux orchestrateurs (intégration : 78 verts, Postgres jetable :5434 — 5433 occupé par un autre projet) |
+| 2026-10-09 | Agent Card | URL d'appel `/a2a` écrite en dur | contrat §1 : découverte par Agent Card | carte lue au démarrage (1 s, cache sur succès) ; `/a2a` en secours ; URL d'un autre hôte ignorée (le jeton ne la suit pas) | — |
+| 2026-10-09 | PAN-02 (partenaire à 5 s) | abandon à 3 s enfin éprouvé : la requête n'est plus rejetée avant le délai | `delai_partenaire_s` = 3 | aucun (mesure) ; analyse des bornes au C2b | durée du lot : 3,03 s |
+| 2026-10-09 | suite complète | 14 rouges A2A | critère de sortie C2a | — | acceptance 42/56 → 56/56 ; suite : 14 rouges → 0 (560 verts) |
 
 ## Bornes provisoires en vigueur
 
@@ -63,15 +70,12 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 
 ## Restant (chantier 2)
 
-14 tests rouges, tous dans `tests/acceptance/test_collaboration_a2a.py` :
+C2a (liaison A2A) livré : 0 rouge. Reste :
 
-| Tests | Ce qu'ils éprouvent | Cause bloquante actuelle |
-|---|---|---|
-| `test_echange_antifraude_…[AF-01…AF-07]` | requête conforme au contrat, données minimisées | requête non projetée sur les 7 champs : le partenaire la refuse |
-| `test_reponse_invalide_…[INV-01…INV-07]` | rejet d'une réponse non conforme (validation 4 couches) | même refus en amont ; la validation des réponses reste à écrire derrière |
-
-Le plan estimait ~49 verts sur 56 en acceptance, en supposant que des INV passeraient via le
-mode dégradé ; ils vérifient aussi la forme de la requête, d'où 42/56.
+| Lot | Contenu |
+|---|---|
+| C2b · monitorage et épreuve | métriques `antifraude` ok / timeout / invalide / non requis ; seuils d'alerte ; remesure de `etapes_max`, `duree_max_s` et des lots en panne ; `appels_externes` compté seulement si l'envoi a eu lieu |
+| C2c · LLM réel | `make eval` (matrice agent × modèle), disjoncteur LLM |
 
 ## 2026-10-08 — Agents LLM (dossier v3, EX-D30 → EX-D36)
 
