@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import math
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from .etat import BORNES
 from .orchestrateur import Orchestrateur
+from .partenaire import NATURES
 
-__all__ = ["bornes", "traiter_demande", "traiter_lot"]
+__all__ = ["bornes", "metriques_equipe", "metriques_par_agent", "traiter_demande", "traiter_lot"]
 
 
 def bornes() -> dict[str, Any]:
@@ -32,13 +35,18 @@ def traiter_lot(
     # ponytail: pool par défaut ; borne explicite si le partenaire ou Azure limitent le débit
     with ThreadPoolExecutor() as pool:
         fiches = list(pool.map(orchestrateur.traiter, demandes))
-    return {"fiches": fiches, "metriques": _metriques_par_agent(fiches)}
+    return {
+        "fiches": fiches,
+        "metriques": metriques_par_agent(fiches),
+        "equipe": metriques_equipe(fiches),
+    }
 
 
 LLM_SOMMES = ("tours_llm", "jetons", "latence_llm_ms")
 
 
-def _metriques_par_agent(fiches: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def metriques_par_agent(fiches: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Métriques par agent (EX-D14, C2-Q15) : clés de `docs/interface.md`."""
     metriques: dict[str, dict[str, Any]] = {}
     for etape in (e for f in fiches for e in f["trace"]):
         m = metriques.setdefault(
@@ -48,6 +56,9 @@ def _metriques_par_agent(fiches: list[dict[str, Any]]) -> dict[str, dict[str, An
         m["echecs"] += int(etape["statut"] == "echec")
         m["duree_ms"] += etape["duree_ms"]
         m["appels_externes"] += etape["appels_externes"]
+        if "nature" in etape:  # agent antifraude (C2b)
+            natures = m.setdefault("natures", dict.fromkeys(NATURES, 0))
+            natures[etape["nature"]] += 1
         if "mode" in etape:  # agent LLM (EX-D14)
             for cle in LLM_SOMMES:
                 m[cle] = m.get(cle, 0) + etape[cle]
@@ -61,3 +72,33 @@ def _metriques_par_agent(fiches: list[dict[str, Any]]) -> dict[str, dict[str, An
         if "latence_llm_ms" in m:
             m["latence_llm_ms"] = round(m["latence_llm_ms"] / m["appels"], 2)
     return metriques
+
+
+def metriques_equipe(fiches: list[dict[str, Any]]) -> dict[str, Any]:
+    """Métriques de l'équipe sur un lot (C2-Q15) ; un lot vide donne des zéros."""
+    n = len(fiches)
+    etapes = [len(f["trace"]) for f in fiches]
+    durees = sorted(sum(e["duree_ms"] for e in f["trace"]) for f in fiches)
+    degrades = sum(bool(f.get("mode_degrade")) for f in fiches)
+    issues = Counter(f.get("issue") for f in fiches)
+    return {
+        "demandes": n,
+        "etapes": {
+            "max": max(etapes, default=0),
+            "moyenne": round(sum(etapes) / n, 2) if n else 0.0,
+        },
+        "arrets": dict(Counter(f["arret"]["borne"] for f in fiches if f.get("arret"))),
+        "issues": {"decision": issues["decision"], "escalade": issues["escalade"]},
+        "escalades_par_file": dict(
+            Counter(f.get("file") for f in fiches if f.get("issue") == "escalade")
+        ),
+        "mode_degrade": {"n": degrades, "taux": round(degrades / n, 4) if n else 0.0},
+        "duree_ms": {
+            # centile au rang le plus proche : une durée réellement observée
+            "p95": round(durees[math.ceil(0.95 * n) - 1], 2) if n else 0.0,
+            "max": round(durees[-1], 2) if n else 0.0,
+        },
+        "ecritures_rejetees": sum(
+            e.get("erreur") == "ErreurEcriture" for f in fiches for e in f["trace"]
+        ),
+    }

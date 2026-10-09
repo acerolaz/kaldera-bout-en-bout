@@ -472,6 +472,27 @@ def test_jeton_absent_aucune_reservation(
     assert ordre == [] and registre.evaluations == {}  # l'appel unique est préservé
 
 
+@pytest.mark.parametrize(
+    "url", ["http://localhost:81OO/a2a", "http://[::1/a2a", "pas une url", "ftp://h/a2a"]
+)
+def test_url_invalide_aucune_reservation(envoi: Envoi, ordre: list[str], url: str) -> None:
+    """Review Focus 5 : une erreur de configuration ne consomme pas l'appel unique."""
+    registre = Registre(ordre)
+    avis = partenaire.evaluer_risque(_demande(), url, registre=registre, timeout=3)
+    assert avis == Indisponible("URL partenaire invalide")
+    assert ordre == [] and registre.evaluations == {}
+
+
+def test_jeton_non_ascii_aucune_reservation(
+    envoi: Envoi, ordre: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PARTENAIRE_JETON", "jéton")
+    registre = Registre(ordre)
+    avis = partenaire.evaluer_risque(_demande(), URL, registre=registre, timeout=3)
+    assert avis == Indisponible("jeton invalide")
+    assert ordre == [] and registre.evaluations == {}
+
+
 # ------------------------------------------------------------------ registre par défaut
 
 
@@ -508,10 +529,58 @@ def test_registre_injecte_prioritaire_sur_la_base(
     assert isinstance(avis, dict) and ordre == ["reserver", "envoi"] and base_injoignable == []
 
 
-def test_sans_base_registre_en_memoire(envoi: Envoi, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sans_base_registre_en_memoire(
+    envoi: Envoi, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)  # aucun .env local lu
     monkeypatch.setattr(postgres, "registre_par_defaut", registre_par_defaut)
     monkeypatch.setattr(partenaire, "_CARTES", {BASE: URL})
     evaluer = client_partenaire(BASE, None)
     assert isinstance(evaluer(_demande(), 3), dict)
     assert evaluer(_demande(), 3) == Indisponible("registre : dossier déjà soumis")
     assert len(envoi.recus) == 1
+
+
+# ------------------------------------------------------------------ nature
+
+
+@pytest.mark.parametrize(
+    ("cause", "attendue"),
+    [
+        (None, "ok"),
+        ("délai > 3 s", "timeout"),
+        ("couche ① : ReadTimeout", "timeout"),
+        ("couche ① : ConnectTimeout", "timeout"),
+        ("couche ① : corps illisible (HTTP 200)", "invalide"),
+        ("couche ② : enveloppe JSON-RPC invalide", "invalide"),
+        ("couche ② : id JSON-RPC différent de la requête", "invalide"),
+        ("couche ② : tâche non terminée ou artefact invalide", "invalide"),
+        ("couche ③ : champ hors contrat", "invalide"),
+        ("couche ④ : score hors bornes", "invalide"),
+        ("couche ④ : niveau incohérent avec le score", "invalide"),
+        ("couche ④ : référence différente de la requête", "invalide"),
+        ("HTTP 401 (jeton)", "erreur"),
+        ("HTTP 503", "erreur"),
+        ("couche ① : HTTP 500", "erreur"),
+        ("JSON-RPC -32602 : projection refusée", "erreur"),
+        ("JSON-RPC -32029 : doublon refusé : manquement au contrat", "erreur"),
+        ("JSON-RPC ? : erreur inconnue", "erreur"),
+        ("couche ① : ConnectError", "erreur"),
+        ("cause non précisée", "erreur"),
+        ("une cause que personne ne produit", "erreur"),
+        ("projection : donnée invalide", "non_envoye"),
+        ("projection : donnée absente (sinistre)", "non_envoye"),
+        ("jeton absent", "non_envoye"),
+        ("jeton invalide", "non_envoye"),
+        ("URL partenaire invalide", "non_envoye"),
+        ("registre : dossier déjà soumis", "non_envoye"),
+        ("registre indisponible", "non_envoye"),
+    ],
+)
+def test_nature_de_chaque_cause(cause: str | None, attendue: str) -> None:
+    assert partenaire.nature(cause) == attendue
+    assert attendue in partenaire.NATURES
+
+
+def test_envoyes() -> None:
+    assert partenaire.ENVOYES == {"ok", "timeout", "invalide", "erreur"}

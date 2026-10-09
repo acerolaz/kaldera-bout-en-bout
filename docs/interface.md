@@ -10,7 +10,7 @@ décrit dans `docs/specs_metier.md` ; le contrat du partenaire anti-fraude dans
 | Fonction | Rôle |
 |---|---|
 | `traiter_demande(demande, *, partenaire_url=None) -> dict` | traite une demande, retourne sa fiche de décision |
-| `traiter_lot(demandes, *, partenaire_url=None) -> dict` | traite un lot ; retourne `{"fiches": [...], "metriques": {...}}`, fiches dans l'ordre des demandes |
+| `traiter_lot(demandes, *, partenaire_url=None) -> dict` | traite un lot ; retourne `{"fiches": [...], "metriques": {...}, "equipe": {...}}`, fiches dans l'ordre des demandes |
 | `bornes() -> dict` | bornes d'exécution en vigueur (voir plus bas) |
 
 `partenaire_url` est l'URL de base du partenaire anti-fraude ; à défaut, la
@@ -66,6 +66,27 @@ qu'il apparaît dans les traces). Chaque entrée contient au moins :
 | `echecs` | nombre d'étapes en échec (erreur, délai dépassé, réponse écartée…) |
 | `latence_ms` | durée moyenne d'une étape, en millisecondes |
 | `appels_externes` | nombre d'appels à un service externe |
+
+L'agent `antifraude` porte aussi `natures` : nombre d'étapes par nature d'appel au partenaire —
+`ok` (avis validé), `timeout`, `invalide` (réponse écartée), `erreur` (erreur du service ou du
+réseau), `non_envoye` (projection, jeton, URL ou registre : rien n'est parti), `non_requis` (aucun
+indicateur F1–F4). `appels_externes` ne compte que `ok`, `timeout`, `invalide` et `erreur`.
+
+`traiter_lot(...)["equipe"]` résume le lot :
+
+| Clé | Description |
+|---|---|
+| `demandes` | nombre de fiches |
+| `etapes` | `{"max", "moyenne"}` : longueur des traces |
+| `arrets` | nombre d'arrêts par borne |
+| `issues` | `{"decision", "escalade"}` |
+| `escalades_par_file` | nombre d'escalades par file |
+| `mode_degrade` | `{"n", "taux"}` |
+| `duree_ms` | `{"p95", "max"}` : somme des durées des étapes d'une fiche |
+| `ecritures_rejetees` | étapes en échec sur `ErreurEcriture` (attendu : 0) |
+
+Dans la trace, l'étape `antifraude` porte `nature`, et toute étape en échec sur une exception
+porte `erreur` (nom de l'exception).
 
 ## Scénarios de recette
 

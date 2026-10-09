@@ -29,7 +29,8 @@ def main() -> None:
             if not args.trace:
                 fiche = {k: v for k, v in fiche.items() if k != "trace"}
             print(json.dumps(fiche, ensure_ascii=False))
-        print(json.dumps({"metriques": resultat["metriques"]}, ensure_ascii=False))
+        synthese = {"metriques": resultat["metriques"], "equipe": resultat["equipe"]}
+        print(json.dumps(synthese, ensure_ascii=False))
 
 
 if __name__ == "__main__":

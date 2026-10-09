@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion fumee-vlm demo-assure front front-test front-e2e
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve fumee-vlm demo-assure front front-test front-e2e
 
 install:
 	uv sync
@@ -60,6 +60,9 @@ seed:
 
 eval-ingestion:
 	uv run python -m tools.eval_ingestion
+
+epreuve:
+	uv run python -m tools.epreuve
 
 fumee-vlm:
 	uv run python scripts/fumee_vlm.py
