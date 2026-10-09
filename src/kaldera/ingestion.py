@@ -49,21 +49,32 @@ def controler_fichier(octets: bytes, taille_max_mo: int, *, contrat: bool) -> tu
     return mime, hashlib.sha256(octets).hexdigest()
 
 
+# PDF abîmé : pypdf lève des erreurs variées (dont AttributeError) ; pas de contrôle croisé
+_PDF_ABIME = (
+    PyPdfError,
+    ValueError,
+    KeyError,
+    TypeError,
+    AttributeError,
+    IndexError,
+    RecursionError,
+)
+
+
 def texte_pdf(octets: bytes) -> str:
     """Couche texte d'un PDF natif ; vide pour un scan ou un PDF illisible."""
     try:
         return "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(octets)).pages)
-    # PDF abîmé : pypdf lève des erreurs variées (dont AttributeError) ; pas de contrôle croisé
-    except (
-        PyPdfError,
-        ValueError,
-        KeyError,
-        TypeError,
-        AttributeError,
-        IndexError,
-        RecursionError,
-    ):
+    except _PDF_ABIME:
         return ""
+
+
+def nombre_pages(contenu: bytes) -> int:
+    """Pages d'un PDF (0 s'il est illisible) : le VLM ne lit que la première (avertissement UI1)."""
+    try:
+        return len(PdfReader(io.BytesIO(contenu)).pages)
+    except _PDF_ABIME:
+        return 0
 
 
 class AnalysePiece(BaseModel):

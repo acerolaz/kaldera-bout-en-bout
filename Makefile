@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion fumee-vlm
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion fumee-vlm demo-assure front front-test front-e2e
 
 install:
 	uv sync
@@ -63,3 +63,16 @@ eval-ingestion:
 
 fumee-vlm:
 	uv run python scripts/fumee_vlm.py
+
+demo-assure:
+	uv run python -m tools.demo_assure
+
+front:
+	cd front && npm run dev
+
+front-test:
+	cd front && npm test
+
+front-e2e:
+	docker compose --profile integration up -d --wait postgres
+	cd front && npx playwright install chromium && TEST_DATABASE_URL=$(TEST_DATABASE_URL) npx playwright test

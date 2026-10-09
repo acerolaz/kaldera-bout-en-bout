@@ -184,3 +184,11 @@ def test_montants_hors_de_la_base_refuses_par_le_schema(modele: Any, brut: dict[
 def test_termes_hors_de_la_base_refuses_par_le_schema() -> None:
     for champ, valeur in (("plafond", 1e12), ("plafond", 0), ("franchise", -1)):
         assert verrous_contrat({**CONTRAT, champ: valeur}, "CTR-778801", "")[1] == ["① schéma"]
+
+
+def test_nombre_pages() -> None:
+    from kaldera.ingestion import nombre_pages
+    from tests.fabrique_pdf import pdf_pages, pdf_texte
+
+    assert nombre_pages(pdf_pages(3)) == 3 and nombre_pages(pdf_texte("x")) == 1
+    assert nombre_pages(b"%PDF-1.4 abime") == 0

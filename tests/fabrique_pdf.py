@@ -41,3 +41,17 @@ def pdf_texte(*lignes: str) -> bytes:
 def pdf_sans_texte() -> bytes:
     """PDF sans couche texte, comme un scan."""
     return _pdf(b"0 0 m 100 100 l S")
+
+
+def pdf_pages(n: int) -> bytes:
+    """PDF de ``n`` pages blanches (avertissement « plusieurs pages », UI1)."""
+    import io
+
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    for _ in range(n):
+        writer.add_blank_page(612, 792)
+    tampon = io.BytesIO()
+    writer.write(tampon)
+    return tampon.getvalue()

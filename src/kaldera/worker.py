@@ -12,6 +12,8 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
+from . import evenements, relance
+from .assure_postgres import DepotAssure
 from .ingestion import (
     AnalysePiece,
     ExtractionContrat,
@@ -77,6 +79,23 @@ def _analyser(
     else:
         lu = _contrat(ingestion, tache, brut, texte, vlm.modele, version)
     ingestion.finir_tache(tache.id, "faite" if lu else "echec")
+    if tache.tache == "analyser_piece":
+        _publier_analyse(ingestion, tache, config)
+
+
+def _publier_analyse(ingestion: IngestionPostgres, tache: Tache, config: ConfigIngestion) -> None:
+    """Vue projetée + message spontané (gabarit, jamais de LLM dans le worker)."""
+    depot = DepotAssure(ingestion.connexions)
+    vue = evenements.publier_vue(depot, tache.reference, "piece", config.delai_analyse_s)
+    if vue is None:
+        return
+    type_piece = ingestion.type_declare(tache.reference, tache.sha256)
+    texte = relance.message_spontane(type_piece, vue.pieces)
+    if texte:
+        a_refaire = any(p.statut == "a_refaire" for p in vue.pieces)
+        evenements.publier_message(
+            depot, tache.reference, "agent", texte, ["deposer"] if a_refaire else []
+        )
 
 
 def _piece(
@@ -123,11 +142,18 @@ def _admettre(ingestion: IngestionPostgres, reference: str) -> None:
     demande = ingestion.admettre(reference)
     if demande is None:
         return
+    depot = DepotAssure(ingestion.connexions)
+    evenements.publier_vue(depot, reference, "etape", 0.0)  # étape 2 : vérification
     demande = demande_niveau_1(demande, ingestion.contrat(demande["contrat"]["numero"]))
-    Orchestrateur(
+    fiche = Orchestrateur(
         depot=DepotPostgres(ingestion.connexions),
         snapshots=SnapshotsPostgres(ingestion.connexions),
     ).traiter(demande)
+    atteints = {t.get("vers") for t in fiche.get("trace", [])}
+    for etat, etape in (("estimation", 3), ("antifraude", 4)):
+        if etat in atteints:
+            evenements.publier_vue(depot, reference, "etape", 0.0, etape=etape)
+    evenements.publier_vue(depot, reference, "verdict", 0.0)
 
 
 def main() -> None:

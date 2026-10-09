@@ -42,6 +42,11 @@ sont lues par un VLM, utilisé comme outil, puis vérifiées par le code.
     l'invariance niveau 1 / niveau 0 ;
   - des scénarios de recette, des métriques par agent et un journal des
     ajustements.
+- **Espace sinistre de l'assuré** (`front/`, `docs/interface_web.md`) :
+  - suivi du dossier en 5 étapes, avec le temps écoulé et le temps restant estimé ;
+  - dépôt des pièces (glisser-déposer, photo mobile) ;
+  - assistant pièces : un agent de relance, borné aux pièces, qui explique ce qui manque ;
+  - verdict expliqué, sans aucune trace de l'anti-fraude.
 
 ## Stack
 
@@ -52,7 +57,9 @@ sont lues par un VLM, utilisé comme outil, puis vérifiées par le code.
 - httpx (client A2A, seed)
 - PostgreSQL 16, psycopg 3 + psycopg_pool
 - pypdf, pypdfium2, Pillow ; reportlab (générateur, en dépendance de développement)
-- pytest, ruff, mypy
+- React, Vite, TypeScript, Tailwind, shadcn/ui (espace assuré, `front/`)
+- argon2-cffi, itsdangerous (comptes et sessions de l'espace assuré)
+- pytest, ruff, mypy ; Vitest, Playwright (front)
 - Docker Compose (service partenaire ; PostgreSQL sous le profil `integration`)
 
 ## Setup
@@ -61,6 +68,7 @@ sont lues par un VLM, utilisé comme outil, puis vérifiées par le code.
 make install              # uv sync : installe les dépendances
 cp .env.example .env      # puis renseigner les valeurs (voir ci-dessous)
 make up                   # docker compose up -d : service partenaire sur :8100
+cd front && npm install   # dépendances du front (espace assuré)
 make test                 # tests unitaires et d'acceptance
 make test-integration     # démarre PostgreSQL (port 5433) puis lance les tests d'intégration
 ```
@@ -78,6 +86,11 @@ Configuration (`.env`) :
 - `KALDERA_INGESTION__VLM__MODELE` et `KALDERA_INGESTION__VLM__VISION=true` :
   VLM d'ingestion. Sans eux, le worker refuse de démarrer.
 - `PARTENAIRE_URL`, `PARTENAIRE_JETON` : service anti-fraude.
+- `KALDERA_SESSION_SECRET` : secret de signature des sessions de l'espace assuré. Sans lui
+  (ou s'il est vide), les routes `/assure/*` répondent 503. `KALDERA_FRONT_ORIGIN` (défaut
+  `http://localhost:5173`) et `KALDERA_COOKIE_SECURE=false` (seulement en local, en http).
+- `KALDERA_RELANCE__MODELE` (et `DELAI_AGENT_S`, `JETONS_MAX`, `TOURS_MAX`) : agent de relance.
+  Sans profil, il répond par gabarits.
 
 ## Utilisation
 
@@ -108,6 +121,18 @@ make seed             # dépose tout le manifeste par l'API et attend le traitem
 make eval-ingestion   # rapport dans eval/rapports/
 ```
 
+Espace sinistre de l'assuré (`KALDERA_DATABASE_URL`, `KALDERA_SESSION_SECRET` et
+`KALDERA_COOKIE_SECURE=false` requis ; détails dans `docs/interface_web.md`) :
+
+```bash
+make up
+docker compose --profile integration up -d --wait postgres
+make demo-assure   # demande KAL-26-0101 et compte « claire »
+make api
+make worker
+make front         # http://localhost:5173
+```
+
 Tests de fumée manuels, avec les vrais modèles (hors CI) :
 `uv run python scripts/fumee_llm.py` et `make fumee-vlm`.
 
@@ -122,13 +147,20 @@ Les cibles `make` chargent `.env`. Hors `make` : `set -a; . ./.env; set +a`.
   - `partenaire.py`, `espace_assure.py`, `regles.py` : client A2A, espace assuré, référentiel métier
   - `ports.py`, `memoire.py`, `postgres.py`, `reaper.py`, `migrations/` : persistance
   - `api.py`, `worker.py`, `ingestion.py`, `ingestion_postgres.py`, `vlm.py` : ingestion des pièces
+  - `auth.py`, `vue_assure.py`, `relance.py`, `evenements.py`, `api_assure.py`,
+    `assure_postgres.py` : espace assuré (sessions, projection, agent de relance, événements,
+    routes `/assure/*`, dépôt PostgreSQL)
+- `front/` : espace sinistre de l'assuré (React, Vite, Playwright dans `front/e2e/`)
+- `design-system/` : design system de l'interface web
 - `tools/` : `generer_pieces.py` (générateur), `seed.py`, `eval_ingestion.py` (épreuve)
 - `fixtures/pieces/` : pièces factices générées et leur manifeste (versionnés)
 - `eval/scenarios.jsonl`, `eval/scenarios_ingestion.jsonl` : scénarios de recette et d'ingestion
 - `external_agent/` : service anti-fraude partenaire simulé et son contrat d'échange (`contrat.md`)
 - `scripts/` : pilotage du partenaire simulé et tests de fumée LLM/VLM
 - `tests/unit/`, `tests/acceptance/`, `tests/integration/` : tests (l'intégration exige PostgreSQL)
+- `tests/e2e/` : serveur de bout en bout (API + worker sur FakeVLM) lancé par Playwright
 - `docs/specs_metier.md`, `docs/interface.md` : spécifications fonctionnelles, contrat d'intégration
+- `docs/interface_web.md` : espace sinistre de l'assuré (architecture, confidentialité, sécurité)
 - `docs/journal_ajustements.md` : ajustements consignés et bornes en vigueur
 - `docs/superpowers/` : specs et plans d'implémentation du chantier 1
 
@@ -138,6 +170,8 @@ Les cibles `make` chargent `.env`. Hors `make` : `set -a; . ./.env; set +a`.
 make fmt        # ruff format + autofix
 make lint       # ruff check
 make typecheck  # mypy
+make front-test # Vitest (front)
+make front-e2e  # Playwright : parcours complet de l'assuré (démarre PostgreSQL de test)
 make down       # arrête les services docker
 ```
 

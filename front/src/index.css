@@ -1,0 +1,76 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* design-system/kaldera/MASTER.md — contrastes vérifiés par src/test/contraste.test.ts */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #14532D;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EEF2EC;
+  --secondary-foreground: #14532D;
+  --muted: #EEF2EC;
+  --muted-foreground: #475569;
+  --accent: #EEF2EC;
+  --accent-foreground: #14532D;
+  --destructive: #B91C1C;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #A16207;
+  --radius: 0.5rem;
+  --or: #A16207;
+  --or-sur-primaire: #FACC15;
+  --succes: #166534;
+  --a-refaire: #854D0E;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-or: var(--or);
+  --color-or-sur-primaire: var(--or-sur-primaire);
+  --color-succes: var(--succes);
+  --color-a-refaire: var(--a-refaire);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  --font-heading: var(--font-sans);
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * { @apply border-border outline-ring; }
+  body { @apply bg-background text-foreground font-sans antialiased; }
+  :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+  button, a, [role="button"] { cursor: pointer; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+}
