@@ -8,8 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 
+from kaldera import partenaire
 from kaldera.etat import EtatDemande
 from kaldera.orchestrateur import Orchestrateur
 from kaldera.postgres import DepotPostgres, RegistreA2APostgres, SnapshotsPostgres
@@ -104,3 +106,66 @@ def test_reaper_classe_la_fiche_en_base(base: Any) -> None:
             "SELECT statut, fiche->>'file' FROM demandes WHERE reference = 'KAL-26-9002'"
         ).fetchone()
     assert (statut, fichier) == ("secours", fiche["file"])
+
+
+AF_01 = next(
+    json.loads(ligne)
+    for ligne in (RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines()
+    if json.loads(ligne)["id"] == "AF-01"
+)
+
+
+def test_registre_postgres_un_seul_appel_entre_deux_orchestrateurs(
+    base: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Le registre survit à l'orchestrateur (et au processus) : aucun second appel (EX-D19)."""
+    envois: list[str] = []
+
+    def post(url: str, *, json: Any, headers: Any, timeout: Any) -> httpx.Response:
+        reference = json["params"]["message"]["parts"][0]["data"]["reference_dossier"]
+        envois.append(reference)
+        evaluation = {
+            "reference_dossier": reference,
+            "score": 0.08,
+            "niveau": "faible",
+            "indicateurs": [],
+            "evaluation_id": "EVA-integration",
+            "version_modele": "af-2.3.1",
+        }
+        corps = {
+            "jsonrpc": "2.0",
+            "id": json["id"],
+            "result": {
+                "kind": "task",
+                "id": "tsk-1",
+                "status": {"state": "completed"},
+                "artifacts": [{"artifactId": "a", "parts": [{"kind": "data", "data": evaluation}]}],
+            },
+        }
+        return httpx.Response(200, json=corps)
+
+    def get(url: str, *, timeout: float) -> httpx.Response:
+        raise httpx.ConnectError("pas de carte")  # /a2a en secours
+
+    monkeypatch.setattr(partenaire.httpx, "post", post)
+    monkeypatch.setattr(partenaire.httpx, "get", get)
+    monkeypatch.setenv("PARTENAIRE_JETON", "jeton-de-test")
+
+    def traiter() -> dict[str, Any]:
+        return Orchestrateur(
+            partenaire_url="http://partenaire:8100",
+            snapshots=SnapshotsPostgres(base),
+            registre=RegistreA2APostgres(base),
+        ).traiter(copy.deepcopy(AF_01["demandes"][0]))
+
+    premiere, seconde = traiter(), traiter()
+    assert envois == ["KAL-26-0201"]
+    assert premiere["avis_fraude"]["evaluation_id"] == "EVA-integration"
+    assert seconde["avis_fraude"] is None and seconde["mode_degrade"] is True
+    (etape,) = [e for e in seconde["trace"] if e["agent"] == "antifraude"]
+    assert etape["motif"] == "registre : dossier déjà soumis"
+    with base.connection() as conn:
+        (evaluation_id,) = conn.execute(
+            "SELECT evaluation_id FROM appels_partenaire WHERE reference = 'KAL-26-0201'"
+        ).fetchone()
+    assert evaluation_id == "EVA-integration"

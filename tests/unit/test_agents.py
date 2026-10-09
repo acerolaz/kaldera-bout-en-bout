@@ -24,6 +24,7 @@ from kaldera.agents import (
 from kaldera.etat import EtatDemande
 from kaldera.machine import Etat
 from kaldera.orchestrateur import vue_filtree
+from kaldera.partenaire import Indisponible
 
 RACINE = Path(__file__).resolve().parents[2]
 SCENARIOS = {
@@ -156,6 +157,22 @@ def test_avis_du_partenaire_conserve() -> None:
     )["avis_fraude"]
     assert avis["statut"] == "avis" and avis["avis"] == {"niveau": "faible", "score": 0.1}
     assert "F1" in avis["indicateurs"]  # 8 800 € ≥ 5 000 €
+
+
+def test_cause_de_l_indisponibilite_recopiee() -> None:
+    partenaire = Partenaire(Indisponible("délai > 3 s"))
+    avis = AgentAntifraude(partenaire, delai_s=3)(
+        {"demande": _demande("PAN-01", 3), "estimation": {"justifie": 8800.0}}
+    )["avis_fraude"]
+    assert avis["statut"] == "indisponible" and avis["avis"] is None
+    assert avis["cause"] == "délai > 3 s"
+
+
+def test_evaluateur_muet_cause_non_precisee() -> None:
+    avis = AgentAntifraude(Partenaire(None), delai_s=3)(
+        {"demande": _demande("PAN-01", 3), "estimation": {"justifie": 8800.0}}
+    )["avis_fraude"]
+    assert avis["cause"] == "cause non précisée"
 
 
 # ------------------------------------------------------------------ decision

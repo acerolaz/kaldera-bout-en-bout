@@ -20,6 +20,7 @@ def _sans_llm_reel(monkeypatch: pytest.MonkeyPatch) -> None:
     from kaldera import postgres
 
     monkeypatch.setattr(postgres, "snapshots_par_defaut", lambda: None)
+    monkeypatch.setattr(postgres, "registre_par_defaut", lambda: None)  # .env local ignoré
 
 
 @pytest.fixture
