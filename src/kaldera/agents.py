@@ -11,9 +11,10 @@ from collections.abc import Callable
 from typing import Any
 
 from . import espace_assure, regles
+from .partenaire import Indisponible
 
 # client A2A injecté : (demande filtrée, timeout en s) → avis ou None si indisponible
-Evaluateur = Callable[..., dict[str, Any] | None]
+Evaluateur = Callable[..., dict[str, Any] | Indisponible | None]  # None : cause non précisée
 
 
 # ------------------------------------------------------------- tool éligibilité
@@ -137,15 +138,14 @@ class AgentAntifraude:
         if not indicateurs:
             return {"avis_fraude": {"requis": False, "statut": "non_requis"}}
         # le moteur peut réduire le délai au temps restant de la demande
-        avis = self.evaluer(demande, timeout=min(self.delai_s, vue.get("delai_s", self.delai_s)))
-        return {
-            "avis_fraude": {
-                "requis": True,
-                "indicateurs": indicateurs,
-                "statut": "indisponible" if avis is None else "avis",
-                "avis": avis,
-            }
-        }
+        resultat = self.evaluer(
+            demande, timeout=min(self.delai_s, vue.get("delai_s", self.delai_s))
+        )
+        section: dict[str, Any] = {"requis": True, "indicateurs": indicateurs}
+        if isinstance(resultat, dict):
+            return {"avis_fraude": {**section, "statut": "avis", "avis": resultat}}
+        cause = resultat.cause if isinstance(resultat, Indisponible) else "cause non précisée"
+        return {"avis_fraude": {**section, "statut": "indisponible", "avis": None, "cause": cause}}
 
 
 def indicateurs_fraude(demande: dict[str, Any], justifie: float) -> list[str]:

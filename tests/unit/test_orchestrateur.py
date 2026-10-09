@@ -19,6 +19,7 @@ from kaldera.agents_llm import SPECS, AgentLLM
 from kaldera.etat import AvisFraude, Bornes, ContratDemande, Estimation, EtatDemande
 from kaldera.llm import fidele
 from kaldera.machine import Etat
+from kaldera.partenaire import Indisponible
 from kaldera.ports import PieceRef
 from kaldera.orchestrateur import (
     ErreurEcriture,
@@ -332,6 +333,27 @@ def test_partenaire_au_compte_gouttes_abandonne_au_delai_total(
     finally:
         arret.set()
         serveur.close()
+
+
+def _indisponible(demande: dict[str, Any], timeout: float) -> Indisponible:
+    return Indisponible("couche ③ : champ hors contrat")
+
+
+def test_cause_de_l_indisponibilite_dans_la_trace() -> None:
+    fiche = Orchestrateur(evaluer=_indisponible).traiter(_demande("PAN-01", 3))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["statut"] == "echec" and etape["motif"] == "couche ③ : champ hors contrat"
+    assert fiche["avis_fraude"] is None and fiche["mode_degrade"] is True
+
+
+def test_llm_menteur_ne_reecrit_pas_la_cause() -> None:
+    """Review Focus 5 : ``cause`` est un champ privé, recopié de la référence."""
+    llms = {nom: fidele(SPECS[nom].champ, SPECS[nom].gabarit) for nom in SPECS}
+    spec = SPECS["antifraude"]
+    llms["antifraude"] = fidele(spec.champ, spec.gabarit, mensonge={"cause": "tout va bien"})
+    fiche = Orchestrateur(evaluer=_indisponible, llms=llms).traiter(_demande("PAN-01", 3))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["mode"] == "llm" and etape["motif"] == "couche ③ : champ hors contrat"
 
 
 # --------------------------------------------------------------------- entrée malformée (EX-01)

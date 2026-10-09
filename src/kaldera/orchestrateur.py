@@ -166,11 +166,12 @@ class Orchestrateur:
             # decision en échec : plus personne pour conclure → fiche de secours
             suivant = Etat.ESCALADE if courant is Etat.DECISION else Etat.DECISION
 
-        externes = 0
+        externes, motif = 0, None
         if statut == "ok" and courant is Etat.ANTIFRAUDE and etat.avis_fraude is not None:
             externes = int(etat.avis_fraude.requis)
             if etat.avis_fraude.statut == "indisponible":
                 statut = "echec"  # avis non obtenu : compté en échec, mode dégradé en aval
+                motif = etat.avis_fraude.cause  # code et couche, jamais le corps (C2-Q8)
         if courant is Etat.PIECES and statut == "ok":
             self._suivre_relances(etat, suivant)
 
@@ -187,6 +188,7 @@ class Orchestrateur:
                 "vers": suivant.value,
                 "garde": garde,
                 "appels_externes": externes,
+                **({"motif": motif} if motif else {}),
                 **(mesure.model_dump() if mesure else {}),
             }
         )

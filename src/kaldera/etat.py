@@ -68,6 +68,7 @@ class AvisFraude(BaseModel):
     statut: Literal["non_requis", "avis", "indisponible"]
     avis: dict[str, Any] | None = None
     note: str | None = None
+    cause: str | None = None  # avis indisponible : code et couche, jamais le corps (EX-D22)
 
 
 class Issue(BaseModel):
