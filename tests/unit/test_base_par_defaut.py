@@ -5,7 +5,8 @@ from __future__ import annotations
 import pytest
 
 # avant le patch autouse du conftest
-from kaldera.postgres import registre_par_defaut, snapshots_par_defaut
+from kaldera.ports import ErreurPersistance
+from kaldera.postgres import RegistreA2APostgres, registre_par_defaut, snapshots_par_defaut
 
 
 def test_sans_url_aucune_persistance() -> None:
@@ -21,9 +22,13 @@ def test_sans_url_aucun_registre_persistant() -> None:
     assert registre_par_defaut() is None
 
 
-def test_base_injoignable_aucun_registre_persistant(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_base_injoignable_registre_postgres_en_panne(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Spec §1 : base configurée ⇒ registre Postgres, même en panne (jamais la mémoire)."""
     monkeypatch.setenv("KALDERA_DATABASE_URL", "postgresql://x:x@127.0.0.1:1/x")
-    assert registre_par_defaut() is None
+    registre = registre_par_defaut()
+    assert isinstance(registre, RegistreA2APostgres)
+    with pytest.raises(ErreurPersistance):
+        registre.reserver("KAL-26-0201")
 
 
 def test_base_injoignable_n_est_pas_reessayee_a_chaque_demande(

@@ -69,7 +69,7 @@ def valider_reponse(
         return Indisponible(f"HTTP {statut_http}{' (jeton)' if statut_http == 401 else ''}")
     try:
         corps = json.loads(corps_brut)
-    except ValueError:
+    except (ValueError, RecursionError):  # RecursionError : corps hostile très imbriqué
         return Indisponible(f"couche ① : corps illisible (HTTP {statut_http})")
     if not isinstance(corps, dict) or corps.get("jsonrpc") != "2.0":
         return Indisponible("couche ② : enveloppe JSON-RPC invalide")
@@ -127,7 +127,7 @@ def _cause_schema(exc: ValidationError) -> str:
 class RequeteAntifraude(BaseModel):
     """Les 7 champs du contrat §2, aucun autre (EX-D20)."""
 
-    model_config = ConfigDict(extra="forbid", strict=True)
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
     reference_dossier: str = Field(pattern=r"^KAL-\d{2}-\d{4}$")
     type_sinistre: Literal["degat_des_eaux", "incendie", "bris_de_glace", "vol"]
@@ -184,7 +184,8 @@ def url_appel(base: str) -> str:
     try:
         reponse = httpx.get(f"{base}/.well-known/agent.json", timeout=DELAI_CARTE_S)
         url = reponse.json().get("url") if reponse.status_code == 200 else None
-    except (httpx.HTTPError, ValueError, AttributeError):  # réseau, JSON, carte non objet
+    # réseau, URL malformée (hors HTTPError), JSON, carte non objet
+    except (httpx.HTTPError, httpx.InvalidURL, ValueError, AttributeError):
         url = None
     # même origine que la base : le jeton ne part jamais vers un hôte annoncé par la carte
     if isinstance(url, str) and _origine(url) == _origine(base):
@@ -207,13 +208,16 @@ def evaluer_risque(
 ) -> dict[str, Any] | Indisponible:
     """Avis anti-fraude validé, ou ``Indisponible`` ; aucune relance, quel que soit le cas (§6).
 
-    ``url`` est l'URL d'appel (``url_appel``). Projection, puis réservation, puis envoi : si l'une
-    échoue, rien ne part et l'appel unique du dossier n'est pas gaspillé.
+    ``url`` est l'URL d'appel (``url_appel``). Projection, jeton, puis réservation, puis envoi : si
+    l'une échoue, rien ne part et l'appel unique du dossier n'est pas gaspillé.
     """
     try:
         requete = projeter(demande)
-    except (KeyError, TypeError, ValueError) as exc:
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:  # historique non objet
         return Indisponible(cause_projection(exc))
+    jeton = os.environ.get("PARTENAIRE_JETON")
+    if not jeton:  # 401 assuré : ne pas consommer l'appel unique du dossier
+        return Indisponible("jeton absent")
     reference = requete.reference_dossier
     try:
         if not registre.reserver(reference):
@@ -234,12 +238,13 @@ def evaluer_risque(
             }
         },
     }
-    entetes = {"Authorization": f"Bearer {os.environ.get('PARTENAIRE_JETON', '')}"}
+    entetes = {"Authorization": f"Bearer {jeton}"}
 
     def appeler() -> dict[str, Any] | Indisponible:
         try:
             reponse = httpx.post(url, json=enveloppe, headers=entetes, timeout=timeout)
-        except httpx.HTTPError as exc:
+        # InvalidURL hors HTTPError ; ValueError : jeton non ASCII (UnicodeEncodeError)…
+        except (httpx.HTTPError, httpx.InvalidURL, ValueError) as exc:
             return Indisponible(f"couche ① : {type(exc).__name__}")
         return valider_reponse(reponse.status_code, reponse.text, id_rpc, reference)
 
@@ -247,8 +252,8 @@ def evaluer_risque(
         avis = appeler()
     else:
         # httpx borne chaque phase (connexion, lecture…), pas la durée totale : échéance globale.
-        # ponytail: le fil abandonné finit seul (timeout httpx par phase) ; client async si le
-        # nombre d'appels simultanés devient important
+        # ponytail: le fil abandonné finit seul (timeout httpx par phase) et ne meurt plus d'une
+        # erreur locale (attrapée dans appeler) ; client async si les appels simultanés abondent
         recus: list[dict[str, Any] | Indisponible] = []
         fil = threading.Thread(target=lambda: recus.append(appeler()), daemon=True)
         fil.start()

@@ -527,3 +527,12 @@ def test_piece_de_type_inconnu_escalade_sans_planter() -> None:
     etape = [e for e in fiche["trace"] if e["action"] == "pieces"][0]
     assert etape["statut"] == "echec"
     assert (fiche["issue"], fiche["file"]) == ("escalade", "gestionnaire")
+
+
+def test_url_partenaire_malformee_mode_degrade(monkeypatch: pytest.MonkeyPatch) -> None:
+    """EX-01 (revue finale C2a) : ``httpx.InvalidURL`` n'est pas une ``httpx.HTTPError``."""
+    monkeypatch.setenv("PARTENAIRE_JETON", "jeton-de-test")
+    fiche = Orchestrateur(partenaire_url="http://localhost:81OO").traiter(_demande("PAN-01", 3))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["statut"] == "echec" and etape["motif"] == "couche ① : InvalidURL"
+    assert fiche["mode_degrade"] is True and fiche["file"] == "cellule_fraude"

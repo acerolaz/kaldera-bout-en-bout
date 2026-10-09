@@ -195,8 +195,11 @@ class RegistreA2APostgres:
     def __init__(self, connexions: ConnectionPool) -> None:
         self.connexions = connexions
 
+    def _pool(self) -> ConnectionPool:
+        return self.connexions
+
     def reserver(self, reference: str) -> bool:
-        with _connexion(self.connexions) as conn:
+        with _connexion(self._pool()) as conn:
             ligne = conn.execute(
                 "INSERT INTO appels_partenaire (reference) VALUES (%s) "
                 "ON CONFLICT (reference) DO NOTHING RETURNING reference",
@@ -205,7 +208,7 @@ class RegistreA2APostgres:
         return ligne is not None
 
     def noter(self, reference: str, evaluation_id: str) -> None:
-        with _connexion(self.connexions) as conn:
+        with _connexion(self._pool()) as conn:
             conn.execute(
                 "UPDATE appels_partenaire SET evaluation_id = %s WHERE reference = %s",
                 (evaluation_id, reference),
@@ -235,7 +238,28 @@ def snapshots_par_defaut() -> SnapshotsPostgres | None:
     return SnapshotsPostgres(connexions) if connexions is not None else None
 
 
+class _RegistreA2AParesseux(RegistreA2APostgres):
+    """Pool résolu à chaque appel : base injoignable ⇒ ``ErreurPersistance``, donc aucun envoi."""
+
+    def __init__(self, url: str) -> None:
+        self.url = url
+
+    def _pool(self) -> ConnectionPool:
+        if monotonic() - _ECHECS.get(self.url, -REESSAI_S) < REESSAI_S:
+            raise ErreurPersistance("PostgreSQL injoignable (échec récent)")  # sans nouvel essai
+        try:
+            return pool(self.url)
+        except psycopg.Error as exc:
+            _ECHECS[self.url] = monotonic()
+            raise ErreurPersistance(f"{type(exc).__name__}: {exc}") from exc
+
+
 def registre_par_defaut() -> RegistreA2APostgres | None:
-    """Registre ``appels_partenaire`` si la base est configurée et joignable, sinon aucun."""
-    connexions = _pool_par_defaut()
-    return RegistreA2APostgres(connexions) if connexions is not None else None
+    """Registre ``appels_partenaire`` dès que la base est configurée, même injoignable (spec §1 :
+    base en panne ⇒ aucun envoi) ; aucun sans base."""
+    try:
+        url = ConfigBase().database_url
+    except ValidationError as exc:  # .env malformé : comme les snapshots, base tenue pour absente
+        LOGGER.warning("configuration de la base invalide, registre en mémoire : %s", exc)
+        return None
+    return _RegistreA2AParesseux(url) if url else None
