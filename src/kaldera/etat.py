@@ -27,6 +27,9 @@ class Bornes(BaseModel):
     delai_min_llm_s: float = Field(default=0.3, gt=0)
     reserve_decision_s: float = Field(default=1.0, ge=0)  # toujours gardé pour decision
     appels_outil_max: int = Field(default=4, ge=1)  # appels d'outils par agent
+    # disjoncteur LLM (EX-D33) : replis > taux sur la fenêtre ⇒ repli pour tous, sans appel
+    taux_repli_disjoncteur: float = Field(default=0.5, gt=0, lt=1)
+    fenetre_disjoncteur_s: float = Field(default=60, gt=0)
 
 
 BORNES = Bornes()  # bornes en vigueur : seule source pour bornes() et l'orchestrateur

@@ -16,6 +16,7 @@ from typing import Any
 from . import llm, partenaire, postgres, regles
 from .agents import NIVEAUX_AVIS, Evaluateur, is_eligible
 from .agents_llm import AgentLLM, MesureAgent, creer_agent
+from .disjoncteur import Disjoncteur
 from .llm import ClientLLM, ConfigAgents
 from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, ContratDemande, EtatDemande
 from .memoire import DepotDepuisDemande, RegistreA2AEnMemoire
@@ -68,8 +69,13 @@ class Orchestrateur:
         depot: DepotPieces | None = None,
         snapshots: Snapshots | None = None,
         registre: RegistreA2A | None = None,
+        disjoncteur: Disjoncteur | None = None,
     ) -> None:
         self.bornes = bornes or BORNES
+        # un disjoncteur pour les 4 agents (« repli pour tous ») ; partagé s'il est injecté
+        self.disjoncteur = (
+            disjoncteur if disjoncteur is not None else Disjoncteur.depuis(self.bornes)
+        )
         self.depot = depot or NIVEAU_0
         # sans base configurée : aucune persistance ; les pièces restent lues dans la demande
         # (niveau 0) tant que l'ingestion (SP3) ne remplit pas la table pieces
@@ -82,7 +88,9 @@ class Orchestrateur:
             evaluer = client_partenaire(partenaire_url, registre)
 
         def agent(nom: str) -> AgentLLM:
-            return creer_agent(nom, llms.get(nom), getattr(cfg, nom), self.bornes, evaluer)
+            return creer_agent(
+                nom, llms.get(nom), getattr(cfg, nom), self.bornes, evaluer, self.disjoncteur
+            )
 
         # état → action (agent-as-tool) ; l'éligibilité est un tool appelé directement
         self.actions: dict[Etat, Action | AgentLLM] = {
@@ -129,6 +137,7 @@ class Orchestrateur:
                 de=etat.etat_courant,
                 vers=Etat.ESCALADE.value,
                 garde="filet",
+                erreur=type(exc).__name__,
             )
         )
 
@@ -158,6 +167,7 @@ class Orchestrateur:
         section = SECTION_DE[courant]
         agent = PROPRIETAIRES[section]
         debut, statut, ecrit = perf_counter(), "ok", []
+        erreur: str | None = None
         mesure: MesureAgent | None = None
         try:
             action, vue = self.actions[courant], vue_filtree(etat, courant, self.bornes, self.depot)
@@ -177,16 +187,19 @@ class Orchestrateur:
             TransitionInconnue,  # table incomplète : bruyant dans la trace, jamais bloquant
         ) as exc:
             statut, garde = "echec", "echec"
+            erreur = type(exc).__name__
             etat.escalade_forcee = f"échec de l'agent {agent} ({type(exc).__name__})"
             # decision en échec : plus personne pour conclure → fiche de secours
             suivant = Etat.ESCALADE if courant is Etat.DECISION else Etat.DECISION
 
-        externes, motif = 0, None
+        externes, motif, nature = 0, None, None
         if statut == "ok" and courant is Etat.ANTIFRAUDE and etat.avis_fraude is not None:
-            externes = int(etat.avis_fraude.requis)
-            if etat.avis_fraude.statut == "indisponible":
+            avis = etat.avis_fraude
+            nature = partenaire.nature(avis.cause) if avis.requis else "non_requis"
+            externes = int(nature in partenaire.ENVOYES)  # un appel non parti n'est pas compté
+            if avis.statut == "indisponible":
                 statut = "echec"  # avis non obtenu : compté en échec, mode dégradé en aval
-                motif = etat.avis_fraude.cause  # code et couche, jamais le corps (C2-Q8)
+                motif = avis.cause  # code et couche, jamais le corps (C2-Q8)
         if courant is Etat.PIECES and statut == "ok":
             self._suivre_relances(etat, suivant)
 
@@ -204,6 +217,8 @@ class Orchestrateur:
                 "garde": garde,
                 "appels_externes": externes,
                 **({"motif": motif} if motif else {}),
+                **({"nature": nature} if nature else {}),
+                **({"erreur": erreur} if erreur else {}),
                 **(mesure.model_dump() if mesure else {}),
             }
         )

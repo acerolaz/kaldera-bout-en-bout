@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 # avant le patch autouse du conftest
@@ -18,7 +20,10 @@ def test_base_injoignable_traitement_sans_snapshot(monkeypatch: pytest.MonkeyPat
     assert snapshots_par_defaut() is None
 
 
-def test_sans_url_aucun_registre_persistant() -> None:
+def test_sans_url_aucun_registre_persistant(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)  # aucun .env local lu
     assert registre_par_defaut() is None
 
 

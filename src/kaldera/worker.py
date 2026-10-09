@@ -14,6 +14,8 @@ from pydantic import BaseModel, ValidationError
 
 from . import evenements, relance
 from .assure_postgres import DepotAssure
+from .disjoncteur import Disjoncteur
+from .etat import BORNES
 from .ingestion import (
     AnalysePiece,
     ExtractionContrat,
@@ -37,15 +39,20 @@ SCHEMAS: dict[str, type[BaseModel]] = {
 }
 
 
-def travailler(ingestion: IngestionPostgres, vlm: ClientVLM, config: ConfigIngestion) -> bool:
+def travailler(
+    ingestion: IngestionPostgres,
+    vlm: ClientVLM,
+    config: ConfigIngestion,
+    disjoncteur: Disjoncteur | None = None,
+) -> bool:
     """Un tour : reprise, une tâche, admissions. Vrai si une tâche a été traitée."""
     ingestion.reprendre_bloquees(2 * config.delai_analyse_s, ESSAIS_MAX)
     tache = ingestion.prendre_tache()
     if tache is not None:
         _analyser(ingestion, vlm, config, tache)
-        _admettre(ingestion, tache.reference)
+        _admettre(ingestion, tache.reference, disjoncteur)
     for reference in ingestion.admissibles():  # tout en cache, ou soumise après la fin
-        _admettre(ingestion, reference)
+        _admettre(ingestion, reference, disjoncteur)
     return tache is not None
 
 
@@ -138,7 +145,9 @@ def _contrat(
     return extraction is not None
 
 
-def _admettre(ingestion: IngestionPostgres, reference: str) -> None:
+def _admettre(
+    ingestion: IngestionPostgres, reference: str, disjoncteur: Disjoncteur | None = None
+) -> None:
     demande = ingestion.admettre(reference)
     if demande is None:
         return
@@ -148,6 +157,7 @@ def _admettre(ingestion: IngestionPostgres, reference: str) -> None:
     fiche = Orchestrateur(
         depot=DepotPostgres(ingestion.connexions),
         snapshots=SnapshotsPostgres(ingestion.connexions),
+        disjoncteur=disjoncteur,
     ).traiter(demande)
     atteints = {t.get("vers") for t in fiche.get("trace", [])}
     for etat, etape in (("estimation", 3), ("antifraude", 4)):
@@ -170,9 +180,10 @@ def main() -> None:
             "AZURE_AI_CHAT_ENDPOINT et AZURE_AI_CHAT_KEY sont requis"
         )
     ingestion = IngestionPostgres(pool(url))
+    disjoncteur = Disjoncteur.depuis(BORNES)  # vit autant que le worker
     while True:
         try:
-            occupe = travailler(ingestion, vlm, config)
+            occupe = travailler(ingestion, vlm, config, disjoncteur)
         except ErreurPersistance as exc:
             LOGGER.error("worker : %s ; nouvel essai dans %s s", exc, PAUSE_S)
             occupe = False
