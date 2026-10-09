@@ -108,7 +108,9 @@ def case(fiches: list[dict[str, Any]], agent: str, delai_s: float) -> dict[str, 
         "tours_moyen": None if brut["tours_moyen"] is None else round(brut["tours_moyen"], 2),
         "jetons_par_demande": round(sum(e["jetons"] for e in etapes) / len(fiches), 1),
         "causes": dict(Counter(e["cause"] for e in etapes if e["mode"] == "repli")),
-        "alertes": [k for k, limite in limites.items() if (v := brut[k]) is not None and v > limite],
+        "alertes": [
+            k for k, limite in limites.items() if (v := brut[k]) is not None and v > limite
+        ],
     }
 
 
@@ -316,7 +318,8 @@ def ecrire_rapport(rapport: dict[str, Any], dossier: Path | None = None) -> Path
         "",
         "## Bornes remesurées",
         "",
-        "| Modèle | Durée p95 | Durée max | duree_max_s | Étapes max | Arrêts | Disjoncteur | Replis budget | |",
+        "| Modèle | Durée p95 | Durée max | duree_max_s | Étapes max | Arrêts | Disjoncteur "
+        "| Replis budget | |",
         "|---|---|---|---|---|---|---|---|---|",
         *(
             f"| {m} | {b['duree_p95_ms']} ms | {b['duree_max_ms']} ms | {b['duree_max_s']} s | "
