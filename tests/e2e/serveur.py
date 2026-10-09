@@ -29,6 +29,7 @@ def main() -> None:
         KALDERA_COOKIE_SECURE="false",
         KALDERA_FRONT_ORIGIN="http://localhost:5173",
         PARTENAIRE_URL="http://127.0.0.1:9",
+        KALDERA_INGESTION__DELAI_ANALYSE_S="5",  # même valeur pour l'API (.env lu) et le worker
     )
     from kaldera import llm
     from kaldera.ingestion_postgres import IngestionPostgres
@@ -49,7 +50,7 @@ def main() -> None:
     preparer(connexions)
     ingestion = IngestionPostgres(connexions)
     vlm = FakeVLM(verites_fake(lire_manifeste()))
-    config = ConfigIngestion(_env_file=None, delai_analyse_s=5)
+    config = ConfigIngestion(_env_file=None)
 
     def boucle() -> None:
         while True:

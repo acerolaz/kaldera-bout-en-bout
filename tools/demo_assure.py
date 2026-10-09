@@ -33,11 +33,12 @@ def preparer(
     lignes = [x for x in (manifeste or lire_manifeste()) if x["reference"] == reference]
     demande = next(x["json"] for x in lignes if x["role"] == "demande")
     contrat = next(x for x in lignes if x["role"] == "contrat")
+    # le contrat est lu et contrôlé avant toute écriture (pool en autocommit : pas de rollback)
+    octets = (MANIFESTE.parent / contrat["fichier"]).read_bytes()
+    mime, sha256 = controler_fichier(octets, 10, contrat=True)
     ingestion = IngestionPostgres(connexions)
     if not ingestion.creer_demande(demande):
         return False
-    octets = (MANIFESTE.parent / contrat["fichier"]).read_bytes()
-    mime, sha256 = controler_fichier(octets, 10, contrat=True)
     ingestion.deposer_contrat(reference, octets, mime, sha256)
     depot = DepotAssure(connexions)
     depot.rattacher(depot.creer_compte(identifiant, auth.hacher(mot_de_passe), "assure"), reference)
