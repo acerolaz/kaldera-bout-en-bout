@@ -153,6 +153,17 @@ Le rapport donne un verdict par exigence (EX-01 → EX-06), la couverture des tr
 les seuils, les métriques par agent et d'équipe ; code de sortie 1 en cas d'échec.
 Le rapport de référence du chantier 2 est archivé dans `docs/epreuves/`.
 
+Évaluation des agents avec le LLM réel (clés Azure et modèles dans le `.env`) :
+
+```bash
+make eval             # 28 scénarios × 5 par modèle candidat ; rapport eval/rapports/eval-<date>.md
+```
+
+Modèles comparés : `KALDERA_EVAL__MODELES=Kimi-K2.6,…` (à défaut, ceux des agents). Le rapport
+donne la matrice agent × modèle (replis, sorties rejetées, latence LLM p95, tours, jetons), le
+modèle recommandé par rôle, l'invariance des issues et les bornes remesurées. Code de sortie : 0
+tout vert, 1 alerte, 2 non mesuré (aucune clé ou aucun modèle).
+
 Espace sinistre de l'assuré (`KALDERA_DATABASE_URL`, `KALDERA_SESSION_SECRET` et
 `KALDERA_COOKIE_SECURE=false` requis ; détails dans `docs/interface_web.md`) :
 
@@ -237,8 +248,8 @@ make down       # arrête les services docker
 
 ## Known issues
 
-- Le disjoncteur LLM et `make eval` (matrice agent × modèle) relèvent encore du
-  chantier 2 (lot C2c).
+- `make eval` n'a pas encore été lancé avec un LLM réel : la matrice agent × modèle et la
+  remesure des bornes `duree_max_s` / `delai_partenaire_s` attendent les clés Azure.
 - Les chemins réels Azure (agents LLM et VLM) n'ont pas été éprouvés dans
   l'environnement de développement. L'épreuve de l'ingestion avec le vrai VLM
   n'a pas encore été mesurée.

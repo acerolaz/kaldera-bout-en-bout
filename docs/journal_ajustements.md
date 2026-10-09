@@ -61,23 +61,27 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-09 | C2a · revue finale | URL partenaire malformée (`httpx.InvalidURL`, hors `HTTPError`) : exception par demande, worker arrêté, dossier laissé `en_cours` ; base configurée injoignable : registre en mémoire, envoi | EX-01 ; EX-D19 / spec §1 : base en panne ⇒ aucun envoi | `InvalidURL`, `ValueError`, `RecursionError` rattrapées (carte, envoi, corps) ; registre Postgres dès que la base est configurée, pool résolu à la réservation (échec ⇒ « registre indisponible ») ; jeton absent et montant infini refusés avant la réservation | exception → mode dégradé ; envoi → aucun envoi |
 | 2026-10-09 | C2b · épreuve (`make epreuve`, 28 scénarios, 34 demandes) | appels comptés même non partis ; aucune vue d'équipe ni de couverture des transitions | C2-Q15, dossier 4.2 | nature de chaque appel (`ok` 7, `timeout` 2, `invalide` 7, `erreur` 2, `non_envoye` 0, `non_requis` 7), `appels_externes` = appels partis, métriques `equipe`, rapport archivé `docs/epreuves/epreuve-2026-10-09.md` | durée p95 3 005,49 ms, max 3 006,68 ms, étapes max 6 ; couverture T1 → T11 11/11 (T0 : ING-01 / ING-02) ; EX-01 → EX-06 ✅ |
 | 2026-10-09 | C2b · revue finale | EX-03 aveugle à une donnée personnelle échappée en `\uXXXX` (httpx < 0.28) ou portée par une entrée de journal sans référence ; en-tête du rapport sans le mode LLM réel | aucun faux vert (critère de sortie) | corps du journal normalisé en UTF-8, valeurs personnelles de toutes les demandes du scénario ; modes `llm` / `repli` au rapport ; jeton vide remplacé puis restauré ; catégorie sans fiche évaluée = écart ; `httpx >= 0.28` | faux vert possible → écart détecté ; « modèles » → « mode : llm 0 / repli 116 » |
+| 2026-10-09 | C2c · LLM réel (sans clés) | LLM en panne : chaque demande retente ses 4 agents (jusqu'à 4 × `delai_agent_s` perdus) ; aucun outil pour comparer les modèles | EX-D33 (> 50 % / 1 min) ; C2-Q14c (replis 20 %, rejetées 5 %, latence p95, tours 2,5) | disjoncteur injecté (4 agents, fenêtre 60 s, minimum 10 tentatives, cause `disjoncteur`) ; `make eval` (matrice agent × modèle, invariance, bornes remesurées, recommandation par rôle) | panne : 10 appels puis 0 (`test_llm_en_panne_ouvre_le_disjoncteur_pour_tous`) ; `make eval` sans clés : « non mesuré », code 2 |
 
 ## Bornes provisoires en vigueur
 
 | Borne | Valeur | Justification | Statut |
 |---|---|---|---|
 | `etapes_max` | 12 | chemin nominal le plus long : 6 étapes (avec relance) → marge ×2 | éprouvée (max observé : 6 étapes) |
-| `duree_max_s` | 8 | 10 s (§12) moins 2 s de marge | éprouvée en mode repli (max observé : 3,01 s, p95 3,01 s) ; à remesurer en C2c avec LLM |
+| `duree_max_s` | 8 | 10 s (§12) moins 2 s de marge | éprouvée en mode repli (max observé : 3,01 s, p95 3,01 s) ; à remesurer au premier `make eval` avec clés |
 | `relances_pieces_max` | 1 | déduite des scénarios NOM-07 / BCL-01 | à valider avec le métier |
-| `delai_partenaire_s` | 3 | abandon client du contrat partenaire | éprouvée en mode repli (antifraude max observé : 3,01 s, PAN-02 : abandon à 3 s) ; à remesurer en C2c |
+| `delai_partenaire_s` | 3 | abandon client du contrat partenaire | éprouvée en mode repli (antifraude max observé : 3,01 s, PAN-02 : abandon à 3 s) ; à remesurer au premier `make eval` avec clés |
+| `taux_repli_disjoncteur` | 0,5 | EX-D33 : plus d'un repli sur deux ⇒ LLM en panne | provisoire (à éprouver au premier `make eval` avec clés) |
+| `fenetre_disjoncteur_s` | 60 | EX-D33 : 1 min ; minimum 10 tentatives (choix C2c) | provisoire |
 
 ## Restant (chantier 2)
 
-C2a (liaison A2A) et C2b (monitorage et épreuve, `make epreuve`) livrés. Reste :
+C2a (liaison A2A), C2b (monitorage et épreuve, `make epreuve`) et C2c (disjoncteur LLM,
+`make eval`) livrés. Reste :
 
 | Lot | Contenu |
 |---|---|
-| C2c · LLM réel | `make eval` (matrice agent × modèle), disjoncteur LLM, seuils propres au LLM (replis, latence LLM, tours) |
+| Mesure réelle | premier `make eval` avec les clés Azure : matrice remplie, modèle par rôle choisi et consigné, bornes `duree_max_s`, `delai_partenaire_s` et disjoncteur remesurées, rapport archivé dans `docs/epreuves/` |
 
 ## 2026-10-08 — Agents LLM (dossier v3, EX-D30 → EX-D36)
 
