@@ -12,7 +12,7 @@ import socket
 import threading
 import time
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import date
@@ -23,7 +23,9 @@ import httpx
 import uvicorn
 
 import kaldera
+from kaldera.disjoncteur import Disjoncteur
 from kaldera.etat import BORNES, PROPRIETAIRES, Bornes
+from kaldera.llm import ClientLLM, ConfigAgents
 from kaldera.machine import TRANSITIONS
 from kaldera.memoire import RegistreA2AEnMemoire, SnapshotsEnMemoire
 from kaldera.orchestrateur import Orchestrateur
@@ -354,16 +356,36 @@ def partenaire_simule() -> Iterator[str]:
                 os.environ["PARTENAIRE_JETON"] = avant
 
 
-def orchestrateur(url: str) -> Orchestrateur:
+def orchestrateur(
+    url: str,
+    *,
+    llms: Mapping[str, ClientLLM | None] | None = None,
+    config: ConfigAgents | None = None,
+    disjoncteur: Disjoncteur | None = None,
+) -> Orchestrateur:
     """Snapshots et registre en mémoire : une épreuve ne dépend d'aucune base et se rejoue."""
-    return Orchestrateur(url, snapshots=SnapshotsEnMemoire(), registre=RegistreA2AEnMemoire())
+    return Orchestrateur(
+        url,
+        llms=llms,
+        config=config,
+        disjoncteur=disjoncteur,
+        snapshots=SnapshotsEnMemoire(),
+        registre=RegistreA2AEnMemoire(),
+    )
 
 
-def rejouer(url: str, scenario: dict[str, Any]) -> dict[str, Any]:
+def rejouer(
+    url: str,
+    scenario: dict[str, Any],
+    *,
+    llms: Mapping[str, ClientLLM | None] | None = None,
+    config: ConfigAgents | None = None,
+    disjoncteur: Disjoncteur | None = None,
+) -> dict[str, Any]:
     with httpx.Client(base_url=url, timeout=5) as sim:
         sim.post("/_sim/reset").raise_for_status()
         sim.post("/_sim/mode", json=scenario["partenaire"]).raise_for_status()
-        orch = orchestrateur(url)
+        orch = orchestrateur(url, llms=llms, config=config, disjoncteur=disjoncteur)
         # en parallèle, comme traiter_lot (§12)
         with ThreadPoolExecutor() as pool:
             fiches = list(pool.map(orch.traiter, scenario["demandes"]))

@@ -88,6 +88,10 @@ indicateur F1–F4). `appels_externes` ne compte que `ok`, `timeout`, `invalide`
 Dans la trace, l'étape `antifraude` porte `nature`, et toute étape en échec sur une exception
 porte `erreur` (nom de l'exception).
 
+Les étapes des agents LLM portent `mode` (`llm` ou `repli`) et, en repli, `cause`. La cause
+`disjoncteur` signale un repli forcé sans appel au LLM : plus de 50 % des tentatives LLM de la
+dernière minute (10 au moins) ont fini en repli. Le disjoncteur se referme seul.
+
 ## Scénarios de recette
 
 `eval/scenarios.jsonl` contient un scénario par ligne :

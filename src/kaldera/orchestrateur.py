@@ -16,6 +16,7 @@ from typing import Any
 from . import llm, partenaire, postgres, regles
 from .agents import NIVEAUX_AVIS, Evaluateur, is_eligible
 from .agents_llm import AgentLLM, MesureAgent, creer_agent
+from .disjoncteur import Disjoncteur
 from .llm import ClientLLM, ConfigAgents
 from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, ContratDemande, EtatDemande
 from .memoire import DepotDepuisDemande, RegistreA2AEnMemoire
@@ -68,8 +69,13 @@ class Orchestrateur:
         depot: DepotPieces | None = None,
         snapshots: Snapshots | None = None,
         registre: RegistreA2A | None = None,
+        disjoncteur: Disjoncteur | None = None,
     ) -> None:
         self.bornes = bornes or BORNES
+        # un disjoncteur pour les 4 agents (« repli pour tous ») ; partagé s'il est injecté
+        self.disjoncteur = (
+            disjoncteur if disjoncteur is not None else Disjoncteur.depuis(self.bornes)
+        )
         self.depot = depot or NIVEAU_0
         # sans base configurée : aucune persistance ; les pièces restent lues dans la demande
         # (niveau 0) tant que l'ingestion (SP3) ne remplit pas la table pieces
@@ -82,7 +88,9 @@ class Orchestrateur:
             evaluer = client_partenaire(partenaire_url, registre)
 
         def agent(nom: str) -> AgentLLM:
-            return creer_agent(nom, llms.get(nom), getattr(cfg, nom), self.bornes, evaluer)
+            return creer_agent(
+                nom, llms.get(nom), getattr(cfg, nom), self.bornes, evaluer, self.disjoncteur
+            )
 
         # état → action (agent-as-tool) ; l'éligibilité est un tool appelé directement
         self.actions: dict[Etat, Action | AgentLLM] = {

@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve fumee-vlm demo-assure front front-test front-e2e
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve eval fumee-vlm demo-assure front front-test front-e2e
 
 install:
 	uv sync
@@ -38,7 +38,7 @@ lint:
 	uv run ruff check .
 
 typecheck:
-	uv run mypy src
+	uv run mypy src tools/eval_llm.py
 
 reaper:
 	uv run python -m kaldera.reaper
@@ -63,6 +63,9 @@ eval-ingestion:
 
 epreuve:
 	uv run python -m tools.epreuve
+
+eval:
+	uv run python -m tools.eval_llm
 
 fumee-vlm:
 	uv run python scripts/fumee_vlm.py

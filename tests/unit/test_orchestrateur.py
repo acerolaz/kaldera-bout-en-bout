@@ -16,8 +16,9 @@ import kaldera
 from kaldera import partenaire
 from kaldera.agents import AgentDecision, AgentEstimation, AgentPieces
 from kaldera.agents_llm import SPECS, AgentLLM
+from kaldera.disjoncteur import Disjoncteur
 from kaldera.etat import AvisFraude, Bornes, ContratDemande, Estimation, EtatDemande
-from kaldera.llm import fidele
+from kaldera.llm import FakeLLM, ReponseLLM, fidele
 from kaldera.machine import Etat
 from kaldera.memoire import RegistreA2AEnMemoire
 from kaldera.partenaire import Indisponible
@@ -576,3 +577,21 @@ def test_erreur_nommee_dans_l_etape_en_echec() -> None:
     fiche = _orchestrateur(estimation=ecrit_ailleurs).traiter(_demande("NOM-01"))
     (etape,) = [e for e in fiche["trace"] if e["action"] == "estimation"]
     assert etape["statut"] == "echec" and etape["erreur"] == "ErreurEcriture"
+
+
+def test_llm_en_panne_ouvre_le_disjoncteur_pour_tous() -> None:
+    casse = FakeLLM(lambda m, o: ReponseLLM(texte="{pas du json", jetons=5))
+    orch = Orchestrateur(evaluer=_avis_faible, llms={nom: casse for nom in SPECS})
+    fiches = [orch.traiter(_demande("NOM-01")) for _ in range(6)]
+    assert casse.appels == 10  # minimum atteint à 10 replis sur 10, puis plus aucun appel
+    derniere = [e for e in fiches[-1]["trace"] if "mode" in e]
+    assert derniere and all(e["cause"] == "disjoncteur" for e in derniere)
+    assert {f["issue"] for f in fiches} == {fiches[0]["issue"]}  # même issue : repli
+
+
+def test_disjoncteur_propre_a_chaque_orchestrateur_sauf_injection() -> None:
+    a, b = Orchestrateur(evaluer=_avis_faible), Orchestrateur(evaluer=_avis_faible)
+    assert a.disjoncteur is not b.disjoncteur
+    partage = Disjoncteur.depuis(Bornes())
+    c = Orchestrateur(evaluer=_avis_faible, disjoncteur=partage)
+    assert c.disjoncteur is partage
