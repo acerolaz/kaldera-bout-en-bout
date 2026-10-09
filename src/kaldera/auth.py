@@ -13,7 +13,7 @@ from uuid import UUID
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from itsdangerous import BadSignature, URLSafeTimedSerializer
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .assure_postgres import Compte
@@ -34,6 +34,12 @@ class ConfigAssure(BaseSettings):
     cookie_secure: bool = True
     duree_session_h: float = Field(default=8, gt=0)
 
+    @field_validator("session_secret")
+    @classmethod
+    def _secret_vide_absent(cls, v: SecretStr | None) -> SecretStr | None:
+        """``KALDERA_SESSION_SECRET=`` (vide) vaut absent : jamais de clé HMAC vide."""
+        return v if v is not None and v.get_secret_value().strip() else None
+
 
 class Comptes(Protocol):
     def compte(self, identifiant: str) -> Compte | None: ...
@@ -52,6 +58,7 @@ def authentifier(depot: Comptes, identifiant: str, mot_de_passe: str) -> Compte 
         _HACHEUR.hash(mot_de_passe)  # même coût qu'un vrai essai : pas d'oracle de temps
         return None
     if compte.bloque_jusqu is not None and compte.bloque_jusqu > datetime.now(UTC):
+        _HACHEUR.hash(mot_de_passe)  # même coût qu'un essai : le blocage ne se devine pas au temps
         return None
     try:
         _HACHEUR.verify(compte.hash, mot_de_passe)

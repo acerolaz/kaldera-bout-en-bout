@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -80,3 +81,18 @@ def test_configuration_par_defaut() -> None:
     config = auth.ConfigAssure(_env_file=None)
     assert config.session_secret is None and config.cookie_secure is True
     assert config.front_origin == "http://localhost:5173" and config.duree_session_h == 8
+
+
+@pytest.mark.parametrize("secret", ["", "   "])
+def test_secret_vide_equivaut_a_absent(secret: str) -> None:
+    assert auth.ConfigAssure(_env_file=None, session_secret=secret).session_secret is None
+
+
+def test_compte_bloque_paie_un_hachage(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sans quoi le temps de réponse trahirait l'existence d'un compte bloqué."""
+    depot = FauxDepot(_compte(datetime.now(UTC) + timedelta(minutes=5)))
+    appels: list[str] = []
+    faux = SimpleNamespace(hash=appels.append)
+    monkeypatch.setattr(auth, "_HACHEUR", faux)
+    assert auth.authentifier(depot, "claire", "bon-mot") is None
+    assert appels == ["bon-mot"]
