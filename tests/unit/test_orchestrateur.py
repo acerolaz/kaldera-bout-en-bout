@@ -16,9 +16,12 @@ import kaldera
 from kaldera import partenaire
 from kaldera.agents import AgentDecision, AgentEstimation, AgentPieces
 from kaldera.agents_llm import SPECS, AgentLLM
+from kaldera.disjoncteur import Disjoncteur
 from kaldera.etat import AvisFraude, Bornes, ContratDemande, Estimation, EtatDemande
-from kaldera.llm import fidele
+from kaldera.llm import FakeLLM, ReponseLLM, fidele
 from kaldera.machine import Etat
+from kaldera.memoire import RegistreA2AEnMemoire
+from kaldera.partenaire import Indisponible
 from kaldera.ports import PieceRef
 from kaldera.orchestrateur import (
     ErreurEcriture,
@@ -284,18 +287,22 @@ def test_sans_llm_les_agents_tracent_le_repli() -> None:
 # --------------------------------------------------------------------- partenaire
 
 
-def test_partenaire_muet_abandonne_au_delai() -> None:
+def test_partenaire_muet_abandonne_au_delai(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PARTENAIRE_JETON", "jeton-de-test")
     serveur = socket.socket()
     serveur.bind(("127.0.0.1", 0))
     serveur.listen()  # accepte la connexion, ne répond jamais
     try:
         debut = time.monotonic()
         avis = partenaire.evaluer_risque(
-            {"reference": "KAL-26-0000"},
-            f"http://127.0.0.1:{serveur.getsockname()[1]}",
+            _demande("AF-01"),
+            f"http://127.0.0.1:{serveur.getsockname()[1]}/a2a",
+            registre=RegistreA2AEnMemoire(),
             timeout=0.3,
         )
-        assert avis is None and time.monotonic() - debut < 2
+        # course légitime : l'échéance du fil ou le ReadTimeout de httpx (même délai) gagne
+        assert avis in (Indisponible("délai > 0.3 s"), Indisponible("couche ① : ReadTimeout"))
+        assert time.monotonic() - debut < 2
     finally:
         serveur.close()
 
@@ -324,14 +331,36 @@ def test_partenaire_au_compte_gouttes_abandonne_au_delai_total(
     try:
         debut = time.monotonic()
         avis = partenaire.evaluer_risque(
-            {"reference": "KAL-26-0000"},
-            f"http://127.0.0.1:{serveur.getsockname()[1]}",
+            _demande("AF-01"),
+            f"http://127.0.0.1:{serveur.getsockname()[1]}/a2a",
+            registre=RegistreA2AEnMemoire(),
             timeout=0.5,
         )
-        assert avis is None and time.monotonic() - debut < 1.0
+        assert avis == Indisponible("délai > 0.5 s") and time.monotonic() - debut < 1.0
     finally:
         arret.set()
         serveur.close()
+
+
+def _indisponible(demande: dict[str, Any], timeout: float) -> Indisponible:
+    return Indisponible("couche ③ : champ hors contrat")
+
+
+def test_cause_de_l_indisponibilite_dans_la_trace() -> None:
+    fiche = Orchestrateur(evaluer=_indisponible).traiter(_demande("PAN-01", 3))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["statut"] == "echec" and etape["motif"] == "couche ③ : champ hors contrat"
+    assert fiche["avis_fraude"] is None and fiche["mode_degrade"] is True
+
+
+def test_llm_menteur_ne_reecrit_pas_la_cause() -> None:
+    """Review Focus 5 : ``cause`` est un champ privé, recopié de la référence."""
+    llms = {nom: fidele(SPECS[nom].champ, SPECS[nom].gabarit) for nom in SPECS}
+    spec = SPECS["antifraude"]
+    llms["antifraude"] = fidele(spec.champ, spec.gabarit, mensonge={"cause": "tout va bien"})
+    fiche = Orchestrateur(evaluer=_indisponible, llms=llms).traiter(_demande("PAN-01", 3))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["mode"] == "llm" and etape["motif"] == "couche ③ : champ hors contrat"
 
 
 # --------------------------------------------------------------------- entrée malformée (EX-01)
@@ -424,6 +453,13 @@ def test_exception_imprevue_rattrapee_par_le_filet(etat_en_panne: str) -> None:
     assert f"(dernier état : {etat_en_panne})" in fiche["motif"]
 
 
+def test_etape_du_filet_nomme_l_exception() -> None:
+    """docs/interface.md : toute étape en échec sur une exception porte ``erreur``."""
+    fiche = _orchestrateur(pieces=_en_panne_imprevue).traiter(_demande("NOM-01"))
+    assert fiche["trace"][-1]["action"] == "filet_securite"
+    assert fiche["trace"][-1]["erreur"] == "RuntimeError"
+
+
 def test_provenance_invalide_jamais_d_eligibilite() -> None:
     espion = Espion()
     fiche = _orchestrateur(eligibilite=espion).traiter(_contrat("peut-etre"))
@@ -501,3 +537,61 @@ def test_piece_de_type_inconnu_escalade_sans_planter() -> None:
     etape = [e for e in fiche["trace"] if e["action"] == "pieces"][0]
     assert etape["statut"] == "echec"
     assert (fiche["issue"], fiche["file"]) == ("escalade", "gestionnaire")
+
+
+def test_url_partenaire_malformee_mode_degrade(monkeypatch: pytest.MonkeyPatch) -> None:
+    """EX-01 (revue finale C2a) : ``httpx.InvalidURL`` n'est pas une ``httpx.HTTPError``."""
+    monkeypatch.setenv("PARTENAIRE_JETON", "jeton-de-test")
+    fiche = Orchestrateur(partenaire_url="http://localhost:81OO").traiter(_demande("PAN-01", 3))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["statut"] == "echec" and etape["motif"] == "URL partenaire invalide"
+    assert fiche["mode_degrade"] is True and fiche["file"] == "cellule_fraude"
+
+
+def _non_envoye(demande: dict[str, Any], timeout: float) -> Indisponible:
+    return Indisponible("registre : dossier déjà soumis")
+
+
+@pytest.mark.parametrize(
+    ("evaluer", "nature", "externes"),
+    [(_indisponible, "invalide", 1), (_non_envoye, "non_envoye", 0)],
+)
+def test_nature_et_appels_externes_dans_la_trace(
+    evaluer: Any, nature: str, externes: int
+) -> None:
+    fiche = Orchestrateur(evaluer=evaluer).traiter(_demande("PAN-01", 3))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["nature"] == nature and etape["appels_externes"] == externes
+
+
+def test_nature_non_requis_sans_indicateur() -> None:
+    fiche = Orchestrateur(evaluer=_sans_partenaire).traiter(_demande("NOM-01"))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["nature"] == "non_requis" and etape["appels_externes"] == 0
+
+
+def test_erreur_nommee_dans_l_etape_en_echec() -> None:
+    def ecrit_ailleurs(vue: dict[str, Any]) -> dict[str, Any]:
+        return {"issue": {"issue": "decision"}}  # section d'un autre agent
+
+    fiche = _orchestrateur(estimation=ecrit_ailleurs).traiter(_demande("NOM-01"))
+    (etape,) = [e for e in fiche["trace"] if e["action"] == "estimation"]
+    assert etape["statut"] == "echec" and etape["erreur"] == "ErreurEcriture"
+
+
+def test_llm_en_panne_ouvre_le_disjoncteur_pour_tous() -> None:
+    casse = FakeLLM(lambda m, o: ReponseLLM(texte="{pas du json", jetons=5))
+    orch = Orchestrateur(evaluer=_avis_faible, llms={nom: casse for nom in SPECS})
+    fiches = [orch.traiter(_demande("NOM-01")) for _ in range(6)]
+    assert casse.appels == 10  # minimum atteint à 10 replis sur 10, puis plus aucun appel
+    derniere = [e for e in fiches[-1]["trace"] if "mode" in e]
+    assert derniere and all(e["cause"] == "disjoncteur" for e in derniere)
+    assert {f["issue"] for f in fiches} == {fiches[0]["issue"]}  # même issue : repli
+
+
+def test_disjoncteur_propre_a_chaque_orchestrateur_sauf_injection() -> None:
+    a, b = Orchestrateur(evaluer=_avis_faible), Orchestrateur(evaluer=_avis_faible)
+    assert a.disjoncteur is not b.disjoncteur
+    partage = Disjoncteur.depuis(Bornes())
+    c = Orchestrateur(evaluer=_avis_faible, disjoncteur=partage)
+    assert c.disjoncteur is partage

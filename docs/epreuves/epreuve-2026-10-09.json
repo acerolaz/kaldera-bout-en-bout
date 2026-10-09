@@ -1,0 +1,340 @@
+{
+  "date": "2026-10-09",
+  "reussi": true,
+  "modeles": [
+    "aucun"
+  ],
+  "modes": {
+    "repli": 116
+  },
+  "duree_s": 6.2,
+  "seuils": [
+    {
+      "nom": "durée p95 (ms)",
+      "mesure": 3005.49,
+      "seuil": "< 8000",
+      "ok": true
+    },
+    {
+      "nom": "durée max (ms)",
+      "mesure": 3006.68,
+      "seuil": "< 10000",
+      "ok": true
+    },
+    {
+      "nom": "écritures rejetées",
+      "mesure": 0,
+      "seuil": "= 0",
+      "ok": true
+    },
+    {
+      "nom": "étapes max",
+      "mesure": 6,
+      "seuil": "≤ 12",
+      "ok": true
+    },
+    {
+      "nom": "arrêts hors relances_pieces_max",
+      "mesure": 0,
+      "seuil": "= 0",
+      "ok": true
+    },
+    {
+      "nom": "appels partenaire par référence",
+      "mesure": 1,
+      "seuil": "≤ 1",
+      "ok": true
+    }
+  ],
+  "verdicts": {
+    "EX-01": [],
+    "EX-02": [],
+    "EX-03": [],
+    "EX-04": [],
+    "EX-05": [],
+    "EX-06": [],
+    "attendu": []
+  },
+  "couverture": {
+    "empruntees": [
+      "T1",
+      "T2",
+      "T3",
+      "T4",
+      "T5",
+      "T6",
+      "T7",
+      "T8",
+      "T9",
+      "T10",
+      "T11"
+    ],
+    "manquantes": [],
+    "hors_scenarios": {
+      "T0": "ING-01 / ING-02 (make eval-ingestion)"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "NOM-01",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-02",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-03",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-04",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-05",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-06",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-07",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-08",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-09",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-10",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "NOM-11",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "AF-01",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "AF-02",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "AF-03",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "AF-04",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "AF-05",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "AF-06",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "AF-07",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "INV-01",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "INV-02",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "INV-03",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "INV-04",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "INV-05",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "INV-06",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "INV-07",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "PAN-01",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "PAN-02",
+      "ok": true,
+      "ecarts": []
+    },
+    {
+      "id": "BCL-01",
+      "ok": true,
+      "ecarts": []
+    }
+  ],
+  "metriques": {
+    "orchestrateur": {
+      "appels": 34,
+      "echecs": 0,
+      "appels_externes": 0,
+      "latence_ms": 0.03
+    },
+    "pieces": {
+      "appels": 31,
+      "echecs": 0,
+      "appels_externes": 0,
+      "tours_llm": 0,
+      "jetons": 0,
+      "latence_llm_ms": 0.0,
+      "replis": 31,
+      "sorties_rejetees": 0,
+      "modeles": {
+        "aucun": 31
+      },
+      "latence_ms": 0.07
+    },
+    "estimation": {
+      "appels": 26,
+      "echecs": 0,
+      "appels_externes": 0,
+      "tours_llm": 0,
+      "jetons": 0,
+      "latence_llm_ms": 0.0,
+      "replis": 26,
+      "sorties_rejetees": 0,
+      "modeles": {
+        "aucun": 26
+      },
+      "latence_ms": 0.05
+    },
+    "antifraude": {
+      "appels": 25,
+      "echecs": 11,
+      "appels_externes": 18,
+      "natures": {
+        "ok": 7,
+        "timeout": 2,
+        "invalide": 7,
+        "erreur": 2,
+        "non_envoye": 0,
+        "non_requis": 7
+      },
+      "tours_llm": 0,
+      "jetons": 0,
+      "latence_llm_ms": 0.0,
+      "replis": 25,
+      "sorties_rejetees": 0,
+      "modeles": {
+        "aucun": 25
+      },
+      "latence_ms": 272.96
+    },
+    "decision": {
+      "appels": 34,
+      "echecs": 0,
+      "appels_externes": 0,
+      "tours_llm": 0,
+      "jetons": 0,
+      "latence_llm_ms": 0.0,
+      "replis": 34,
+      "sorties_rejetees": 0,
+      "modeles": {
+        "aucun": 34
+      },
+      "latence_ms": 0.08
+    }
+  },
+  "equipe": {
+    "demandes": 34,
+    "etapes": {
+      "max": 6,
+      "moyenne": 4.41
+    },
+    "arrets": {
+      "relances_pieces_max": 1
+    },
+    "issues": {
+      "decision": 23,
+      "escalade": 11
+    },
+    "escalades_par_file": {
+      "gestionnaire": 5,
+      "cellule_fraude": 6
+    },
+    "mode_degrade": {
+      "n": 11,
+      "taux": 0.3235
+    },
+    "duree_ms": {
+      "p95": 3005.49,
+      "max": 3006.68
+    },
+    "ecritures_rejetees": 0
+  },
+  "bornes": [
+    {
+      "borne": "etapes_max",
+      "valeur": 12,
+      "observe": 6
+    },
+    {
+      "borne": "duree_max_s",
+      "valeur": 8,
+      "observe": 3.01
+    },
+    {
+      "borne": "relances_pieces_max",
+      "valeur": 1,
+      "observe": 1
+    },
+    {
+      "borne": "delai_partenaire_s",
+      "valeur": 3,
+      "observe": 3.01
+    }
+  ]
+}

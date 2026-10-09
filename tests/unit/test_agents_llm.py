@@ -4,17 +4,19 @@ from __future__ import annotations
 
 import copy
 import json
+import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from kaldera import espace_assure
+from kaldera.disjoncteur import Disjoncteur
 from kaldera.agents_llm import IDENTITE, SPECS, AgentLLM, creer_agent
 from kaldera.etat import Bornes, EtatDemande
 from kaldera.machine import Etat
 from kaldera.orchestrateur import vue_filtree
-from kaldera.llm import SABOTEURS, AppelOutil, ConfigLLM, FakeLLM, ReponseLLM, fidele, saboteur
+from kaldera.llm import SABOTEURS, AppelOutil, ConfigLLM, ErreurLLM, FakeLLM, ReponseLLM, fidele, saboteur
 
 RACINE = Path(__file__).resolve().parents[2]
 SCENARIOS = {
@@ -255,3 +257,69 @@ def test_exception_d_outil_finit_en_outil_refuse(monkeypatch: pytest.MonkeyPatch
 
 def _appel_depot(arguments: dict[str, Any]) -> ReponseLLM:
     return ReponseLLM(appels_outils=[AppelOutil(id="a", nom="lire_depot", arguments=arguments)])
+
+
+# ------------------------------------------------------------------ disjoncteur (C2c)
+
+
+def _casse() -> FakeLLM:
+    return FakeLLM(lambda m, o: ReponseLLM(texte="{pas du json", jetons=5))
+
+
+def test_disjoncteur_ouvert_repli_sans_appel_llm() -> None:
+    disjoncteur = Disjoncteur(0.5, 60, minimum=1)
+    disjoncteur.noter(True)
+    llm = _honnete("estimation")
+    agent = creer_agent(
+        "estimation", llm, ConfigLLM(modele="fake"), BORNES, _Espion(), disjoncteur
+    )
+    patch, mesure = agent.executer(_vues()["estimation"], budget_s=5)
+    repli, _ = _agent("estimation", None).executer(_vues()["estimation"], budget_s=5)
+    assert (mesure.mode, mesure.cause, llm.appels) == ("repli", "disjoncteur", 0)
+    assert patch == repli
+
+
+def test_disjoncteur_ouvert_ne_note_rien() -> None:
+    disjoncteur = Disjoncteur(0.5, 60, minimum=1)
+    disjoncteur.noter(True)
+    agent = creer_agent(
+        "estimation", _casse(), ConfigLLM(modele="fake"), BORNES, _Espion(), disjoncteur
+    )
+    for _ in range(5):
+        agent.executer(_vues()["estimation"], budget_s=5)
+    disjoncteur.noter(False)  # une seule tentative réelle notée jusqu'ici : 1 repli sur 2
+    assert not disjoncteur.ouvert()
+
+
+def test_tentative_en_repli_notee() -> None:
+    disjoncteur = Disjoncteur(0.5, 60, minimum=1)
+    agent = creer_agent(
+        "estimation", _casse(), ConfigLLM(modele="fake"), BORNES, _Espion(), disjoncteur
+    )
+    _, mesure = agent.executer(_vues()["estimation"], budget_s=5)
+    assert mesure.cause == "sortie_invalide" and disjoncteur.ouvert()
+
+
+@pytest.mark.parametrize("llm_present", [True, False])
+def test_repli_budget_ou_sans_llm_non_note(llm_present: bool) -> None:
+    disjoncteur = Disjoncteur(0.5, 60, minimum=1)
+    llm = _casse() if llm_present else None
+    agent = creer_agent(
+        "estimation", llm, ConfigLLM(modele="fake"), BORNES, _Espion(), disjoncteur
+    )
+    _, mesure = agent.executer(_vues()["estimation"], budget_s=0.1)
+    assert mesure.cause == ("budget" if llm_present else "llm_non_configure")
+    assert not disjoncteur.ouvert()  # noté en repli, il serait ouvert (1 sur 1)
+
+
+def test_tour_en_erreur_est_mesure() -> None:
+    class Lent:
+        modele = "lent"
+
+        def completer(self, *_: Any) -> Any:
+            time.sleep(0.02)
+            raise ErreurLLM("délai dépassé")
+
+    _, mesure = _agent("estimation", Lent()).executer(_vues()["estimation"], budget_s=5)
+    assert mesure.cause == "erreur_llm"
+    assert mesure.tours_llm == 1 and mesure.latence_llm_ms > 0 and mesure.jetons == 0

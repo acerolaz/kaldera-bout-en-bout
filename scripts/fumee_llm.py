@@ -18,7 +18,9 @@ def main() -> None:
     cfg = charger_config()
     llms = {nom: fabrique_llm(cfg, nom) for nom in AGENTS_LLM}
     if not any(llms.values()):
-        print("Aucun agent configuré : renseigner AZURE_AI_* et KALDERA_<AGENT>__MODELE dans .env")
+        print(
+            "Aucun agent configuré : renseigner AZURE_AI_CHAT_* et KALDERA_<AGENT>__MODELE dans .env"
+        )
         return
     scenarios = map(json.loads, (RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines())
     nominaux = [d for s in scenarios if s["categorie"] == "nominal" for d in s["demandes"]][:3]

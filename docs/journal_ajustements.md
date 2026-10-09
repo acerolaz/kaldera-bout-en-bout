@@ -51,27 +51,38 @@ Chaque changement de borne, de garde, de frontière ou de routage laisse une lig
 | 2026-10-09 | UI1 · horodatages (revue finale) | « Demande reçue » datée du premier dépôt (événement `piece`, colonne `etape` = 1) ; l'étape 5 sans heure en direct (vue construite avant l'insertion) | décision 7 : étape 1 = `cree_le` | `cree_le` l'emporte sur la colonne ; la vue publiée reçoit l'heure de sa propre étape | heure du dépôt → heure de création ; étape 5 sans heure → avec |
 | 2026-10-09 | UI1 · repli de l'agent de relance (revue finale) | `MesureAgent` jeté : un repli ne laissait aucune trace | repli tracé (`AgentLLM`) | journal INFO `mode` et `cause` seulement (jamais le texte, la question ni l'identité) | repli muet → repli journalisé |
 | 2026-10-09 | UI1 · flux SSE abandonné (revue finale) | un flux déconnecté interrogeait la base chaque seconde jusqu'à 900 s | §12 : rien ne tourne pour rien | sortie dès que `request.is_disconnected()` | jusqu'à 900 requêtes → 0 |
+| 2026-10-09 | AF-01 → AF-07 | requête refusée par le partenaire (`-32602`, champs hors contrat : identité, IBAN, contrat…) | contrat §2, EX-03 / EX-D20 | projection `RequeteAntifraude` (7 champs, `extra="forbid"`, `strict`) dans l'adaptateur ; projection en échec ⇒ aucun envoi | 7 rouges → 7 verts |
+| 2026-10-09 | INV-01 → INV-07 | réponse du partenaire reprise sans contrôle | contrat §3, EX-04 / EX-D21 | `valider_reponse` : ① transport, ② enveloppe (`error.code` lu même sous HTTP 200), ③ schéma strict, ④ cohérence ; rejet ⇒ `avis_fraude = null`, mode dégradé §9 | 7 rouges → 7 verts |
+| 2026-10-09 | tests unitaires de validation | les messages Pydantic recopient la valeur fautive, et une clé hors contrat est un texte libre du partenaire (vu par le LLM) | EX-D22 : rejet sans le contenu | cause construite depuis `loc` et `type` ; clé inconnue ⇒ « champ hors contrat » ; `error.code` non entier ⇒ `?` | fuite possible → aucune valeur ni clé du partenaire |
+| 2026-10-09 | registre A2A (EX-D19) | port `RegistreA2A` défini au SP2, jamais appelé | 1 appel par dossier, réservation avant l'envoi | `client_partenaire` : `RegistreA2APostgres` si base, sinon registre en mémoire par orchestrateur ; doublon ou base en panne ⇒ aucun envoi | aucune garantie → 1 appel, même entre deux orchestrateurs (intégration : 78 verts, Postgres jetable :5434 — 5433 occupé par un autre projet) |
+| 2026-10-09 | Agent Card | URL d'appel `/a2a` écrite en dur | contrat §1 : découverte par Agent Card | carte lue au démarrage (1 s, cache sur succès) ; `/a2a` en secours ; URL d'un autre hôte ignorée (le jeton ne la suit pas) | — |
+| 2026-10-09 | PAN-02 (partenaire à 5 s) | abandon à 3 s enfin éprouvé : la requête n'est plus rejetée avant le délai | `delai_partenaire_s` = 3 | aucun (mesure) ; analyse des bornes au C2b | durée du lot : 3,03 s |
+| 2026-10-09 | suite complète | 14 rouges A2A | critère de sortie C2a | — | acceptance 42/56 → 56/56 ; suite : 14 rouges → 0 (560 verts) |
+| 2026-10-09 | C2a · revue finale | URL partenaire malformée (`httpx.InvalidURL`, hors `HTTPError`) : exception par demande, worker arrêté, dossier laissé `en_cours` ; base configurée injoignable : registre en mémoire, envoi | EX-01 ; EX-D19 / spec §1 : base en panne ⇒ aucun envoi | `InvalidURL`, `ValueError`, `RecursionError` rattrapées (carte, envoi, corps) ; registre Postgres dès que la base est configurée, pool résolu à la réservation (échec ⇒ « registre indisponible ») ; jeton absent et montant infini refusés avant la réservation | exception → mode dégradé ; envoi → aucun envoi |
+| 2026-10-09 | C2b · épreuve (`make epreuve`, 28 scénarios, 34 demandes) | appels comptés même non partis ; aucune vue d'équipe ni de couverture des transitions | C2-Q15, dossier 4.2 | nature de chaque appel (`ok` 7, `timeout` 2, `invalide` 7, `erreur` 2, `non_envoye` 0, `non_requis` 7), `appels_externes` = appels partis, métriques `equipe`, rapport archivé `docs/epreuves/epreuve-2026-10-09.md` | durée p95 3 005,49 ms, max 3 006,68 ms, étapes max 6 ; couverture T1 → T11 11/11 (T0 : ING-01 / ING-02) ; EX-01 → EX-06 ✅ |
+| 2026-10-09 | C2b · revue finale | EX-03 aveugle à une donnée personnelle échappée en `\uXXXX` (httpx < 0.28) ou portée par une entrée de journal sans référence ; en-tête du rapport sans le mode LLM réel | aucun faux vert (critère de sortie) | corps du journal normalisé en UTF-8, valeurs personnelles de toutes les demandes du scénario ; modes `llm` / `repli` au rapport ; jeton vide remplacé puis restauré ; catégorie sans fiche évaluée = écart ; `httpx >= 0.28` | faux vert possible → écart détecté ; « modèles » → « mode : llm 0 / repli 116 » |
+| 2026-10-09 | C2c · LLM réel (sans clés) | LLM en panne : chaque demande retente ses 4 agents (jusqu'à 4 × `delai_agent_s` perdus) ; aucun outil pour comparer les modèles | EX-D33 (> 50 % / 1 min) ; C2-Q14c (replis 20 %, rejetées 5 %, latence p95, tours 2,5) | disjoncteur injecté (4 agents, fenêtre 60 s, minimum 10 tentatives, cause `disjoncteur`) ; `make eval` (matrice agent × modèle, invariance, bornes remesurées, recommandation par rôle) | panne : 10 appels puis 0 (`test_llm_en_panne_ouvre_le_disjoncteur_pour_tous`) ; `make eval` sans clés : « non mesuré », code 2 |
 
 ## Bornes provisoires en vigueur
 
 | Borne | Valeur | Justification | Statut |
 |---|---|---|---|
-| `etapes_max` | 12 | chemin nominal le plus long : 6 étapes (avec relance) → marge ×2 | à éprouver au chantier 2 |
-| `duree_max_s` | 8 | 10 s (§12) moins 2 s de marge | à éprouver au chantier 2 |
+| `etapes_max` | 12 | chemin nominal le plus long : 6 étapes (avec relance) → marge ×2 | éprouvée (max observé : 6 étapes) |
+| `duree_max_s` | 8 | 10 s (§12) moins 2 s de marge | éprouvée en mode repli (max observé : 3,01 s, p95 3,01 s) ; à remesurer au premier `make eval` avec clés |
 | `relances_pieces_max` | 1 | déduite des scénarios NOM-07 / BCL-01 | à valider avec le métier |
-| `delai_partenaire_s` | 3 | abandon client du contrat partenaire | à éprouver avec la projection 7 champs |
+| `delai_partenaire_s` | 3 | abandon client du contrat partenaire | éprouvée en mode repli (antifraude max observé : 3,01 s, PAN-02 : abandon à 3 s) ; à remesurer contre le partenaire réel (le simulateur de `make eval` ne le mesure pas) |
+| `taux_repli_disjoncteur` | 0,5 | EX-D33 : plus d'un repli sur deux ⇒ LLM en panne | provisoire (à éprouver au premier `make eval` avec clés) |
+| `fenetre_disjoncteur_s` | 60 | EX-D33 : 1 min ; minimum 10 tentatives (choix C2c) | provisoire |
 
 ## Restant (chantier 2)
 
-14 tests rouges, tous dans `tests/acceptance/test_collaboration_a2a.py` :
+C2a (liaison A2A), C2b (monitorage et épreuve, `make epreuve`) et C2c (disjoncteur LLM,
+`make eval`) livrés. Reste :
 
-| Tests | Ce qu'ils éprouvent | Cause bloquante actuelle |
-|---|---|---|
-| `test_echange_antifraude_…[AF-01…AF-07]` | requête conforme au contrat, données minimisées | requête non projetée sur les 7 champs : le partenaire la refuse |
-| `test_reponse_invalide_…[INV-01…INV-07]` | rejet d'une réponse non conforme (validation 4 couches) | même refus en amont ; la validation des réponses reste à écrire derrière |
-
-Le plan estimait ~49 verts sur 56 en acceptance, en supposant que des INV passeraient via le
-mode dégradé ; ils vérifient aussi la forme de la requête, d'où 42/56.
+| Lot | Contenu |
+|---|---|
+| Mesure réelle | premier `make eval` avec les clés Azure : matrice remplie, modèle par rôle choisi et consigné, bornes `duree_max_s` et disjoncteur remesurées, rapport archivé dans `docs/epreuves/` |
+| Mesure partenaire | `delai_partenaire_s` à remesurer contre le partenaire réel (hors `make eval`) |
 
 ## 2026-10-08 — Agents LLM (dossier v3, EX-D30 → EX-D36)
 

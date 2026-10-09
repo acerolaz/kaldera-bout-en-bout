@@ -53,7 +53,8 @@ sont lues par un VLM, utilisé comme outil, puis vérifiées par le code.
 - Python 3.11 (uv)
 - FastAPI / uvicorn (API d'ingestion, service partenaire simulé)
 - pydantic 2, pydantic-settings
-- langchain-azure-ai (agents LLM et VLM ; les modèles sont configurés dans le `.env`)
+- azure-ai-inference (`ChatCompletionsClient`, Azure AI Foundry) : agents LLM et VLM ; les
+  modèles sont configurés dans le `.env`
 - httpx (client A2A, seed)
 - PostgreSQL 16, psycopg 3 + psycopg_pool
 - pypdf, pypdfium2, Pillow ; reportlab (générateur, en dépendance de développement)
@@ -77,8 +78,9 @@ Sans Docker, le service partenaire se lance aussi en local : `make partenaire`.
 
 Configuration (`.env`) :
 
-- `AZURE_AI_ENDPOINT`, `AZURE_AI_API_KEY` : identifiants Azure AI, partagés par
-  les agents et le VLM.
+- `AZURE_AI_CHAT_ENDPOINT`, `AZURE_AI_CHAT_KEY` : endpoint d'inférence Azure AI Foundry
+  (`https://<ressource>.services.ai.azure.com/models`) et sa clé, partagés par les agents
+  et le VLM. Les `…__MODELE` sont des noms de déploiement Foundry.
 - `KALDERA_<AGENT>__MODELE` (et `DELAI_AGENT_S`, `JETONS_MAX`, `TOURS_MAX`), pour
   `PIECES`, `ESTIMATION`, `ANTIFRAUDE` et `DECISION`. Sans ces lignes, chaque
   agent tourne en repli déterministe, tracé `llm_non_configure`.
@@ -142,6 +144,27 @@ make worker-epreuve   # worker avec le partenaire indisponible (invariance)
 make seed             # dépose tout le manifeste par l'API et attend le traitement
 make eval-ingestion   # rapport dans eval/rapports/
 ```
+
+Épreuve de l'équipe (aucun service externe : partenaire simulé dans le processus) :
+
+```bash
+make epreuve          # rejoue les 28 scénarios ; rapport dans eval/rapports/epreuve-<date>.md
+```
+
+Le rapport donne un verdict par exigence (EX-01 → EX-06), la couverture des transitions,
+les seuils, les métriques par agent et d'équipe ; code de sortie 1 en cas d'échec.
+Le rapport de référence du chantier 2 est archivé dans `docs/epreuves/`.
+
+Évaluation des agents avec le LLM réel (clés Azure et modèles dans le `.env`) :
+
+```bash
+make eval             # 28 scénarios × 5 par modèle candidat ; rapport eval/rapports/eval-<date>.md
+```
+
+Modèles comparés : `KALDERA_EVAL__MODELES=Kimi-K2.6,…` (à défaut, ceux des agents). Le rapport
+donne la matrice agent × modèle (replis, sorties rejetées, latence LLM p95, tours, jetons), le
+modèle recommandé par rôle, l'invariance des issues et les bornes remesurées. Code de sortie : 0
+tout vert, 1 alerte, 2 non mesuré (aucune clé ou aucun modèle).
 
 Espace sinistre de l'assuré (`KALDERA_DATABASE_URL`, `KALDERA_SESSION_SECRET` et
 `KALDERA_COOKIE_SECURE=false` requis ; détails dans `docs/interface_web.md`) :
@@ -227,9 +250,10 @@ make down       # arrête les services docker
 
 ## Known issues
 
-- Les 14 tests de `tests/acceptance/test_collaboration_a2a.py` échouent : la
-  conformité stricte au contrat A2A relève du chantier 2, tout comme le
-  disjoncteur LLM et `make eval`.
+- `make eval` n'a pas encore été lancé avec un LLM réel : la matrice agent × modèle et la
+  remesure des bornes `duree_max_s` et du disjoncteur attendent les clés Azure ;
+  `delai_partenaire_s` est à remesurer contre le partenaire réel (le simulateur de
+  `make eval` ne le mesure pas).
 - Les chemins réels Azure (agents LLM et VLM) n'ont pas été éprouvés dans
   l'environnement de développement. L'épreuve de l'ingestion avec le vrai VLM
   n'a pas encore été mesurée.
