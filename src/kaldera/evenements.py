@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import ValidationError
@@ -20,7 +21,7 @@ from .ports import ErreurPersistance
 from .vue_assure import MessageChat, VueDemande, construire
 
 LOGGER = logging.getLogger(__name__)
-ECHECS = (ErreurPersistance, KeyError, ValidationError)
+ECHECS = (ErreurPersistance, KeyError, TypeError, ValueError, ValidationError)
 TypeVue = Literal["etape", "piece", "verdict"]
 
 
@@ -36,7 +37,10 @@ def publier_vue(
         if donnees is None:
             return None
         vue = construire(donnees, delai_analyse_s)
-        depot.inserer_evenement(reference, type_, etape or vue.etape, vue.model_dump(mode="json"))
+        effective = etape or vue.etape
+        # la vue publiée porte l'heure de sa propre étape (la colonne l'horodatera à l'insertion)
+        vue.horodatages.setdefault(effective, datetime.now(UTC))
+        depot.inserer_evenement(reference, type_, effective, vue.model_dump(mode="json"))
     except ECHECS as exc:
         LOGGER.warning("événement %s non publié, demande %s : %s", type_, reference, _nom(exc))
         return None

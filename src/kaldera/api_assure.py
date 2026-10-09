@@ -248,6 +248,8 @@ def envoyer_message(
     agent: Annotated[AgentLLM, Depends(agent_de_relance)],
 ) -> MessageChat:
     _sienne(reference, compte, depot)
+    if depot.statut(reference) in ("terminee", "secours"):
+        raise HTTPException(409, "dossier_clos")  # le chat s'arrête au verdict
     if depot.messages_assure(reference) >= MESSAGES_MAX:
         raise HTTPException(429, "trop de messages pour ce dossier")
     donnees = depot.donnees(reference)
@@ -267,10 +269,10 @@ def envoyer_message(
 
 
 async def _flux(
-    depot: DepotAssure, reference: str, apres: int, pause_s: float
+    request: Request, depot: DepotAssure, reference: str, apres: int, pause_s: float
 ) -> AsyncIterator[str]:
     fin = monotonic() + DUREE_FLUX_S
-    while True:
+    while not await request.is_disconnected():
         lignes = await run_in_threadpool(depot.evenements_depuis, reference, apres)
         for ligne in lignes:
             apres = ligne["id"]
@@ -287,6 +289,7 @@ async def _flux(
 
 @router.get("/demandes/{reference}/flux")
 def flux(
+    request: Request,
     reference: str,
     compte: Utilisateur,
     depot: Depot,
@@ -299,7 +302,7 @@ def flux(
         int(last_event_id[:18]) if valide and last_event_id else 0
     )  # bigint : pas de débordement
     return StreamingResponse(
-        _flux(depot, reference, apres, pause_s),
+        _flux(request, depot, reference, apres, pause_s),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

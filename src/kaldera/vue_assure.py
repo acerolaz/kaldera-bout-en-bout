@@ -209,7 +209,7 @@ def construire(donnees: dict[str, Any], delai_analyse_s: float) -> VueDemande:
         cree_le=donnees["cree_le"],
         etape=etape,
         branche=branche,
-        horodatages={1: donnees["cree_le"], **donnees["horodatages"]},
+        horodatages={**donnees["horodatages"], 1: donnees["cree_le"]},  # décision 7
         restant_estime_s=restant,
         pieces=pieces,
         soumise=soumise,

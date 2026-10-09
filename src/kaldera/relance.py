@@ -7,6 +7,7 @@ référence d'abord, boucle bornée, champs décisifs identiques à la référen
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Literal
 
@@ -17,6 +18,7 @@ from .agents_llm import AgentLLM, Outil, SpecAgent
 from .etat import BORNES
 from .vue_assure import LIBELLES_PIECES, PieceAttendue
 
+LOGGER = logging.getLogger(__name__)
 Intention = Literal["liste", "rejet", "conseiller"]
 TEXTE_MAX = 600
 # ni argent, ni issue, ni contrôle, ni service externe, ni mécanique interne (spec §5)
@@ -147,7 +149,8 @@ def repondre(
         "pieces": [p.model_dump() for p in pieces],
         "demande": {"assure": assure},
     }
-    patch, _ = agent.executer(vue, agent.config.delai_agent_s)
+    patch, mesure = agent.executer(vue, agent.config.delai_agent_s)
+    LOGGER.info("relance : mode=%s cause=%s", mesure.mode, mesure.cause)  # ni texte ni identité
     return str(patch["relance"]["texte"])
 
 

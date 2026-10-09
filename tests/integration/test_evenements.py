@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import pytest
@@ -69,6 +70,7 @@ def test_parcours_publie_dans_l_ordre(base: Any, monkeypatch: pytest.MonkeyPatch
     final = evts[-1]
     assert final["type"] == "verdict" and final["contenu"]["verdict"]["issue"] == "acceptee"
     assert final["contenu"]["verdict"]["montant"] == 1700.0
+    assert "5" in final["contenu"]["horodatages"]  # la vue porte l'heure de sa propre étape
     assert set(depot.donnees("KAL-26-0101")["horodatages"]) == {1, 2, 3, 4, 5}
 
 
@@ -124,3 +126,25 @@ def test_projection_impossible_renvoie_none(caplog: pytest.LogCaptureFixture) ->
     with caplog.at_level("WARNING"):
         assert publier_vue(cast(DepotAssure, DepotSansEtat()), "KAL-X", "verdict", 0.0) is None
     assert "KAL-X" in caplog.text and "KeyError" in caplog.text
+
+
+def test_fiche_malformee_renvoie_none(caplog: pytest.LogCaptureFixture) -> None:
+    fiche = {"issue": "decision", "decision": "acceptee", "montant_rembourse": None}
+
+    class DepotFicheMalformee:
+        def donnees(self, reference: str) -> dict[str, Any]:
+            return {
+                "reference": reference,
+                "statut": "terminee",
+                "etat_courant": "fin",
+                "etat": {"demande": {"sinistre": {"type": "vol", "montant_declare": 100.0}}},
+                "fiche": fiche,
+                "soumise_le": None,
+                "cree_le": datetime(2026, 10, 9, tzinfo=UTC),
+                "pieces": [],
+                "horodatages": {},
+            }
+
+    with caplog.at_level("WARNING"):
+        vue = publier_vue(cast(DepotAssure, DepotFicheMalformee()), "KAL-Y", "verdict", 0.0)
+    assert vue is None and "TypeError" in caplog.text

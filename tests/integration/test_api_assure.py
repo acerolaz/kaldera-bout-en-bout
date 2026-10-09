@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -220,6 +221,35 @@ def test_messages(api: TestClient, base: Any) -> None:
             "KAL-26-0101", "message", None, {"auteur": "assure", "texte": "?"}
         )
     assert api.post(f"{URL}/messages", json={"texte": "encore ?"}).status_code == 429
+
+
+def test_message_sur_dossier_clos_409(api: TestClient, base: Any) -> None:
+    _dossier(base)
+    _connecter(api)
+    with base.connection() as conn:
+        conn.execute("UPDATE demandes SET statut = 'terminee'")
+    reponse = api.post(f"{URL}/messages", json={"texte": "Quelles pièces ?"})
+    assert reponse.status_code == 409 and reponse.json()["detail"] == "dossier_clos"
+    assert DepotAssure(base).evenements_depuis("KAL-26-0101", 0) == []
+
+
+def test_flux_se_ferme_quand_le_client_part() -> None:
+    class DepotMuet:
+        def evenements_depuis(self, reference: str, apres: int) -> list[Any]:
+            return []
+
+        def statut(self, reference: str) -> str:
+            return "admission"
+
+    class Parti:
+        async def is_disconnected(self) -> bool:
+            return True
+
+    async def lire() -> list[str]:
+        flux = api_assure._flux(cast(Any, Parti()), cast(Any, DepotMuet()), "KAL-X", 0, 0.0)
+        return [e async for e in flux]
+
+    assert asyncio.run(asyncio.wait_for(lire(), 2.0)) == []
 
 
 def test_flux_ordre_reprise_et_fin(api: TestClient, base: Any) -> None:

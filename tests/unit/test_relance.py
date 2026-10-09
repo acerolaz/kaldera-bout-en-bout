@@ -100,6 +100,16 @@ def test_garde_fou_refuse(texte: str) -> None:
     assert relance.repondre("Pourquoi ma facture est refusée ?", PIECES, ASSURE, agent) == gabarit
 
 
+def test_repli_journalise_sans_texte_ni_identite(caplog: pytest.LogCaptureFixture) -> None:
+    agent = relance.agent_relance(saboteur("fuite", "texte", _rediger, {}), CONFIG)
+    question = "Pourquoi ma facture est refusée ?"
+    with caplog.at_level("INFO", logger="kaldera.relance"):
+        relance.repondre(question, PIECES, ASSURE, agent)
+    assert "repli" in caplog.text and "garde_fou" in caplog.text
+    for secret in (question, "claire.martin", "Martin", "IBAN", "redéposer"):
+        assert secret not in caplog.text
+
+
 def test_la_question_ne_ferme_pas_la_balise_non_fiable() -> None:
     vus: list[str] = []
     fidele_ = fidele("texte", _rediger)

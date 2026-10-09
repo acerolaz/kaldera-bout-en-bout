@@ -197,6 +197,13 @@ def test_construire() -> None:
     )
 
 
+def test_demande_recue_a_la_creation_meme_apres_un_depot() -> None:
+    """Décision 7 : l'étape 1 est horodatée par ``cree_le``, pas par le premier dépôt (etape=1)."""
+    depot = datetime(2026, 10, 9, 12, 30, tzinfo=UTC)
+    vue = construire(_donnees(horodatages={1: depot}), 60.0)
+    assert vue.horodatages[1] == MAINTENANT
+
+
 def test_liste_blanche() -> None:
     vue = construire(_donnees(), 60.0)
     with pytest.raises(ValidationError):
