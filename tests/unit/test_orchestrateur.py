@@ -538,3 +538,34 @@ def test_url_partenaire_malformee_mode_degrade(monkeypatch: pytest.MonkeyPatch) 
     (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
     assert etape["statut"] == "echec" and etape["motif"] == "URL partenaire invalide"
     assert fiche["mode_degrade"] is True and fiche["file"] == "cellule_fraude"
+
+
+def _non_envoye(demande: dict[str, Any], timeout: float) -> Indisponible:
+    return Indisponible("registre : dossier déjà soumis")
+
+
+@pytest.mark.parametrize(
+    ("evaluer", "nature", "externes"),
+    [(_indisponible, "invalide", 1), (_non_envoye, "non_envoye", 0)],
+)
+def test_nature_et_appels_externes_dans_la_trace(
+    evaluer: Any, nature: str, externes: int
+) -> None:
+    fiche = Orchestrateur(evaluer=evaluer).traiter(_demande("PAN-01", 3))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["nature"] == nature and etape["appels_externes"] == externes
+
+
+def test_nature_non_requis_sans_indicateur() -> None:
+    fiche = Orchestrateur(evaluer=_sans_partenaire).traiter(_demande("NOM-01"))
+    (etape,) = [e for e in fiche["trace"] if e["agent"] == "antifraude"]
+    assert etape["nature"] == "non_requis" and etape["appels_externes"] == 0
+
+
+def test_erreur_nommee_dans_l_etape_en_echec() -> None:
+    def ecrit_ailleurs(vue: dict[str, Any]) -> dict[str, Any]:
+        return {"issue": {"issue": "decision"}}  # section d'un autre agent
+
+    fiche = _orchestrateur(estimation=ecrit_ailleurs).traiter(_demande("NOM-01"))
+    (etape,) = [e for e in fiche["trace"] if e["action"] == "estimation"]
+    assert etape["statut"] == "echec" and etape["erreur"] == "ErreurEcriture"

@@ -44,6 +44,33 @@ class Indisponible:
     cause: str
 
 
+NATURES = ("ok", "timeout", "invalide", "erreur", "non_envoye", "non_requis")
+ENVOYES = frozenset({"ok", "timeout", "invalide", "erreur"})  # seuls comptés en appels externes
+_NON_ENVOYE = (
+    "projection",
+    "jeton absent",
+    "jeton invalide",
+    "URL partenaire invalide",
+    "registre",
+)
+_INVALIDE = ("couche ① : corps illisible", "couche ②", "couche ③", "couche ④")
+
+
+def nature(cause: str | None) -> str:
+    """Nature d'un appel au partenaire d'après sa cause (``None`` : avis obtenu) ; métriques C2b."""
+    if cause is None:
+        return "ok"
+    if cause.startswith(_NON_ENVOYE):
+        return "non_envoye"
+    if cause.startswith("délai") or (
+        cause.startswith("couche ① : ") and cause.endswith("Timeout")
+    ):
+        return "timeout"
+    if cause.startswith(_INVALIDE):
+        return "invalide"
+    return "erreur"  # HTTP, JSON-RPC, réseau, cause non précisée ou inconnue
+
+
 class ReponseAntifraude(BaseModel):
     """Évaluation du contrat §3 : 6 champs exacts (couche ③)."""
 

@@ -539,3 +539,48 @@ def test_sans_base_registre_en_memoire(
     assert isinstance(evaluer(_demande(), 3), dict)
     assert evaluer(_demande(), 3) == Indisponible("registre : dossier déjà soumis")
     assert len(envoi.recus) == 1
+
+
+# ------------------------------------------------------------------ nature
+
+
+@pytest.mark.parametrize(
+    ("cause", "attendue"),
+    [
+        (None, "ok"),
+        ("délai > 3 s", "timeout"),
+        ("couche ① : ReadTimeout", "timeout"),
+        ("couche ① : ConnectTimeout", "timeout"),
+        ("couche ① : corps illisible (HTTP 200)", "invalide"),
+        ("couche ② : enveloppe JSON-RPC invalide", "invalide"),
+        ("couche ② : id JSON-RPC différent de la requête", "invalide"),
+        ("couche ② : tâche non terminée ou artefact invalide", "invalide"),
+        ("couche ③ : champ hors contrat", "invalide"),
+        ("couche ④ : score hors bornes", "invalide"),
+        ("couche ④ : niveau incohérent avec le score", "invalide"),
+        ("couche ④ : référence différente de la requête", "invalide"),
+        ("HTTP 401 (jeton)", "erreur"),
+        ("HTTP 503", "erreur"),
+        ("couche ① : HTTP 500", "erreur"),
+        ("JSON-RPC -32602 : projection refusée", "erreur"),
+        ("JSON-RPC -32029 : doublon refusé : manquement au contrat", "erreur"),
+        ("JSON-RPC ? : erreur inconnue", "erreur"),
+        ("couche ① : ConnectError", "erreur"),
+        ("cause non précisée", "erreur"),
+        ("une cause que personne ne produit", "erreur"),
+        ("projection : donnée invalide", "non_envoye"),
+        ("projection : donnée absente (sinistre)", "non_envoye"),
+        ("jeton absent", "non_envoye"),
+        ("jeton invalide", "non_envoye"),
+        ("URL partenaire invalide", "non_envoye"),
+        ("registre : dossier déjà soumis", "non_envoye"),
+        ("registre indisponible", "non_envoye"),
+    ],
+)
+def test_nature_de_chaque_cause(cause: str | None, attendue: str) -> None:
+    assert partenaire.nature(cause) == attendue
+    assert attendue in partenaire.NATURES
+
+
+def test_envoyes() -> None:
+    assert partenaire.ENVOYES == {"ok", "timeout", "invalide", "erreur"}

@@ -158,6 +158,7 @@ class Orchestrateur:
         section = SECTION_DE[courant]
         agent = PROPRIETAIRES[section]
         debut, statut, ecrit = perf_counter(), "ok", []
+        erreur: str | None = None
         mesure: MesureAgent | None = None
         try:
             action, vue = self.actions[courant], vue_filtree(etat, courant, self.bornes, self.depot)
@@ -177,16 +178,19 @@ class Orchestrateur:
             TransitionInconnue,  # table incomplète : bruyant dans la trace, jamais bloquant
         ) as exc:
             statut, garde = "echec", "echec"
+            erreur = type(exc).__name__
             etat.escalade_forcee = f"échec de l'agent {agent} ({type(exc).__name__})"
             # decision en échec : plus personne pour conclure → fiche de secours
             suivant = Etat.ESCALADE if courant is Etat.DECISION else Etat.DECISION
 
-        externes, motif = 0, None
+        externes, motif, nature = 0, None, None
         if statut == "ok" and courant is Etat.ANTIFRAUDE and etat.avis_fraude is not None:
-            externes = int(etat.avis_fraude.requis)
-            if etat.avis_fraude.statut == "indisponible":
+            avis = etat.avis_fraude
+            nature = partenaire.nature(avis.cause) if avis.requis else "non_requis"
+            externes = int(nature in partenaire.ENVOYES)  # un appel non parti n'est pas compté
+            if avis.statut == "indisponible":
                 statut = "echec"  # avis non obtenu : compté en échec, mode dégradé en aval
-                motif = etat.avis_fraude.cause  # code et couche, jamais le corps (C2-Q8)
+                motif = avis.cause  # code et couche, jamais le corps (C2-Q8)
         if courant is Etat.PIECES and statut == "ok":
             self._suivre_relances(etat, suivant)
 
@@ -204,6 +208,8 @@ class Orchestrateur:
                 "garde": garde,
                 "appels_externes": externes,
                 **({"motif": motif} if motif else {}),
+                **({"nature": nature} if nature else {}),
+                **({"erreur": erreur} if erreur else {}),
                 **(mesure.model_dump() if mesure else {}),
             }
         )
