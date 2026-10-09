@@ -18,6 +18,8 @@ interface Props {
   onExpire?: () => void;
 }
 
+const ERREURS: Record<number, string> = { 409: T.chat.clos, 429: T.chat.trop };
+
 // Plein écran par le bas sur mobile, panneau de 400 px à droite dès 1024 px.
 const LARGE = "(min-width: 1024px)";
 const surLarge = (rappel: () => void) => {
@@ -60,7 +62,7 @@ export function Chat({ reference, messages, onDeposer, onExpire }: Props) {
       setTexte("");
     } catch (err) {
       if (err instanceof ErreurApi && err.statut === 401) onExpire?.();
-      else setErreur(err instanceof ErreurApi && err.statut === 429 ? T.chat.trop : T.chat.erreur);
+      else setErreur((err instanceof ErreurApi && ERREURS[err.statut]) || T.chat.erreur);
     } finally {
       setEnvoi(false);
     }

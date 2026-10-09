@@ -3,6 +3,9 @@ import type { StatutPiece } from "./api";
 export const T = {
   appli: "Kaldera",
   horsLigne: "Service momentanément indisponible, vos fichiers n'ont pas été perdus. Reconnexion…",
+  indisponible: "Service momentanément indisponible. Réessayez.",
+  reessayer: "Réessayer",
+  chargement: "Chargement de votre dossier…",
   introuvable: "Ce dossier est introuvable.",
   connexion: {
     titre: "Connexion à votre espace sinistre",
@@ -99,5 +102,6 @@ export const T = {
     erreur: "Message non envoyé. Réessayez.",
     trop: "Vous avez envoyé trop de messages pour ce dossier. Un gestionnaire pourra vous répondre.",
     fermer: "Fermer",
+    clos: "Votre dossier est clos : l'assistant n'est plus disponible.",
   },
 } as const;

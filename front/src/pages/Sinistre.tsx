@@ -29,7 +29,17 @@ export function Sinistre({ reference, chat }: Props) {
   }, [vue?.reference]); // eslint-disable-line react-hooks/exhaustive-deps — type initial seulement
   if (erreur === 401) return <Navigate to="/connexion" replace />;
   if (erreur !== null) return <main className="p-4"><p>{T.introuvable}</p></main>;
-  if (!vue) return null;
+  if (!vue) {
+    return (
+      <main className="mx-auto max-w-[1200px] p-4">
+        {horsLigne ? (
+          <Alert><AlertDescription>{T.horsLigne}</AlertDescription></Alert>
+        ) : (
+          <p role="status">{T.chargement}</p>
+        )}
+      </main>
+    );
+  }
   const peutDeposer = !vue.soumise && vue.etape === 1; // sinon la zone de dépôt n'est pas affichée
   const deposer = (t?: TypePiece) => {
     if (t) setType(t);
@@ -69,7 +79,8 @@ export function Sinistre({ reference, chat }: Props) {
           )}
         </div>
       </main>
-      {chat?.({ messages, deposer: peutDeposer ? () => deposer() : undefined })}
+      {/* Le chat s'arrête au verdict : le serveur refuse alors tout message (409 dossier_clos). */}
+      {!vue.verdict && chat?.({ messages, deposer: peutDeposer ? () => deposer() : undefined })}
     </div>
   );
 }

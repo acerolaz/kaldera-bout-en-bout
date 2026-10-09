@@ -24,11 +24,26 @@ export function useFluxDemande(reference: string, ouvrir: Ouvrir = parDefaut) {
     let termine = false;
     let flux: EventSource | null = null;
     let minuteur: ReturnType<typeof setTimeout> | undefined;
+    let relecture: ReturnType<typeof setTimeout> | undefined;
     setMessages([]);
-    api
-      .demande(reference)
-      .then((v) => actif && setVue(v))
-      .catch((e: unknown) => actif && setErreur(e instanceof ErreurApi ? e.statut : 0));
+    // 401/404 sont définitifs (la page redirige ou dit « introuvable ») ; toute autre panne (503, réseau)
+    // affiche « hors ligne » et la vue est relue après un délai, que le flux soit ouvert ou non.
+    const charger = () =>
+      api
+        .demande(reference)
+        .then((v) => {
+          if (!actif) return;
+          setVue(v);
+          setHorsLigne(false);
+        })
+        .catch((e: unknown) => {
+          if (!actif) return;
+          if (e instanceof ErreurApi && (e.statut === 401 || e.statut === 404)) return setErreur(e.statut);
+          setHorsLigne(true);
+          clearTimeout(relecture);
+          relecture = setTimeout(charger, DELAI_REOUVERTURE_MS);
+        });
+    charger();
 
     const surVue = (e: MessageEvent) => {
       setHorsLigne(false);
@@ -53,6 +68,7 @@ export function useFluxDemande(reference: string, ouvrir: Ouvrir = parDefaut) {
         })
         .then((arret) => {
           if (!actif || termine || arret === "arret") return;
+          clearTimeout(minuteur); // deux erreurs rapprochées : une seule réouverture
           minuteur = setTimeout(() => {
             // Une réouverture manuelle perd Last-Event-ID : le serveur rejoue depuis 0, d'où la remise à zéro.
             setMessages([]);
@@ -82,6 +98,7 @@ export function useFluxDemande(reference: string, ouvrir: Ouvrir = parDefaut) {
     return () => {
       actif = false;
       clearTimeout(minuteur);
+      clearTimeout(relecture);
       flux?.close();
     };
   }, [reference]);

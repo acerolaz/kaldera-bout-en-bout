@@ -100,6 +100,33 @@ describe("useFluxDemande", () => {
       expect(result.current.messages).toHaveLength(0);
     });
 
+    it("GET initial en 503 : hors ligne puis vue, jamais d'erreur d'accès", async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal("fetch", vi.fn(() => reponse(503, { detail: "base injoignable" })));
+      const { result } = monter();
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(result.current.horsLigne).toBe(true);
+      expect(result.current.erreur).toBeNull();
+      expect(result.current.vue).toBeNull();
+      vi.stubGlobal("fetch", vi.fn(() => reponse(200, VUE)));
+      await act(() => vi.advanceTimersByTimeAsync(3000));
+      expect(result.current.vue?.etape).toBe(1);
+      expect(result.current.horsLigne).toBe(false);
+      expect(result.current.erreur).toBeNull();
+    });
+
+    it("deux erreurs sur un flux fermé : une seule réouverture", async () => {
+      vi.useFakeTimers();
+      vi.stubGlobal("fetch", vi.fn(() => reponse(200, VUE)));
+      const { flux } = monter();
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      flux[0].readyState = 2;
+      await act(async () => flux[0].onerror?.());
+      await act(async () => flux[0].onerror?.());
+      await act(() => vi.advanceTimersByTimeAsync(3000));
+      expect(flux).toHaveLength(2);
+    });
+
     it("le démontage ferme le flux et annule la réouverture programmée", async () => {
       vi.useFakeTimers();
       vi.stubGlobal("fetch", vi.fn(() => reponse(200, VUE)));

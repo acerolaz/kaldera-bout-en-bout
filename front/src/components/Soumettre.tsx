@@ -18,12 +18,14 @@ export function Soumettre({ vue, onSoumise, onExpire }: Props) {
   const [confirmation, setConfirmation] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [dejaSoumise, setDejaSoumise] = useState(false);
+  const [envoi, setEnvoi] = useState(false);
   const enAnalyse = vue.pieces.some((p) => p.statut === "en_analyse");
   const incomplet = vue.pieces.some((p) => p.statut !== "validee");
   if (vue.soumise || dejaSoumise) return <p role="status" className="font-medium">{T.soumettre.soumis}</p>;
 
   const envoyer = async (confirmer: boolean) => {
     setErreur(null);
+    setEnvoi(true); // double clic : le bouton est désactivé jusqu'à la réponse
     try {
       onSoumise(await api.soumettre(vue.reference, confirmer));
     } catch (e) {
@@ -32,12 +34,14 @@ export function Soumettre({ vue, onSoumise, onExpire }: Props) {
       if (e.detail === "deja_soumise") return setDejaSoumise(true); // double clic : le dossier est déjà soumis, rien à dire
       if (e.detail === "confirmation_requise") setConfirmation(true);
       else setErreur(e.detail === "analyse_en_cours" ? T.soumettre.analyse : T.depot.erreurs.defaut);
+    } finally {
+      setEnvoi(false);
     }
   };
 
   return (
     <div className="space-y-2">
-      <Button className="min-h-11 w-full" disabled={enAnalyse} onClick={() => (incomplet ? setConfirmation(true) : envoyer(false))}>
+      <Button className="min-h-11 w-full" disabled={enAnalyse || envoi} onClick={() => (incomplet ? setConfirmation(true) : envoyer(false))}>
         {T.soumettre.bouton}
       </Button>
       {enAnalyse && <p className="text-sm text-muted-foreground">{T.soumettre.analyse}</p>}
@@ -50,7 +54,7 @@ export function Soumettre({ vue, onSoumise, onExpire }: Props) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="min-h-11">{T.soumettre.annuler}</AlertDialogCancel>
-            <AlertDialogAction className="min-h-11" onClick={() => envoyer(true)}>{T.soumettre.confirmer}</AlertDialogAction>
+            <AlertDialogAction className="min-h-11" disabled={envoi} onClick={() => envoyer(true)}>{T.soumettre.confirmer}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

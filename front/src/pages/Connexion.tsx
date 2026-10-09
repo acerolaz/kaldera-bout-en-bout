@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../api";
+import { ErreurApi, api } from "../api";
 import { T } from "../textes";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,16 +9,17 @@ import { Label } from "@/components/ui/label";
 export function Connexion() {
   const [identifiant, setIdentifiant] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
-  const [erreur, setErreur] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
   const naviguer = useNavigate();
   const envoyer = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErreur(false);
+    setErreur(null);
     try {
       await api.connecter(identifiant, motDePasse);
       naviguer("/");
-    } catch {
-      setErreur(true);
+    } catch (err) {
+      // seul un 401 parle du mot de passe ; 503, 403 (origine) ou réseau coupé : service indisponible
+      setErreur(err instanceof ErreurApi && err.statut === 401 ? T.connexion.erreur : T.indisponible);
     }
   };
   return (
@@ -36,7 +37,7 @@ export function Connexion() {
             <input id="mot-de-passe" type="password" autoComplete="current-password" required value={motDePasse}
               onChange={(e) => setMotDePasse(e.target.value)} className="min-h-11 w-full rounded-md border border-input px-3" />
           </div>
-          {erreur && <p id="erreur-connexion" role="alert" className="text-sm font-medium text-destructive">{T.connexion.erreur}</p>}
+          {erreur && <p id="erreur-connexion" role="alert" className="text-sm font-medium text-destructive">{erreur}</p>}
           <Button type="submit" className="min-h-11 w-full">{T.connexion.bouton}</Button>
         </form>
       </Card>

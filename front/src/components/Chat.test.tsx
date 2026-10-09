@@ -89,6 +89,13 @@ describe("Chat", () => {
     expect(screen.getByLabelText("Votre message")).toHaveValue("Bonjour");
   });
 
+  it("409 dossier_clos : l'assistant n'est plus disponible", async () => {
+    vi.stubGlobal("fetch", repondre(409, { detail: "dossier_clos" }));
+    render(<Chat reference="R" messages={[]} />);
+    await ecrireEtEnvoyer("Une question ?");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Votre dossier est clos : l'assistant n'est plus disponible.");
+  });
+
   it("session expirée (401) : prévient la page, sans message d'erreur", async () => {
     vi.stubGlobal("fetch", repondre(401, { detail: "session requise" }));
     const onExpire = vi.fn();

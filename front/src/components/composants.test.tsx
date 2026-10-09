@@ -133,6 +133,16 @@ describe("Soumettre", () => {
     expect(await screen.findByText("Dossier soumis.")).toBeInTheDocument();
   });
 
+  it("double clic rapide : un seul appel", async () => {
+    const appel = vi.fn(() => new Promise<Response>(() => {})); // requête en cours, jamais finie
+    vi.stubGlobal("fetch", appel);
+    render(<Soumettre vue={complete} onSoumise={() => {}} />);
+    const bouton = screen.getByRole("button", { name: "Soumettre mon dossier" });
+    await userEvent.dblClick(bouton);
+    expect(appel).toHaveBeenCalledTimes(1);
+    expect(bouton).toBeDisabled();
+  });
+
   it("session expirée (401) : prévient la page", async () => {
     vi.stubGlobal("fetch", repondre(401, { detail: "session requise" }));
     const onExpire = vi.fn();
