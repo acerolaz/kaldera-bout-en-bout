@@ -129,6 +129,7 @@ class Orchestrateur:
                 de=etat.etat_courant,
                 vers=Etat.ESCALADE.value,
                 garde="filet",
+                erreur=type(exc).__name__,
             )
         )
 

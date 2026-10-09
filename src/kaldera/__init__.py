@@ -80,7 +80,7 @@ def metriques_equipe(fiches: list[dict[str, Any]]) -> dict[str, Any]:
     etapes = [len(f["trace"]) for f in fiches]
     durees = sorted(sum(e["duree_ms"] for e in f["trace"]) for f in fiches)
     degrades = sum(bool(f.get("mode_degrade")) for f in fiches)
-    issues = Counter(f["issue"] for f in fiches)
+    issues = Counter(f.get("issue") for f in fiches)
     return {
         "demandes": n,
         "etapes": {
@@ -89,7 +89,9 @@ def metriques_equipe(fiches: list[dict[str, Any]]) -> dict[str, Any]:
         },
         "arrets": dict(Counter(f["arret"]["borne"] for f in fiches if f.get("arret"))),
         "issues": {"decision": issues["decision"], "escalade": issues["escalade"]},
-        "escalades_par_file": dict(Counter(f["file"] for f in fiches if f["issue"] == "escalade")),
+        "escalades_par_file": dict(
+            Counter(f.get("file") for f in fiches if f.get("issue") == "escalade")
+        ),
         "mode_degrade": {"n": degrades, "taux": round(degrades / n, 4) if n else 0.0},
         "duree_ms": {
             # centile au rang le plus proche : une durée réellement observée

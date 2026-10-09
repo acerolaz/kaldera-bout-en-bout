@@ -98,3 +98,8 @@ def test_traiter_lot_renvoie_equipe() -> None:
     assert set(resultat) == {"fiches", "metriques", "equipe"}
     assert resultat["equipe"]["demandes"] == len(nom["demandes"])
     assert "equipe" not in resultat["metriques"]
+
+
+def test_equipe_fiche_sans_issue_sans_keyerror() -> None:
+    e = kaldera.metriques_equipe([{"reference": "KAL-26-0001", "trace": []}])
+    assert e["issues"] == {"decision": 0, "escalade": 0} and e["escalades_par_file"] == {}

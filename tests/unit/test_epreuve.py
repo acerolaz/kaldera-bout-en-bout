@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -205,6 +206,7 @@ def test_ecrire_rapport(tmp_path: Path) -> None:
         "date": "2026-10-09",
         "reussi": False,
         "modeles": ["aucun"],
+        "modes": {"llm": 0, "repli": 3},
         "duree_s": 9.5,
         "seuils": [{"nom": "étapes max", "mesure": 6, "seuil": "≤ 12", "ok": True}],
         "verdicts": {"EX-01": [], "EX-02": ["KAL-26-0001 : section issue écrite par pieces"]},
@@ -222,6 +224,7 @@ def test_ecrire_rapport(tmp_path: Path) -> None:
     texte = chemin.read_text("utf-8")
     assert chemin.name == "epreuve-2026-10-09.md"
     assert "en échec" in texte and "T2" in texte and "ING-01" in texte and "EX-02" in texte
+    assert "llm 0 / repli 3" in texte
     assert json.loads(chemin.with_suffix(".json").read_text("utf-8"))["reussi"] is False
 
 
@@ -254,5 +257,58 @@ def test_epreuve_complete_reussie(tmp_path: Path) -> None:
     echecs = {k: e for k, e in rapport["verdicts"].items() if e}
     assert rapport["reussi"], (echecs, [s for s in rapport["seuils"] if not s["ok"]])
     assert len(rapport["scenarios"]) == 28
+    assert rapport["modes"].get("llm", 0) == 0 and rapport["modes"]["repli"] > 0
     assert rapport["couverture"]["manquantes"] == []
     assert epreuve.ecrire_rapport(rapport, tmp_path).exists()
+
+
+# ------------------------------------------------------------------ revue finale
+
+
+def test_ex03_donnee_personnelle_echappee_en_ascii() -> None:
+    """httpx < 0.28 échappe le non ASCII : la fuite doit être vue quand même."""
+    r = _rejeu("AF-01")
+    demande = r["scenario"]["demandes"][0]
+    description = demande["sinistre"]["description"]
+    corps = json.dumps({"description": description})  # ensure_ascii par défaut
+    assert "\\u" in corps
+    r["journal"] = [
+        {"reference": demande["reference"], "champs": sorted(epreuve.CHAMPS_CONTRAT),
+         "corps_brut": corps}
+    ]
+    ecarts = epreuve.verdicts([r], BORNES)["EX-03"]
+    assert ecarts and all(description not in e for e in ecarts)
+
+
+def test_ex03_reference_illisible_controlee_quand_meme() -> None:
+    r = _rejeu("AF-01")
+    email = r["scenario"]["demandes"][0]["assure"]["email"]
+    r["journal"] = [
+        {"reference": None, "champs": [], "statut_http": 503,
+         "corps_brut": json.dumps({"x": email})}
+    ]
+    ecarts = epreuve.verdicts([r], BORNES)["EX-03"]
+    assert ecarts and all(email not in e for e in ecarts)
+
+
+@pytest.mark.parametrize(("scenario_id", "exigence"),
+                         [("INV-01", "EX-04"), ("PAN-01", "EX-05"), ("BCL-01", "EX-06")])
+def test_categorie_sans_fiche_evaluee_est_un_ecart(scenario_id: str, exigence: str) -> None:
+    r = _rejeu(scenario_id)
+    r["fiches"] = []
+    assert epreuve.verdicts([r], BORNES)[exigence]
+
+
+@pytest.mark.parametrize("avant", [None, ""])
+def test_jeton_absent_ou_vide_remplace_puis_restaure(
+    monkeypatch: pytest.MonkeyPatch, avant: str | None
+) -> None:
+    if avant is None:
+        monkeypatch.delenv("PARTENAIRE_JETON", raising=False)
+    else:
+        monkeypatch.setenv("PARTENAIRE_JETON", avant)
+    with epreuve.partenaire_simule() as url:
+        assert os.environ["PARTENAIRE_JETON"] == epreuve.JETON_RECETTE
+        rejeu = epreuve.rejouer(url, copy.deepcopy(SCENARIOS["AF-01"]))
+        assert all(f["avis_fraude"] is not None for f in rejeu["fiches"])
+    assert os.environ.get("PARTENAIRE_JETON") == avant

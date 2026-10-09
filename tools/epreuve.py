@@ -41,6 +41,8 @@ CHAMPS_CONTRAT = frozenset(
     }
 )
 HORS_SCENARIOS = {"T0": "ING-01 / ING-02 (make eval-ingestion)"}  # garde d'entrée : niveau 1
+# catégorie de scénarios → exigence qui ne s'évalue que sur elle
+EXIGENCE_PAR_CATEGORIE = {"invalide": "EX-04", "panne": "EX-05", "boucle": "EX-06"}
 SCENARIOS = Path(__file__).resolve().parents[1] / "eval/scenarios.jsonl"
 JETON_RECETTE = "jeton-recette"
 
@@ -55,6 +57,14 @@ def valeurs_personnelles(demande: dict[str, Any]) -> list[str]:
         demande.get("sinistre", {}).get("description"),
     ]
     return [v for v in valeurs if isinstance(v, str) and v]
+
+
+def _corps_lisible(brut: str) -> str:
+    """Corps JSON réécrit en UTF-8 : une valeur échappée (``\\u00e9``) reste détectable."""
+    try:
+        return json.dumps(json.loads(brut), ensure_ascii=False)
+    except (ValueError, RecursionError):
+        return brut
 
 
 def _par_reference(rejeu: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -90,10 +100,13 @@ def verdicts(rejeux: list[dict[str, Any]], bornes: Bornes) -> dict[str, list[str
         k: [] for k in ("EX-01", "EX-02", "EX-03", "EX-04", "EX-05", "EX-06")
     }
     v["attendu"] = []
+    vues: dict[str, bool] = {}  # catégorie → au moins une fiche évaluée
     for rejeu in rejeux:
         scenario, fiches = rejeu["scenario"], _par_reference(rejeu)
         categorie = scenario["categorie"]
-        demandes = {d["reference"]: d for d in scenario["demandes"]}
+        # toutes les demandes du scénario : une référence illisible ne dispense de rien
+        personnelles = [v for d in scenario["demandes"] for v in valeurs_personnelles(d)]
+        vues[categorie] = vues.get(categorie, False) or bool(fiches)
         for ref, fiche in fiches.items():
             motif = fiche.get("motif")
             if fiche.get("issue") not in ("decision", "escalade") or not (
@@ -122,19 +135,22 @@ def verdicts(rejeux: list[dict[str, Any]], bornes: Bornes) -> dict[str, list[str
             lu = entree.get("statut_http") not in (401, 503)
             if lu and set(entree.get("champs", [])) != CHAMPS_CONTRAT:
                 v["EX-03"].append(f"{ref} : champs envoyés ≠ les 7 du contrat")
-            demande = demandes.get(ref, {})
-            if any(val in entree.get("corps_brut", "") for val in valeurs_personnelles(demande)):
+            corps = _corps_lisible(entree.get("corps_brut") or "")
+            if any(val in corps for val in personnelles):
                 # jamais la valeur elle-même dans le rapport
                 v["EX-03"].append(f"{ref} : donnée personnelle dans la requête")
         for attendu in scenario["attendu"]:
-            fiche = fiches.get(attendu["reference"])
-            if fiche is None:
+            produite = fiches.get(attendu["reference"])
+            if produite is None:
                 v["attendu"].append(f"{attendu['reference']} : aucune fiche produite")
                 continue
-            ecarts = _ecarts_attendu(fiche, attendu)
+            ecarts = _ecarts_attendu(produite, attendu)
             v["attendu"] += ecarts
             if categorie == "panne":
                 v["EX-05"] += [e for e in ecarts if "mode_degrade" in e or "file" in e]
+    for categorie, exigence in EXIGENCE_PAR_CATEGORIE.items():
+        if vues.get(categorie) is False:  # scénario présent, aucune fiche évaluée
+            v[exigence].append(f"aucune fiche {categorie} évaluée")
     return v
 
 
@@ -243,11 +259,12 @@ def ecrire_rapport(rapport: dict[str, Any], dossier: Path = RAPPORTS) -> Path:
     chemin.with_suffix(".json").write_text(
         json.dumps(rapport, ensure_ascii=False, indent=2, default=str), "utf-8"
     )
-    couv = rapport["couverture"]
+    couv, modes = rapport["couverture"], rapport.get("modes", {})
     lignes = [
         f"# Épreuve de l'équipe — {rapport['date']}",
         "",
-        f"**Résultat : {'réussie' if rapport['reussi'] else 'en échec'}** · modèles : "
+        f"**Résultat : {'réussie' if rapport['reussi'] else 'en échec'}** · mode : "
+        + f"llm {modes.get('llm', 0)} / repli {modes.get('repli', 0)} · modèles : "
         + (", ".join(rapport["modeles"]) or "aucun")
         + f" · durée : {rapport['duree_s']} s",
         "",
@@ -307,7 +324,9 @@ def ecrire_rapport(rapport: dict[str, Any], dossier: Path = RAPPORTS) -> Path:
 @contextmanager
 def partenaire_simule() -> Iterator[str]:
     """Partenaire simulé (``external_agent``) dans le processus, sur un port libre."""
-    os.environ.setdefault("PARTENAIRE_JETON", JETON_RECETTE)  # même jeton côté client et simulateur
+    avant = os.environ.get("PARTENAIRE_JETON")
+    if not avant:  # absent ou vide (.env exporté par make) : même jeton client et simulateur
+        os.environ["PARTENAIRE_JETON"] = JETON_RECETTE
     from external_agent.app import app
 
     with socket.socket() as s:
@@ -328,6 +347,11 @@ def partenaire_simule() -> Iterator[str]:
     finally:
         serveur.should_exit = True
         fil.join(5)
+        if not avant:  # environnement du processus rendu tel quel
+            if avant is None:
+                os.environ.pop("PARTENAIRE_JETON", None)
+            else:
+                os.environ["PARTENAIRE_JETON"] = avant
 
 
 def orchestrateur(url: str) -> Orchestrateur:
@@ -367,11 +391,14 @@ def evaluer(scenarios: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     modeles = sorted(
         {e.get("modele") or "aucun" for f in fiches for e in f["trace"] if "mode" in e}
     )
+    # mode réel de chaque étape LLM : un modèle configuré mais toujours en repli n'est pas éprouvé
+    modes = dict(Counter(e["mode"] for f in fiches for e in f["trace"] if "mode" in e))
     reussi = all(not e for e in v.values()) and not couv["manquantes"]
     return {
         "date": date.today().isoformat(),
         "reussi": reussi and all(x["ok"] for x in s),
         "modeles": modeles,
+        "modes": modes,
         "duree_s": round(time.monotonic() - debut, 1),
         "seuils": s,
         "verdicts": v,

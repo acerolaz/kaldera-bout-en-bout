@@ -452,6 +452,13 @@ def test_exception_imprevue_rattrapee_par_le_filet(etat_en_panne: str) -> None:
     assert f"(dernier état : {etat_en_panne})" in fiche["motif"]
 
 
+def test_etape_du_filet_nomme_l_exception() -> None:
+    """docs/interface.md : toute étape en échec sur une exception porte ``erreur``."""
+    fiche = _orchestrateur(pieces=_en_panne_imprevue).traiter(_demande("NOM-01"))
+    assert fiche["trace"][-1]["action"] == "filet_securite"
+    assert fiche["trace"][-1]["erreur"] == "RuntimeError"
+
+
 def test_provenance_invalide_jamais_d_eligibilite() -> None:
     espion = Espion()
     fiche = _orchestrateur(eligibilite=espion).traiter(_contrat("peut-etre"))
