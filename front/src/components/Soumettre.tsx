@@ -27,7 +27,7 @@ export function Soumettre({ vue, onSoumise, onExpire }: Props) {
     try {
       onSoumise(await api.soumettre(vue.reference, confirmer));
     } catch (e) {
-      if (!(e instanceof ErreurApi)) throw e;
+      if (!(e instanceof ErreurApi)) return setErreur(T.depot.erreurs.defaut); // réseau coupé : on le dit, on ne jette pas
       if (e.statut === 401) return onExpire?.();
       if (e.detail === "deja_soumise") return setDejaSoumise(true); // double clic : le dossier est déjà soumis, rien à dire
       if (e.detail === "confirmation_requise") setConfirmation(true);

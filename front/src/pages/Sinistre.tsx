@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 interface Props {
   reference: string;
   /** Emplacement du chat (Task 10) : reçoit les messages et l'accès à la zone de dépôt. */
-  chat?: (args: { messages: ReturnType<typeof useFluxDemande>["messages"]; deposer: () => void }) => ReactNode;
+  chat?: (args: { messages: ReturnType<typeof useFluxDemande>["messages"]; deposer?: () => void }) => ReactNode;
 }
 
 export function Sinistre({ reference, chat }: Props) {
@@ -30,6 +30,7 @@ export function Sinistre({ reference, chat }: Props) {
   if (erreur === 401) return <Navigate to="/connexion" replace />;
   if (erreur !== null) return <main className="p-4"><p>{T.introuvable}</p></main>;
   if (!vue) return null;
+  const peutDeposer = !vue.soumise && vue.etape === 1; // sinon la zone de dépôt n'est pas affichée
   const deposer = (t?: TypePiece) => {
     if (t) setType(t);
     depot.current?.focus();
@@ -46,21 +47,29 @@ export function Sinistre({ reference, chat }: Props) {
       {horsLigne && (
         <Alert className="mx-auto mt-4 max-w-[1200px]"><AlertDescription>{T.horsLigne}</AlertDescription></Alert>
       )}
-      <main className="mx-auto grid max-w-[1200px] gap-4 p-4 lg:grid-cols-[320px_1fr]">
-        <div className="order-1 lg:col-start-2 lg:row-start-1"><BandeauStatut vue={vue} /></div>
-        <div className="order-2 lg:col-start-1 lg:row-start-2"><ListePieces pieces={vue.pieces} onDeposer={deposer} /></div>
-        {!vue.soumise && vue.etape === 1 && (
-          <div className="order-3 space-y-3 lg:col-start-2 lg:row-start-2">
-            <Depot ref={depot} reference={reference} type={type} onTypeChange={setType} onDepose={() => undefined} onExpire={expire} />
-            <Soumettre vue={vue} onSoumise={setVue} onExpire={expire} />
+      {/* Mobile : une colonne, ordre statut, pièces, dépôt, stepper, verdict (order-*) ; les colonnes
+          sont `contents`. À partir de lg, elles deviennent deux piles indépendantes (pas de lignes communes). */}
+      <main className="mx-auto flex max-w-[1200px] flex-col gap-4 p-4 lg:grid lg:grid-cols-[320px_1fr] lg:items-start">
+        <div className="contents lg:flex lg:flex-col lg:gap-4">
+          <div className="order-4 lg:order-1"><Stepper vue={vue} /></div>
+          <div className="order-2 lg:order-2">
+            <ListePieces pieces={vue.pieces} onDeposer={peutDeposer ? deposer : undefined} />
           </div>
-        )}
-        <div className="order-4 lg:col-start-1 lg:row-start-1"><Stepper vue={vue} /></div>
-        {vue.verdict && (
-          <div className="order-5 lg:col-start-2 lg:row-start-3"><VerdictCarte verdict={vue.verdict} /></div>
-        )}
+        </div>
+        <div className="contents lg:flex lg:flex-col lg:gap-4">
+          <div className="order-1 lg:order-1"><BandeauStatut vue={vue} /></div>
+          {peutDeposer && (
+            <div className="order-3 space-y-3 lg:order-2">
+              <Depot ref={depot} reference={reference} type={type} onTypeChange={setType} onDepose={() => undefined} onExpire={expire} />
+              <Soumettre vue={vue} onSoumise={setVue} onExpire={expire} />
+            </div>
+          )}
+          {vue.verdict && (
+            <div className="order-5 lg:order-3"><VerdictCarte verdict={vue.verdict} /></div>
+          )}
+        </div>
       </main>
-      {chat?.({ messages, deposer: () => deposer() })}
+      {chat?.({ messages, deposer: peutDeposer ? () => deposer() : undefined })}
     </div>
   );
 }

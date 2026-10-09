@@ -11,7 +11,7 @@ const ICONES: Record<StatutPiece, { Icone: typeof Circle; couleur: string }> = {
   a_refaire: { Icone: AlertTriangle, couleur: "text-a-refaire" },
 };
 
-export function ListePieces({ pieces, onDeposer }: { pieces: PieceAttendue[]; onDeposer: (t: TypePiece) => void }) {
+export function ListePieces({ pieces, onDeposer }: { pieces: PieceAttendue[]; onDeposer?: (t: TypePiece) => void }) {
   return (
     <Card className="p-4">
       <h2 className="mb-3 text-lg font-semibold">{T.pieces.titre}</h2>
@@ -28,7 +28,7 @@ export function ListePieces({ pieces, onDeposer }: { pieces: PieceAttendue[]; on
                   {p.raison && <p className="text-sm text-muted-foreground">{p.raison}</p>}
                 </div>
               </div>
-              {(p.statut === "a_fournir" || p.statut === "a_refaire") && (
+              {onDeposer && (p.statut === "a_fournir" || p.statut === "a_refaire") && (
                 <Button variant="outline" className="min-h-11" aria-label={`${T.pieces.deposer} : ${p.libelle}`} onClick={() => onDeposer(p.type)}>
                   {T.pieces.deposer}
                 </Button>

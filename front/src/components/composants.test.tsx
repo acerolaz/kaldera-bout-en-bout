@@ -51,6 +51,13 @@ describe("ListePieces", () => {
   });
 });
 
+describe("ListePieces sans dépôt possible", () => {
+  it("aucun bouton Déposer quand onDeposer est absent", () => {
+    render(<ListePieces pieces={[{ type: "facture", libelle: "Facture", statut: "a_fournir", raison: null }]} />);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
 describe("Depot", () => {
   const fichier = new File(["%PDF-1.4"], "facture.pdf", { type: "application/pdf" });
 
@@ -75,7 +82,9 @@ describe("Depot", () => {
     render(<Depot reference="KAL-26-0101" type="photo" onTypeChange={() => {}} onDepose={() => {}} />);
     await userEvent.upload(screen.getByLabelText("Choisir un fichier"), fichier);
     await userEvent.click(screen.getByRole("button", { name: "Envoyer la pièce" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    const alerte = await screen.findByRole("alert");
+    expect(alerte).toHaveTextContent(message);
+    expect(screen.getByLabelText("Choisir un fichier")).toHaveAttribute("aria-describedby", alerte.id);
   });
 
   it("session expirée (401) : prévient la page, sans message d'erreur", async () => {
@@ -130,6 +139,13 @@ describe("Soumettre", () => {
     render(<Soumettre vue={complete} onSoumise={() => {}} onExpire={onExpire} />);
     await userEvent.click(screen.getByRole("button", { name: "Soumettre mon dossier" }));
     await waitFor(() => expect(onExpire).toHaveBeenCalled());
+  });
+
+  it("réseau coupé : erreur par défaut annoncée", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
+    render(<Soumettre vue={complete} onSoumise={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "Soumettre mon dossier" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Le dépôt a échoué. Réessayez.");
   });
 });
 

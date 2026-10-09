@@ -80,22 +80,21 @@ export const Depot = forwardRef<DepotHandle, Props>(function Depot({ reference, 
             choisir(e.dataTransfer.files[0]);
           }}
           className="rounded-md border-2 border-dashed border-input p-4 text-center"
-          aria-describedby={erreur ? idErreur : undefined}
         >
-          <label htmlFor="fichier" className="inline-flex min-h-11 items-center rounded-md border border-primary px-4 font-medium text-primary">
+          <input
+            id="fichier" type="file" className="peer/fichier sr-only" accept="application/pdf,image/png,image/jpeg"
+            aria-describedby={erreur ? idErreur : undefined} onChange={(e) => choisir(e.target.files?.[0])}
+          />
+          <label htmlFor="fichier" className="inline-flex min-h-11 items-center rounded-md border border-primary px-4 font-medium text-primary peer-focus-visible/fichier:outline-3 peer-focus-visible/fichier:outline-offset-2 peer-focus-visible/fichier:outline-ring">
             {T.depot.choisir}
           </label>
           <input
-            id="fichier" type="file" className="sr-only" accept="application/pdf,image/png,image/jpeg"
-            onChange={(e) => choisir(e.target.files?.[0])}
+            id="photo" type="file" className="peer/photo sr-only lg:hidden" accept="image/png,image/jpeg" capture="environment"
+            aria-describedby={erreur ? idErreur : undefined} onChange={(e) => choisir(e.target.files?.[0])}
           />
-          <label htmlFor="photo" className="ms-2 inline-flex min-h-11 items-center rounded-md border border-primary px-4 font-medium text-primary lg:hidden">
+          <label htmlFor="photo" className="ms-2 inline-flex min-h-11 items-center rounded-md border border-primary px-4 font-medium text-primary lg:hidden peer-focus-visible/photo:outline-3 peer-focus-visible/photo:outline-offset-2 peer-focus-visible/photo:outline-ring">
             {T.depot.photo}
           </label>
-          <input
-            id="photo" type="file" className="sr-only" accept="image/png,image/jpeg" capture="environment"
-            onChange={(e) => choisir(e.target.files?.[0])}
-          />
           <p className="mt-2 text-sm text-muted-foreground">{T.depot.glisser}</p>
           {fichier && (
             <div className="mt-3 flex items-center justify-center gap-2">

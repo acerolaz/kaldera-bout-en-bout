@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
+import { VUE } from "../test/donnees";
 import { Connexion } from "./Connexion";
 import { MesSinistres } from "./MesSinistres";
 import { Sinistre } from "./Sinistre";
@@ -57,6 +58,14 @@ describe("Sinistre", () => {
     vi.stubGlobal("EventSource", class { addEventListener() {} close() {} onerror = null; onopen = null; });
     dans("/sinistres/KAL-26-0101", <Sinistre reference="KAL-26-0101" />);
     await waitFor(() => expect(screen.getByText("page de connexion")).toBeInTheDocument());
+  });
+  it("dossier soumis : pas de bouton Déposer pour une pièce à fournir", async () => {
+    const soumise = { ...VUE, soumise: true, branche: "gestionnaire", etape: 5 };
+    vi.stubGlobal("fetch", repondre(200, soumise));
+    vi.stubGlobal("EventSource", class { addEventListener() {} close() {} onerror = null; onopen = null; });
+    dans("/sinistres/KAL-26-0101", <Sinistre reference="KAL-26-0101" />);
+    expect(await screen.findByText("À fournir")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Déposer/ })).toBeNull();
   });
   it("dossier introuvable (404) : message, pas de page blanche", async () => {
     vi.stubGlobal("fetch", repondre(404, { detail: "introuvable" }));
