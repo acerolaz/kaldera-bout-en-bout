@@ -1,0 +1,52 @@
+<section class="page" id="persistance">
+  <style>
+    #persistance .tableau td, #persistance .tableau th { font-size:11px; padding:5px 8px; }
+    #persistance pre.code { font-size:10px; }
+  </style>
+  <div class="surtitre">Livrable 2 · Persistance</div>
+  <h2 class="titre"><span class="num">2.6</span>🐘 Persistance PostgreSQL</h2>
+  <p class="chapo">Une seule base pour les fichiers, les contrats, les snapshots, le registre A2A et l'espace assuré — <b>dès que
+    <code>KALDERA_DATABASE_URL</code> est configurée</b>. Sans elle, le moteur tourne en mémoire (<code>traiter_demande</code>,
+    <code>make scenarios</code>). Trois garanties de conception sont portées par des contraintes SQL.</p>
+
+  <div class="grille-2" style="gap:14px; align-items:start">
+    <table class="tableau">
+      <tr><th>Stockage</th><th>Pour</th><th>Contre</th><th>Choix</th></tr>
+      <tr><td><b>bytea</b></td><td>simple, transactionnel, sauvegardé avec la base</td><td>≤ 1 Go (borné à 10 Mo)</td><td>✅ niveau 1</td></tr>
+      <tr><td>Large Object</td><td>streaming, gros fichiers</td><td>API dédiée, vacuumlo</td><td>❌</td></tr>
+      <tr><td>Stockage objet</td><td>échelle, coût</td><td>2 systèmes à garder cohérents</td><td>🔜 niveau 2</td></tr>
+    </table>
+    <div class="carte"><h3>🔌 Ports et adaptateurs</h3><p class="petit">
+      <code>DepotPieces</code>, <code>Snapshots</code>, <code>RegistreA2A</code> → <code>DepotPostgres</code>, <code>SnapshotsPostgres</code>,
+      <code>RegistreA2APostgres</code> avec une base ; <code>DepotDepuisDemande</code>, <code>SnapshotsEnMemoire</code>, <code>RegistreA2AEnMemoire</code>
+      sinon et en tests unitaires. Ingestion et espace assuré : <code>IngestionPostgres</code>, <code>DepotAssure</code>.
+      <b>psycopg 3 synchrone + <code>ConnectionPool</code></b> ; 4 migrations SQL versionnées (<code>001</code> → <code>004</code>).</p></div>
+  </div>
+
+<pre class="code"><span class="c">-- ① 1 appel partenaire par dossier (contrat §6) : la réservation PRÉCÈDE l'envoi</span>
+INSERT INTO appels_partenaire (reference) VALUES (%s)
+ON CONFLICT (reference) DO NOTHING RETURNING reference;        <span class="c">-- 0 ligne ⇒ pas d'envoi</span>
+<span class="c">-- ② reaper : compare-and-set atomique, pas de double escalade</span>
+UPDATE demandes SET statut = 'secours', maj = now()
+WHERE (statut = 'en_cours' OR (statut = 'secours' AND fiche IS NULL)) AND maj &lt; now() - make_interval(secs => %s)
+RETURNING reference, etat;
+<span class="c">-- ③ worker d'ingestion : plusieurs workers, aucune tâche prise deux fois</span>
+SELECT id, sha256, tache, reference FROM file_ingestion WHERE statut = 'en_attente'
+ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1;</pre>
+
+  <div class="grille-2" style="gap:14px">
+    <div class="carte"><h3>🧪 Tests</h3><p class="petit">Unitaires sans base (rapides, bloquants) ; intégration <code>make test-integration</code> sur un PostgreSQL
+      en conteneur (<code>docker compose --profile integration</code>, port 5433), base vidée à chaque test.</p></div>
+    <div class="carte"><h3>🧭 .NET</h3><p class="petit"><code>bytea</code> ≈ <code>varbinary(max)</code> ; <code>SKIP LOCKED</code> ≈ <code>READPAST</code> ;
+      adaptateurs ≈ repositories Dapper / EF Core ; pool ≈ <code>NpgsqlDataSource</code>.</p></div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>Une seule base, facultative</h3>Fichiers, contrats, snapshots, cache d'analyse, registre A2A et comptes assurés : PostgreSQL dès qu'il
+      est configuré (EX-D41). Base configurée mais en panne : aucun envoi au partenaire, et la décision n'attend jamais la base.</div>
+    <div class="note petit"><h3>Claim check préservé</h3><code>demandes.etat</code> ne contient que des <code>piece_id</code>, jamais d'octets ; table
+      <code>blobs</code> séparée = déduplication par sha256.</div>
+    <div class="note petit"><h3>Trois garanties en SQL</h3>1 appel partenaire, pas de double escalade, pas de tâche prise deux fois : chacune tient en une
+      requête, et survit à un redémarrage.</div>
+  </div>
+</section>

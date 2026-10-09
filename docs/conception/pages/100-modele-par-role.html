@@ -1,0 +1,65 @@
+<section class="page" id="modele-par-role">
+  <style>
+    #modele-par-role .flux { display:flex; align-items:center; gap:10px; }
+    #modele-par-role .flux .boite { font-size:10.5px; }
+    #modele-par-role .profil { border:1.5px solid var(--llm-bord); background:var(--llm-fond); border-radius:6px; padding:3px 6px; margin-top:4px; font-size:10px; }
+    #modele-par-role .agent-carte { border:2px solid var(--llm-bord); border-radius:8px; padding:5px 7px; font-size:11px; background:#fff; width:150px; }
+    #modele-par-role .tableau td, #modele-par-role .tableau th { font-size:10.5px; padding:4px 7px; }
+  </style>
+  <div class="surtitre">Livrable 1 · Agents LLM</div>
+  <h2 class="titre"><span class="num">1.4 ter</span>🎛️ Un modèle par rôle</h2>
+  <p class="chapo">Chaque agent a son propre LLM, choisi pour son rôle prédéfini. Le modèle est une configuration lue dans le <code>.env</code>,
+    pas du code ; tous passent par un même point d'accès, Azure AI Foundry. La lecture des fichiers est confiée à un VLM d'ingestion, hors équipe.</p>
+
+  <div class="flux">
+    <div class="boite orch" style="width:150px"><b>⚙️ ConfigAgents</b>1 <code style="background:#2d5a44;color:#fff">ConfigLLM</code> par agent<br>+ ConfigIngestion</div>
+    <span class="fleche">→</span>
+    <div class="boite tool" style="width:170px"><b>🏭 fabrique_llm()</b>endpoint + clé + modèle ⇒ <code>AzureLLM</code><br>sinon <code>None</code> ⇒ repli</div>
+    <span class="fleche">→</span>
+    <div class="agent-carte"><b>📄 pieces</b><div class="profil">🧠 <b>rapide</b></div></div>
+    <div class="agent-carte"><b>💶 estimation</b><div class="profil">🧠 <b>léger, rapide</b></div></div>
+    <div class="agent-carte"><b>🕵️ antifraude</b><div class="profil">🧠 <b>raisonnement</b></div></div>
+    <div class="agent-carte"><b>⚖️ decision</b><div class="profil">🧠 <b>rédaction soignée</b></div></div>
+    <div class="agent-carte" style="border-style:dashed"><b>🔍 ingestion · hors équipe</b><div class="profil">🧠 <b>multimodal précis</b></div></div>
+  </div>
+
+  <table class="tableau">
+    <tr><th>Agent</th><th>Profil</th><th>Pourquoi ce profil (rôle prédéfini)</th><th>delai_agent_s</th><th>jetons_max</th><th>tours</th><th>Si le modèle manque</th></tr>
+    <tr><td><b>📄 pieces</b></td><td>rapide</td><td>rapprocher des <b>descripteurs</b>, rédiger la relance ; fichiers lus au dépôt (2.4 ter) ⇒ <code>vision = False</code></td><td>1,2</td><td>3 000</td><td>3</td><td>repli complétude</td></tr>
+    <tr><td><b>💶 estimation</b></td><td>léger, le plus rapide</td><td>1 appel d'outil + 2 phrases d'explication : pas besoin de plus</td><td>0,8</td><td>1 500</td><td>2</td><td>repli calcul</td></tr>
+    <tr><td><b>🕵️ antifraude</b></td><td>raisonnement</td><td>croiser F1–F4 et l'avis du partenaire, note utile pour la cellule fraude</td><td>1,5</td><td>4 000</td><td>3</td><td>repli calcul + appel</td></tr>
+    <tr><td><b>⚖️ decision</b></td><td>rédaction soignée</td><td>le motif est lu par un gestionnaire ou l'assuré : clarté, ton, règle citée</td><td>1,2</td><td>3 000</td><td>2</td><td>gabarit de motif</td></tr>
+    <tr><td><b>💬 relance</b> <span class="discret">(2.8)</span></td><td>rédaction courte</td><td>expliquer à l'assuré les pièces à fournir, 600 caractères au plus</td><td>2,0</td><td>600</td><td>2</td><td>gabarits</td></tr>
+    <tr><td><b>🔍 ingestion</b> <span class="discret">(outil)</span></td><td>multimodal précis</td><td>lire un contrat sans erreur prime sur la vitesse ; un appel, sortie structurée</td><td>60 · hors 10 s</td><td>800</td><td>1</td><td><b>le worker refuse de démarrer</b></td></tr>
+  </table>
+
+  <div class="colonnes" style="grid-template-columns:1.25fr 1fr">
+<pre class="code" style="font-size:9.5px">class ConfigLLM(BaseModel):
+    fournisseur: Literal[<span class="k">"azure"</span>] = <span class="k">"azure"</span>
+    modele: str                     <span class="c"># nom de déploiement Foundry</span>
+    delai_agent_s: float = 1.2;  jetons_max: int = 3000;  tours_max: int = 3
+    temperature: float = 0.0;    vision: bool = False
+
+class ConfigAgents(BaseSettings):   <span class="c"># env_prefix="KALDERA_", délimiteur "__"</span>
+    pieces / estimation / antifraude / decision / relance: ConfigLLM | None
+    azure_ai_chat_endpoint: str | None   <span class="c"># AZURE_AI_CHAT_ENDPOINT</span>
+    azure_ai_chat_key: SecretStr | None  <span class="c"># AZURE_AI_CHAT_KEY</span>
+class ConfigIngestion(BaseSettings): <span class="c"># env_prefix="KALDERA_INGESTION__"</span>
+    vlm: ConfigLLM | None;  delai_analyse_s = 60.0;  taille_max_mo = 10
+
+def fabrique_llm(cfg, nom) -> ClientLLM | None:
+    <span class="k">if</span> config manquante <span class="k">or</span> endpoint/clé absents: <span class="k">return</span> None
+    <span class="k">return</span> AzureLLM.depuis(config, endpoint, cle)  <span class="c"># ChatCompletionsClient</span>
+<span class="c"># .env : AZURE_AI_CHAT_ENDPOINT=…  AZURE_AI_CHAT_KEY=…  KALDERA_PIECES__MODELE=…</span>
+<span class="c">#       KALDERA_INGESTION__VLM__MODELE=…  KALDERA_INGESTION__VLM__VISION=true</span></pre>
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <div class="carte"><h3>🧾 Tracé pour l'audit</h3><p class="petit">Chaque étape de la <code>trace</code> porte <code>modele</code> et
+        <code>version_prompt</code> ; métriques <b>par agent et par modèle</b>. Chaque analyse VLM aussi (cache <code>(sha256, modele, version_prompt)</code>).</p></div>
+      <div class="carte"><h3>🔌 Un point d'accès, des modèles au choix</h3><p class="petit">Tous les modèles passent par l'endpoint d'inférence
+        <b>Azure AI Foundry</b> ; chaque agent peut y prendre un déploiement différent. Un autre fournisseur = un nouvel adaptateur de
+        <code>ClientLLM</code>, sans toucher aux agents. Secrets dans le <code>.env</code>.</p></div>
+      <div class="note alerte petit"><b>Noms de modèles = exemples.</b> Le choix final se fait par la mesure (<code>make eval</code>, 4.4), consigné au
+        journal. En attendant, <code>.env.example</code> propose <code>Kimi-K2.6</code> pour les agents et <code>gpt-4.1</code> pour le VLM ; sans clé, tout tourne en repli.</div>
+    </div>
+  </div>
+</section>

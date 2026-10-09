@@ -1,0 +1,42 @@
+<section class="page" id="contrat-champs">
+  <div class="surtitre">Livrable 3 · Contrat A2A v2.0</div>
+  <h2 class="titre"><span class="num">3.2</span>📜 Le contrat, champ par champ</h2>
+  <p class="chapo">Comment chaque champ envoyé est construit à partir de la demande (<code>partenaire.projeter</code>), et les règles d'appel qui
+    en découlent.</p>
+
+  <div class="grille-2" style="gap:16px; align-items:start">
+    <div style="display:flex; flex-direction:column; gap:10px">
+      <table class="tableau">
+        <tr><th>Champ du contrat</th><th>Source Kaldera</th><th>Transformation</th></tr>
+        <tr><td><code>reference_dossier</code></td><td><code>reference</code></td><td>telle quelle (<code>KAL-AA-NNNN</code>)</td></tr>
+        <tr><td><code>type_sinistre</code></td><td><code>sinistre.type</code></td><td>telle quelle (enum à 4 valeurs)</td></tr>
+        <tr><td><code>montant_declare</code></td><td><code>sinistre.montant_declare</code></td><td>doit être &gt; 0</td></tr>
+        <tr><td><code>date_survenance</code></td><td><code>sinistre.date_survenance</code></td><td><code>AAAA-MM-JJ</code></td></tr>
+        <tr><td><code>anciennete_contrat_jours</code></td><td>dates de survenance et de souscription</td><td><b>calculée</b> : survenance − souscription (≥ 0)</td></tr>
+        <tr><td><code>sinistres_12_mois</code></td><td><code>historique</code></td><td>telle quelle (≥ 0), 0 si absent</td></tr>
+        <tr><td><code>departement</code></td><td><code>assure.code_postal</code></td><td><b>dérivée</b> : <code>69003 → 69</code> · <code>20xxx → 2A/2B</code> · <code>971xx → 971</code></td></tr>
+      </table>
+      <div class="carte"><h3>📜 Ancienneté depuis le contrat PDF</h3><p class="petit"><code>anciennete_contrat_jours</code> est calculée depuis la
+        <code>date_souscription</code> <b>extraite et validée</b> du contrat PDF (3 verrous, 2.4 quater) ; un contrat non exploitable n'atteint jamais l'A2A (T0).</p></div>
+      <div class="carte"><h3>🔒 Un seul appel, garanti par la base</h3><p class="petit">Avec une base : registre = table <code>appels_partenaire</code>, clé
+        primaire <code>reference</code> ; la réservation (<code>INSERT … ON CONFLICT DO NOTHING</code>) est faite <b>avant</b> l'envoi et survit à un
+        redémarrage (2.6). Base configurée mais injoignable ⇒ <b>aucun envoi</b>. Sans base : registre en mémoire, par processus.</p></div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px">
+      <div class="carte"><h3>🔁 Un seul appel par dossier</h3>
+        <ul class="liste">
+          <li>Registre des <code>reference_dossier</code> déjà soumises, consulté <b>avant</b> chaque appel</li>
+          <li>Aucune relance : ni après un délai, ni après une erreur, ni après une réponse écartée</li>
+          <li>Projection invalide, jeton absent ou URL invalide ⇒ <b>pas d'envoi</b> (un envoi raté consommerait l'unique appel)</li>
+        </ul></div>
+      <div class="carte"><h3>🧾 Conservé pour l'audit</h3><p class="petit"><code>evaluation_id</code> et <code>version_modele</code> sont gardés dans
+        <code>avis_fraude.avis</code>, dans la fiche. Les <code>indicateurs</code> du partenaire (<code>MONTANT_ELEVE</code>…) sont validés mais
+        <b>ne remplacent pas</b> nos F1–F4.</p></div>
+      <div class="carte" style="border:1.5px solid var(--ext-bord)"><h3>📡 Pourquoi pas de streaming SSE ici ?</h3><p class="petit">Le contrat impose
+        <code>message/send</code> : la réponse arrive <b>en une fois</b>, tâche déjà <code>completed</code> avec son artefact. C'est le bon choix : l'avis
+        arrive en <b>2 s</b> et le client coupe à <b>3 s</b>, un flux n'apporterait rien et ajouterait le risque de <b>coupure en cours de route</b>.
+        Le SSE sert aux tâches <b>longues</b> dont on suit la progression — c'est d'ailleurs ce que fait l'espace assuré pour suivre son dossier (2.8).</p></div>
+    </div>
+  </div>
+</section>

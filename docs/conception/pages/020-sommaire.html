@@ -1,0 +1,52 @@
+<section class="page" id="sommaire">
+  <style>
+    #sommaire .entrees { display:grid; grid-template-columns:1fr 1fr; column-gap:56px; }
+    #sommaire .entree { display:flex; gap:14px; padding:9px 0 10px; border-bottom:1px solid var(--bordure); }
+    #sommaire .entree h3 { margin:0 0 2px; font-size:14px; }
+    #sommaire .entree p { margin:0; font-size:12px; color:var(--gris-texte); line-height:1.45; }
+    #sommaire .entree .neuf { color:var(--garde); font-weight:650; }
+    #sommaire .puce { min-width:26px; height:26px; font-size:13px; }
+  </style>
+  <div class="surtitre">Sommaire</div>
+  <h2 class="titre">📚 Sommaire</h2>
+  <p class="chapo">Le dossier suit l'ordre des 4 livrables attendus par le brief, encadrés d'un contexte et d'une synthèse.
+    Version alignée sur le code à la fin du chantier 2.</p>
+
+  <div class="entrees">
+    <div class="entree"><span class="puce">0</span><div><h3>Contexte &amp; exigences</h3><p>Le problème, les 6 exigences, les sources</p></div></div>
+    <div class="entree"><span class="puce">1</span><div><h3>Carte des agents</h3><p>Rôles, frontières, point ambigu, fiches ·
+      <b>un LLM par agent, borné par une référence déterministe</b> (1.4 → 1.4 ter) · <span class="neuf">VLM d'ingestion hors équipe</span></p></div></div>
+    <div class="entree"><span class="puce">2</span><div><h3>Orchestration &amp; mémoire partagée</h3><p>Pattern, machine à états, code, bornes,
+      budget LLM et disjoncteur (2.3 bis), état commun, pièces · <span class="neuf">ingestion (2.4 ter), contrat PDF (2.4 quater), PostgreSQL et
+      schéma (2.6, 2.6 bis), générateur de pièces (2.7), espace assuré et agent de relance (2.8)</span></p></div></div>
+    <div class="entree"><span class="puce">3</span><div><h3>A2A &amp; mode dégradé</h3><p>Contrat, filtre, validation, plan B métier</p></div></div>
+    <div class="entree"><span class="puce">4</span><div><h3>Plan d'épreuve</h3><p>Scénarios × signaux × ajustements · <b>éprouver des agents LLM</b> (4.3) ·
+      <span class="neuf"><code>make epreuve</code> et <code>make eval</code> (4.4)</span></p></div></div>
+    <div class="entree"><span class="puce">5</span><div><h3>Synthèse</h3><p>Choix tranchés, points ouverts, questions métier, évolutions depuis la version du 8 octobre</p></div></div>
+    <div class="entree"><span class="puce">6</span><div><h3>À retenir</h3><p>Les idées clés du dossier en une page</p></div></div>
+    <div class="entree"><span class="puce">A</span><div><h3>Glossaire</h3><p>Le vocabulaire technique utilisé, du LLM à l'espace assuré</p></div></div>
+  </div>
+
+  <div class="grille-2" style="gap:16px">
+    <div class="carte">
+      <h3>🎨 Code couleur commun à tous les schémas</h3>
+      <div class="legende" style="display:grid; grid-template-columns:repeat(3, auto); gap:8px 18px; justify-content:start; margin-top:6px">
+        <span class="l-orch">Orchestrateur (code)</span><span>Agent interne</span><span class="l-tool">Tool déterministe</span>
+        <span class="l-llm">LLM</span><span class="l-ext">Externe / A2A · base</span><span class="l-ok">Flux légitime / garde-fou</span>
+        <span class="l-risque">Risque / rejet</span><span class="l-decision">Décision</span><span class="l-ingestion">Ingestion</span>
+      </div>
+    </div>
+    <div class="carte">
+      <h3>🧭 Fil conducteur</h3>
+      <p class="petit">Une demande traverse <b>trois temps</b> : les fichiers sont lus <b>au dépôt</b> par un VLM utilisé comme outil (2.4 ter) ;
+        après <b>soumission</b>, le contrôle d'admission la fait entrer dans la machine à états (2.2) ; <b>quatre agents LLM</b> rédigent sur des
+        données validées, chacun borné par sa référence déterministe, l'orchestrateur décide du chemin et ⚖️ decision conclut. Le contrat PDF
+        fait foi sous trois verrous (2.4 quater) ; l'état est persisté dans PostgreSQL dès qu'une base est configurée (2.6). L'assuré suit
+        son dossier dans son espace (2.8).</p>
+    </div>
+  </div>
+
+  <p class="pousse" style="margin:0">✔️ Les règles métier restent dans des <b>outils déterministes</b> : elles ont été vérifiées en rejouant les
+    34 demandes des 28 scénarios (<code>make epreuve</code> : toutes conformes à l'attendu, EX-01 à EX-06 vérifiées). Le LLM ne peut changer
+    <b>aucune issue</b> : il consulte ses outils et rédige.</p>
+</section>

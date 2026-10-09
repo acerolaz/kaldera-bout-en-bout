@@ -1,0 +1,64 @@
+<section class="page" id="pieces-refs">
+  <style>
+    #pieces-refs pre.code { font-size:9.5px; }
+    #pieces-refs .tableau td, #pieces-refs .tableau th { font-size:10.5px; padding:4px 7px; }
+    #pieces-refs .flux { display:flex; align-items:center; gap:7px; }
+    #pieces-refs .flux .boite { flex:1; font-size:10.5px; padding:5px 6px; }
+  </style>
+  <div class="surtitre">Livrable 2 · Pièces justificatives</div>
+  <h2 class="titre"><span class="num">2.4 bis</span>📎 Les pièces : des références, pas des fichiers</h2>
+  <p class="chapo">Le claim check reste vrai : l'état ne transporte que des références (on garde le ticket, pas le colis). Au niveau 1, les fichiers
+    vivent dans PostgreSQL et sont analysés au dépôt ; seule la vue de 📄 pieces reçoit des pièces.</p>
+
+  <div class="flux">
+    <div class="boite ingestion"><b>📥 Ingestion</b>API + worker (écriture)</div><span class="fleche">→</span>
+    <div class="boite ext"><b>🐘 PostgreSQL</b>blobs · pieces · contrats</div><span class="fleche">→</span>
+    <div class="boite tool"><b>📎 DepotPieces</b>≈ IRepository · lecture · niveau 0 : demande · niveau 1 : base</div><span class="fleche">→</span>
+    <div class="boite"><b>📄 agent pieces</b>seul lecteur</div><span class="fleche">→</span>
+    <div class="boite ok"><b>✍️ section pieces</b>statut · manquantes · retenues</div>
+    <div class="boite risque" style="flex:0.8"><b>🕵️ antifraude</b>ni pièces, ni dépôts, ni PDF (contrat §2)</div>
+  </div>
+
+  <div class="colonnes" style="grid-template-columns:1.05fr 1fr">
+<pre class="code"><span class="k">class</span> PieceRef(BaseModel):          <span class="c"># ports.py · format §3 des scénarios</span>
+    type: Literal[<span class="k">"facture"</span>, <span class="k">"photo"</span>, <span class="k">"depot_plainte"</span>]
+    lisible: bool
+    montant: float | None = None     <span class="c"># factures seules ; numeric → float au centime</span>
+    piece_id: UUID | None = None     <span class="c"># niveau 1 : référence, jamais d'octets</span>
+    sha256: str | None = None
+    statut_analyse: Literal[<span class="k">"ok"</span>, <span class="k">"echec"</span>] = <span class="k">"ok"</span>  <span class="c"># echec ⇒ lisible = False</span>
+
+<span class="k">class</span> DepotPieces(Protocol):        <span class="c"># lecture · vue de pieces seule</span>
+    <span class="k">def</span> initiales(self, demande: dict) -> list[PieceRef]: ...
+    <span class="k">def</span> depots(self, demande: dict) -> list[PieceRef]: ...  <span class="c"># ordre de dépôt</span>
+
+<span class="k">class</span> DepotDepuisDemande: ...       <span class="c"># niveau 0 : pieces + espace_assure.depots (§3)</span>
+<span class="k">class</span> DepotPostgres: ...            <span class="c"># niveau 1 : SELECT sur pieces (descripteurs)</span>
+<span class="c"># écriture : IngestionPostgres (dépôt, file, analyses), côté API et worker (2.4 ter)</span></pre>
+    <table class="tableau">
+      <tr><th colspan="2">✔️ Vérifié dans les fichiers fournis</th></tr>
+      <tr><td>Une pièce = <code>{type, lisible, montant?}</code>, sans fichier</td><td><code>scenarios.jsonl</code> : 65 pièces, 34 demandes</td></tr>
+      <tr><td>Types : facture 34 · photo 27 · depot_plainte 4</td><td><code>montant</code> sur les 34 factures seulement</td></tr>
+      <tr><td><code>espace_assure.depots</code> = compléments, même format</td><td>NOM-07, PAN-01 · BCL-01</td></tr>
+      <tr><td>Contrat PDF : termes extraits dans <code>demande.contrat</code></td><td><code>generer_pieces.py</code> · <code>manifeste.jsonl</code></td></tr>
+      <tr><td>Pièces et n° de contrat jamais chez le partenaire</td><td>contrat §2 · <code>projeter</code></td></tr>
+    </table>
+  </div>
+
+  <div class="colonnes" style="grid-template-columns:1.25fr 1fr">
+    <table class="tableau">
+      <tr><th colspan="4">🔁 Règle de relance · relance n°k ⇒ dépôt n°k du type manquant</th></tr>
+      <tr><th>Lu par pieces</th><th>Statut</th><th>Transition</th><th>Preuve</th></tr>
+      <tr><td>tout est lisible</td><td><code>complet</code></td><td>T3</td><td>NOM-01</td></tr>
+      <tr><td>manque, un dépôt existe pour ce type</td><td><code>incomplet</code></td><td>T4 → lit le dépôt n°k (<code>lire_depot(k)</code>)</td><td>NOM-07</td></tr>
+      <tr><td>manque, aucun dépôt</td><td><code>manquant</code></td><td>T5, sans <code>arret</code></td><td>NOM-09</td></tr>
+      <tr><td>incomplet après la borne</td><td><code>incomplet</code></td><td>T5 + <code>arret</code></td><td>BCL-01</td></tr>
+    </table>
+    <div class="grille-2" style="gap:8px">
+      <div class="note petit"><h3>Un seul lecteur</h3>Le port n'est appelé que pour la vue de 📄 pieces ; 🕵️ antifraude n'y a pas accès.</div>
+      <div class="note petit"><h3>Claim check</h3>Aucun octet dans l'état : <code>piece_id</code> + <code>sha256</code>. Niveau 0 → 1 ne change aucun agent.</div>
+      <div class="note petit" style="grid-column:span 2"><h3>Garde-fous du niveau 1</h3>Analyse VLM au dépôt, hors des 10 s ; texte extrait = donnée, jamais instruction ;
+        un assuré sans nouveau fichier re-soumet son dernier dépôt (la borne de relances tranche).</div>
+    </div>
+  </div>
+</section>

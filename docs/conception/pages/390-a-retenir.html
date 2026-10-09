@@ -1,0 +1,56 @@
+<section class="page" id="a-retenir">
+  <style>
+    #a-retenir .idees { display: grid; grid-template-columns: repeat(5, 1fr); gap: 11px; }
+    #a-retenir .idee { border: 1px solid var(--bordure); border-top: 4px solid var(--or); border-radius: 9px;
+      padding: 10px 11px 11px; background: #fff; }
+    #a-retenir .idee .ico { font-size: 25px; line-height: 1; margin-bottom: 7px; }
+    #a-retenir .idee h3 { margin: 0 0 4px; font-size: 13.2px; font-weight: 750; line-height: 1.25; }
+    #a-retenir .idee p { margin: 0; font-size: 11.4px; line-height: 1.45; }
+    #a-retenir .bandeau { background: var(--vert); color: #fff; border-radius: 10px; padding: 16px 22px;
+      display: grid; grid-template-columns: 1fr 1.25fr; gap: 26px; align-items: center; }
+    #a-retenir .bandeau .cite { color: var(--or); font-size: 21px; font-weight: 800; line-height: 1.3; }
+    #a-retenir .bandeau p { margin: 0; font-size: 12px; line-height: 1.55; }
+  </style>
+  <div class="surtitre">À retenir</div>
+  <h2 class="titre"><span class="num">6</span>📌 À retenir</h2>
+  <p class="chapo">Les dix idées à garder en tête — et à savoir défendre devant le formateur et la promo.</p>
+
+  <div class="idees">
+    <div class="idee"><div class="ico">🏁</div><h3>Jamais de blocage silencieux</h3>
+      <p>Tout état non terminal mène à ⚖️ decision, <b>prouvé sur le graphe</b> ; si le système plante,
+        le filet escalade le dossier, et le reaper prend le relais avec la base.</p></div>
+    <div class="idee"><div class="ico">🔧</div><h3>Tool plutôt qu'agent</h3>
+      <p>L'éligibilité est une fonction pure <code>is_eligible()</code> : 4 agents LLM dans la machine,
+        1 section = 1 écrivain. La relance de l'assuré est un 5ᵉ agent, <b>hors machine</b>.</p></div>
+    <div class="idee"><div class="ico">💶</div><h3>Point ambigu tranché</h3>
+      <p>Le plafond est appliqué par 💶 estimation, <b>après</b> la franchise — prouvé par NOM-05.</p></div>
+    <div class="idee"><div class="ico">🔀</div><h3>Machine à états finis</h3>
+      <p>Table de transitions + gardes, exécutée par un <b>orchestrateur explicite</b>, sans LLM ;
+        agents-outils ⇒ 0 ping-pong.</p></div>
+    <div class="idee"><div class="ico">🧠</div><h3>Mémoire partagée</h3>
+      <p>Un état Pydantic par demande ; chaque agent propose un <b>patch</b> de sa section ;
+        <code>etat_courant</code> tracé.</p></div>
+
+    <div class="idee"><div class="ico">⚖️</div><h3>Le LLM rédige, la référence décide</h3>
+      <p>Chaque agent calcule d'abord sa <b>référence déterministe</b> ; le garde-fou impose les mêmes champs
+        décisifs, sinon <b>repli</b>. Même issue avec ou sans LLM.</p></div>
+    <div class="idee"><div class="ico">🔐</div><h3>A2A sans confiance aveugle</h3>
+      <p>7 champs en sortie (contrat v2.0), <b>validation 4 couches</b> en entrée, 1 seul appel réservé avant
+        l'envoi ; Agent Card suivie à même origine seulement.</p></div>
+    <div class="idee"><div class="ico">📥</div><h3>Lu une fois, au dépôt</h3>
+      <p>Le VLM analyse chaque fichier hors des 10 s ; l'équipe ne lit que des descripteurs <b>validés</b>.
+        Le contrat PDF fait foi sous trois verrous.</p></div>
+    <div class="idee"><div class="ico">🛑</div><h3>Bornes = gardes</h3>
+      <p>12 étapes · 8 s · 1 relance · 3 s ; un <b>disjoncteur</b> coupe le LLM en panne pour les 4 agents.</p></div>
+    <div class="idee"><div class="ico">📏</div><h3>Mesurer pour de vrai</h3>
+      <p><code>make epreuve</code> : EX-01 → EX-06 et <b>T1–T11 couvertes</b>, référence archivée.
+        <code>make eval</code> choisira le modèle de chaque rôle.</p></div>
+  </div>
+
+  <div class="bandeau">
+    <div class="cite">« Les agents proposent, l'orchestration impose. »</div>
+    <p>La table de transitions est la seule source de vérité du flux : chaque règle de la spec devient une garde ou un
+      contrôle dans le code, et chaque agent LLM reste borné par sa référence déterministe. C'est ce qui rend les six
+      exigences démontrables par les tests et par l'épreuve.</p>
+  </div>
+</section>

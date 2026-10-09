@@ -1,0 +1,63 @@
+<section class="page" id="mode-degrade">
+  <style>
+    #mode-degrade .arbre { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+    #mode-degrade .q { background:#fff; border:1.5px solid #9aa3ad; border-radius:8px; padding:6px 10px; text-align:center; font-size:11.5px; }
+    #mode-degrade .q b { display:block; font-size:12.5px; }
+    #mode-degrade .branche { font-size:10.5px; font-weight:750; text-align:center; margin:3px 0; }
+    #mode-degrade .issues { display:grid; gap:6px; }
+    #mode-degrade .issues .boite { font-size:10.5px; padding:5px 6px; }
+    #mode-degrade .ex { color:#6b7280; font-size:9.5px; display:block; }
+  </style>
+  <div class="surtitre">Livrable 3 · Mode dégradé</div>
+  <h2 class="titre"><span class="num">3.5</span>🛟 Le plan B défini par le métier (§9)</h2>
+  <p class="chapo">« Indisponible » regroupe trois cas : délai dépassé, erreur du service, réponse non conforme (et tout ce qui empêche l'envoi).
+    Le seuil de <b>1 500 €</b> décide de la suite. Règles appliquées par la référence de ⚖️ decision (<code>agents._issue</code>).</p>
+
+  <div class="arbre">
+    <div style="display:flex; flex-direction:column; gap:6px">
+      <div class="q"><b>❓ Contrôle anti-fraude requis ?</b>au moins un indicateur F1–F4</div>
+      <div class="grille-2" style="gap:10px">
+        <div><div class="branche" style="color:var(--court)">Non</div>
+          <div class="boite" style="font-size:10.5px"><b>➡️ Partenaire non sollicité</b>suite normale · <code>mode_degrade = false</code><span class="ex">ex. PAN-01 n°1 · PAN-02 n°1</span></div></div>
+        <div><div class="branche" style="color:var(--nominal)">Oui</div>
+          <div class="boite ext" style="font-size:10.5px"><b>📤 Appel A2A unique</b>par la référence · abandon à 3 s · validation 4 couches</div></div>
+      </div>
+      <div class="q"><b>❓ Avis exploitable ?</b></div>
+      <div class="branche" style="color:var(--nominal)">Oui</div>
+      <div class="issues grille-3">
+        <div class="boite ok"><b>🟢 faible</b>la demande poursuit<br>règles 5 → 6<span class="ex">AF-01 · AF-06</span></div>
+        <div class="boite decision"><b>🟠 modéré</b>escalade gestionnaire<br>« Contrôle renforcé »<span class="ex">AF-04 · AF-07</span></div>
+        <div class="boite risque"><b>🔴 élevé</b>escalade cellule_fraude<br>« Suspicion de fraude »<span class="ex">AF-05</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:6px">
+      <div class="branche" style="color:var(--risque-bord)">Non : délai · erreur · non conforme · non envoyé</div>
+      <div class="boite risque" style="padding:9px"><b>🛟 MODE DÉGRADÉ §9</b>avis <code>indisponible</code> (ou niveau inexploitable)</div>
+      <div class="q"><b>❓ Montant estimé ≤ 1 500 € ?</b></div>
+      <div class="grille-2" style="gap:10px">
+        <div><div class="branche" style="color:var(--nominal)">Oui</div>
+          <div class="boite ok" style="font-size:10.5px"><b>✅ Décision sans avis</b>selon les autres règles<br><code>mode_degrade = true</code><span class="ex">INV-01 · INV-05 · PAN-01 n°3</span></div></div>
+        <div><div class="branche" style="color:var(--risque-bord)">Non</div>
+          <div class="boite risque" style="font-size:10.5px"><b>🚨 cellule_fraude</b>contrôle anti-fraude manuel<br><code>mode_degrade = true</code><span class="ex">INV-02 · INV-04 · PAN-02 n°3</span></div></div>
+      </div>
+      <div class="carte" style="background:var(--ext-fond); border-color:var(--ext-bord)">
+        <h3>⏱️ Engagements tenus</h3>
+        <ul class="liste petit">
+          <li>Aucune demande n'attend le partenaire au-delà du délai du contrat (3 s)</li>
+          <li>Les demandes sans F1–F4 ne sont jamais affectées par une panne</li>
+          <li>Toute décision en mode dégradé est marquée pour contrôle a posteriori</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>≤ 1 500 € → toujours acceptée</h3>Estimé &gt; 0 (sinon règle 3) et ≤ 1 500 € &lt; 10 000 € (règle 5) : l'issue est acceptée,
+      motif « Remboursement accordé : … € — avis anti-fraude indisponible, décision en mode dégradé (§9) ».</div>
+    <div class="note petit"><h3>&gt; 1 500 € → cellule_fraude</h3>La règle 4 passe avant la règle 5 : même au-delà de 10 000 €, la file est
+      <code>cellule_fraude</code>, motif « Avis anti-fraude indisponible : contrôle anti-fraude manuel (§9) ».</div>
+    <div class="note petit"><h3>Contrôle a posteriori</h3>Fiches filtrables sur <code>mode_degrade = true</code> ; taux de mode dégradé suivi en
+      métrique (<code>mode_degrade</code> de <code>metriques_equipe</code>) ; aucune demande n'attend plus de 3 s le partenaire.</div>
+  </div>
+</section>

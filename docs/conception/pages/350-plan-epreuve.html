@@ -1,0 +1,52 @@
+<section class="page" id="plan-epreuve">
+  <style>
+    #plan-epreuve .etapes { display:flex; gap:8px; align-items:center; }
+    #plan-epreuve .etapes .boite { flex:1; font-size:11px; }
+    #plan-epreuve .cat { border:1px solid var(--bordure); border-radius:9px; padding:8px 10px; font-size:11px; background:#fff; }
+    #plan-epreuve .cat h3 { margin:0 0 4px; font-size:13px; display:flex; justify-content:space-between; }
+    #plan-epreuve .cat h3 span { font-size:10.5px; color:var(--gris-texte); font-weight:600; }
+    #plan-epreuve .cat div { margin:2px 0; }
+  </style>
+  <div class="surtitre">Livrable 4 · Plan d'épreuve</div>
+  <h2 class="titre"><span class="num">4.1</span>🧪 Éprouver l'équipe, pas un agent isolé</h2>
+  <p class="chapo">Les 28 scénarios (34 demandes) sont rejoués de bout en bout par l'orchestrateur, contre le partenaire simulé
+    (<code>make scenarios</code>, <code>make epreuve</code>) ; chaque catégorie prouve des exigences précises et pointe un ajustement possible.</p>
+
+  <div class="etapes">
+    <div class="boite"><b>🧪 Rejouer</b><code>eval/scenarios.jsonl</code></div><span class="fleche">→</span>
+    <div class="boite"><b>📊 Observer</b>trace · métriques</div><span class="fleche">→</span>
+    <div class="boite"><b>📏 Comparer</b>au seuil attendu</div><span class="fleche">→</span>
+    <div class="boite"><b>🔧 Ajuster</b>borne · garde · frontière</div><span class="fleche">→</span>
+    <div class="boite decision"><b>📓 Consigner</b>journal + avant / après ↺</div>
+  </div>
+
+  <div class="grille-3" style="gap:10px">
+    <div class="cat" style="border-left:4px solid var(--nominal)"><h3>🟢 nominal <span>11 scénarios</span></h3>
+      <div>🎯 prouve : EX-01 · EX-02</div><div>📊 transitions = chemin attendu · 0 appel externe sans F1–F4</div>
+      <div>🔧 si KO → garde de transition · court-circuit</div></div>
+    <div class="cat" style="border-left:4px solid var(--ext-bord)"><h3>🕵️ antifraude <span>7 scénarios</span></h3>
+      <div>🎯 prouve : EX-02 · EX-03</div><div>📊 <code>appels_externes</code> = 1 si F1–F4 · niveau d'avis · nature <code>ok</code></div>
+      <div>🔧 si KO → frontière F1–F4 · liste blanche</div></div>
+    <div class="cat" style="border-left:4px solid var(--risque-bord)"><h3>🧪 invalide <span>7 scénarios</span></h3>
+      <div>🎯 prouve : EX-04 · EX-05</div><div>📊 nature <code>invalide</code> · avis indisponible · mode dégradé</div>
+      <div>🔧 si KO → couche de validation fautive</div></div>
+    <div class="cat" style="border-left:4px solid var(--boucle)"><h3>💥 panne <span>2 lots · 8 dem.</span></h3>
+      <div>🎯 prouve : EX-05 · §12</div><div>📊 nature <code>timeout</code> / <code>erreur</code> · latence antifraude ≤ délai · lot &lt; 8 s</div>
+      <div>🔧 si KO → <code>delai_partenaire_s</code> · parallélisme</div></div>
+    <div class="cat" style="border-left:4px solid var(--garde)"><h3>🔁 boucle <span>1 scénario</span></h3>
+      <div>🎯 prouve : EX-06</div><div>📊 <code>arret.borne</code> · étapes ≤ <code>etapes_max</code></div>
+      <div>🔧 si KO → garde T4 · <code>etapes_max</code></div></div>
+    <div class="cat" style="border-left:4px solid var(--vert)"><h3>🧭 couverture <span>28 scénarios</span></h3>
+      <div>🎯 prouve : EX-D27</div><div>📊 chaque transition T1 → T11 empruntée ≥ 1 fois (<code>make epreuve</code>) ; TG par les tests de bornes</div>
+      <div>🔧 si KO → scénario manquant ou transition inutile</div></div>
+  </div>
+
+  <div class="cat" style="border-left:4px solid var(--ingestion-bord)"><h3>📥 ingestion <span>5 scénarios ING</span></h3>
+    <div>🎯 prouve : EX-01 (T0) · EX-04 (injection) · contrat source de vérité &nbsp;·&nbsp; 📊 statut des analyses · violations d'invariants et de verrous
+      &nbsp;·&nbsp; 🔧 si KO → invariant · verrou · prompt d'extraction</div>
+    <div class="discret">Les scénarios ING-01 → ING-05 vivent dans <code>eval/scenarios_ingestion.jsonl</code> : les 28 scénarios fournis ne sont jamais modifiés.
+      Leurs fichiers viennent du générateur de pièces, leur vérité terrain du manifeste (2.7).</div></div>
+
+  <div class="note pousse">🎯 <b>Règle du jeu</b> : aucun réglage « au doigt mouillé ». Chaque ajustement part d'un scénario rejoué, d'un signal mesuré
+    et d'un seuil, puis il est consigné avec la mesure avant / après (<code>make test</code>, <code>make epreuve</code>, <code>make eval</code>).</div>
+</section>

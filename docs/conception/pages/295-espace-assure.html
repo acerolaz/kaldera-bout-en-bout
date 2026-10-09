@@ -1,0 +1,65 @@
+<section class="page" id="espace-assure">
+  <style>
+    #espace-assure .schema { position:relative; height:250px; }
+    #espace-assure .schema > div { position:absolute; font-size:10.5px; }
+    #espace-assure svg { position:absolute; left:0; top:0; overflow:visible; z-index:2; }
+    #espace-assure .tableau td, #espace-assure .tableau th { font-size:10.5px; padding:4px 7px; }
+  </style>
+  <div class="surtitre">Livrable 2 · Espace assuré (UI1)</div>
+  <h2 class="titre"><span class="num">2.8</span>🖥️ L'espace sinistre de l'assuré · ① architecture et confidentialité</h2>
+  <p class="chapo">L'assuré se connecte, dépose ses pièces, est relancé par un agent quand une pièce manque, soumet son dossier et lit un verdict
+    expliqué. Il ne voit <b>jamais</b> rien de l'anti-fraude, des replis, des traces ni des agents. Détails : <code>docs/interface_web.md</code>.</p>
+
+  <div class="schema">
+    <svg width="1032" height="250">
+      <defs><marker id="ea" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5c6672"/></marker>
+        <marker id="ev" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6f2dbd"/></marker></defs>
+      <line x1="150" y1="60" x2="186" y2="60" stroke="#5c6672" stroke-width="1.6" marker-end="url(#ea)"/>
+      <line x1="356" y1="60" x2="392" y2="60" stroke="#5c6672" stroke-width="1.6" marker-end="url(#ea)"/>
+      <text x="358" y="78" font-size="8.5" fill="#5c6672">JSON, SSE</text>
+      <line x1="616" y1="46" x2="652" y2="46" stroke="#5c6672" stroke-width="1.6" marker-end="url(#ea)"/>
+      <line x1="616" y1="88" x2="652" y2="150" stroke="#6f2dbd" stroke-width="1.6" marker-end="url(#ev)"/>
+      <text x="606" y="128" font-size="9.5" fill="#6f2dbd">SSE relit</text>
+      <line x1="506" y1="102" x2="506" y2="134" stroke="#6f2dbd" stroke-width="1.6" marker-end="url(#ev)"/>
+      <line x1="820" y1="200" x2="820" y2="186" stroke="#6f2dbd" stroke-width="1.6" marker-end="url(#ev)"/>
+      <line x1="890" y1="104" x2="890" y2="140" stroke="#5c6672" stroke-width="1.6" marker-end="url(#ea)"/>
+    </svg>
+    <div class="boite" style="left:0; top:24px; width:150px; height:72px"><b>🧑 Navigateur</b>cookie <code>kaldera_session</code><br>mobile d'abord · français</div>
+    <div class="boite ext" style="left:188px; top:24px; width:164px; height:72px"><b>🖥️ front/</b>React 19 · Vite · TypeScript · Tailwind · shadcn/ui</div>
+    <div class="boite orch" style="left:394px; top:10px; width:222px; height:92px"><b>🚪 /assure/* (api_assure.py)</b>routeur mince : session, dépôt, soumission, messages, flux
+      <span style="color:var(--or)">· DTO extra="forbid"</span></div>
+    <div class="boite llm" style="left:394px; top:136px; width:222px; height:76px; border-style:dashed"><b>💬 agent de relance</b>répond sur les pièces seulement ;
+      réponse vérifiée, sinon gabarit</div>
+    <div class="boite tool" style="left:654px; top:10px; width:200px; height:72px"><b>👁️ vue_assure.py</b>fonctions pures : état interne → étape, branche, pièces, verdict</div>
+    <div class="boite ext" style="left:654px; top:110px; width:200px; height:76px"><b>📣 evenements_assure</b>etape · piece · message · verdict, <b>déjà projetés</b></div>
+    <div class="boite orch" style="left:740px; top:200px; width:160px; height:46px"><b>⚙️ worker · reaper</b>gabarits, sans LLM</div>
+    <div class="boite ext" style="left:872px; top:10px; width:160px; height:94px"><b>🐘 PostgreSQL</b>utilisateurs · demandes_assure · demandes · pieces</div>
+    <div class="boite" style="left:872px; top:142px; width:160px; height:48px; background:#fff"><b>🔐 auth.py</b>argon2 · cookie signé</div>
+  </div>
+
+  <div class="grille-2" style="gap:14px; align-items:start">
+    <div class="carte">
+      <h3>🔒 Règles de confidentialité</h3>
+      <ul class="liste petit">
+        <li>Une escalade vers <code>cellule_fraude</code> donne une vue <b>identique</b> à une escalade vers <code>gestionnaire</code>.</li>
+        <li>Jamais exposés : mode dégradé, replis, traces, noms d'agents, avis anti-fraude, score, indicateurs, états internes.</li>
+        <li>Le navigateur reçoit le numéro d'étape et le nom de la branche, jamais l'état interne ; le motif brut de la fiche n'est jamais recopié.</li>
+        <li>Tout passe par <code>vue_assure.py</code> ou par <code>evenements_assure</code>, déjà projeté ; chaque DTO est <code>extra="forbid"</code>.</li>
+      </ul>
+    </div>
+    <div class="carte">
+      <h3>🛡️ Sécurité de la session</h3>
+      <ul class="liste petit">
+        <li>Cookie signé (itsdangerous), <code>httpOnly</code>, <code>SameSite=Strict</code>, <code>Secure</code> par défaut, 8 h.</li>
+        <li>argon2 ; 5 échecs ⇒ blocage 5 min ; 401 identique quelle que soit la cause, hachage factice pour un compte inconnu.</li>
+        <li>Sans <code>KALDERA_SESSION_SECRET</code> : 503. <code>Origin</code> ≠ <code>KALDERA_FRONT_ORIGIN</code> : 403. Demande d'un autre assuré : 404.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>Prouvé par les tests</h3><code>test_confidentialite_assure.py</code> rejoue les 28 scénarios avec 4 avis possibles du partenaire : aucun terme interdit dans la vue.</div>
+    <div class="note petit"><h3>Événements au mieux</h3>Une publication en échec est journalisée et ignorée : elle ne change jamais l'issue d'une demande ; un rechargement rattrape l'événement.</div>
+    <div class="note petit"><h3>Limite connue</h3>Jetons sans état : une déconnexion n'invalide pas un jeton déjà émis, valable jusqu'à son expiration (8 h). Pas encore de console d'administration.</div>
+  </div>
+</section>

@@ -1,0 +1,54 @@
+<section class="page" id="table-transitions">
+  <div class="surtitre">Livrable 2 · Table de transitions</div>
+  <h2 class="titre"><span class="num">2.2</span>📋 La table de transitions, seule source de vérité</h2>
+  <p class="chapo">Évaluée dans l'ordre : pour l'état courant, la <b>première garde vraie</b> gagne. Chaque ligne
+    est reliée à la règle de la spec qui la justifie. T0 est une garde d'entrée.</p>
+
+  <div class="colonnes" style="grid-template-columns: 1.6fr 1fr">
+    <table class="tableau">
+      <tr><th>#</th><th>État</th><th>Garde</th><th>Suivant</th><th>Origine</th></tr>
+      <tr><td class="fort">T0</td><td><code>eligibilite</code><br><span class="violet-texte">à l'entrée</span>, avant l'action</td>
+        <td><code>contrat.statut_extraction != "valide"</code></td><td><code>decision</code></td><td>2.4 quater · règle 0 · <b>P-Q8</b></td></tr>
+      <tr><td>T1</td><td><code>eligibilite</code></td><td>non éligible (E1–E5)</td><td><code>decision</code></td><td>§10 règle 1</td></tr>
+      <tr><td>T2</td><td><code>eligibilite</code></td><td>sinon</td><td><code>pieces</code></td><td>§2</td></tr>
+      <tr><td>T3</td><td><code>pieces</code></td><td>statut <code>complet</code></td><td><code>estimation</code></td><td>§2</td></tr>
+      <tr><td>T4</td><td><code>pieces</code></td><td><code>incomplet</code> et relances &lt; <code>relances_pieces_max</code></td><td><code>pieces</code></td><td>BCL-01</td></tr>
+      <tr><td>T5</td><td><code>pieces</code></td><td>sinon (manquantes ou borne atteinte)</td><td><code>decision</code></td><td>§10 règle 2</td></tr>
+      <tr><td>T6</td><td><code>estimation</code></td><td><code>estime == 0</code></td><td><code>decision</code></td><td>§10 règle 3</td></tr>
+      <tr><td>T7</td><td><code>estimation</code></td><td>sinon</td><td><code>antifraude</code></td><td>§2</td></tr>
+      <tr><td>T8</td><td><code>antifraude</code></td><td>toujours (avis, indisponible, non requis)</td><td><code>decision</code></td><td>§7 · §9</td></tr>
+      <tr><td>T9</td><td><code>decision</code></td><td><code>issue.decision == "acceptee"</code></td><td><code>acceptee</code></td><td>§10 règle 6</td></tr>
+      <tr><td>T10</td><td><code>decision</code></td><td><code>issue.decision == "refusee"</code></td><td><code>refusee</code></td><td>§10 règles 1, 3</td></tr>
+      <tr><td>T11</td><td><code>decision</code></td><td>sinon</td><td><code>escalade</code></td><td>règle 0 · §10 règles 2, 4, 5</td></tr>
+      <tr><td class="fort">TG</td><td><i>tout état sauf decision</i></td><td><b>garde globale</b> violée (une étape reste réservée à decision)</td><td><code>decision</code></td><td>EX-06 · escalade forcée</td></tr>
+    </table>
+
+    <div style="display:flex; flex-direction:column; gap:10px">
+      <div class="carte">
+        <h3>⚖️ Règles appliquées par decision</h3>
+        <p class="petit discret" style="margin-bottom:6px">Dans l'ordre ; la première qui s'applique fixe l'issue.</p>
+        <div class="boite llm" style="text-align:left; margin-bottom:6px"><span class="puce" style="background:var(--llm-bord);color:#fff">0</span>
+          <b style="display:inline">contrat non exploitable</b> (hors §10)<br>→ escalade gestionnaire · motif « contrat illisible ou incohérent »</div>
+        <div class="grille-2" style="gap:6px">
+          <div class="boite" style="text-align:left"><span class="puce">1</span> <b style="display:inline">non éligible</b><br>→ refus</div>
+          <div class="boite" style="text-align:left"><span class="puce">2</span> <b style="display:inline">pièces manquantes</b><br>→ gestionnaire</div>
+          <div class="boite" style="text-align:left"><span class="puce">3</span> <b style="display:inline">estimé nul</b><br>→ refus</div>
+          <div class="boite" style="text-align:left"><span class="puce">4</span> <b style="display:inline">avis modéré / élevé</b><br>→ escalade · ou §9</div>
+          <div class="boite" style="text-align:left"><span class="puce">5</span> <b style="display:inline">estimé &gt; 10 000 €</b><br>→ gestionnaire</div>
+          <div class="boite decision" style="text-align:left"><span class="puce">6</span> <b style="display:inline">sinon</b><br>→ acceptée</div>
+        </div>
+      </div>
+      <div class="carte">
+        <h3>📏 Quatre règles de lecture</h3>
+        <ul class="liste petit">
+          <li><b>Ordre</b> : la première garde vraie gagne, d'où <code>TOUJOURS</code> en dernière ligne de chaque état.</li>
+          <li><b>Complétude</b> : aucune garde vraie ⇒ <code>TransitionInconnue</code>, jamais un blocage silencieux.</li>
+          <li><b>Une seule boucle</b> : T4, gardée par <code>relances_pieces_max</code>.</li>
+          <li><b>Garde d'entrée</b> : T0 est évaluée avant l'action de l'état (liste <code>GARDES_ENTREE</code>, 2.2 bis).</li>
+        </ul>
+      </div>
+      <div class="note alerte petit">⚠️ <b>T0 et règle 0 vont ensemble</b> : sans règle 0, decision recevrait
+        <code>eligibilite = None</code> et la règle 1 ne saurait pas conclure. Cas absent du §10 ⇒ <b>question métier P-Q8</b>.</div>
+    </div>
+  </div>
+</section>

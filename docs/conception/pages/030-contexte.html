@@ -1,0 +1,55 @@
+<section class="page" id="contexte">
+  <div class="surtitre">Contexte</div>
+  <h2 class="titre"><span class="num">0</span>Le problème et les exigences</h2>
+  <p class="chapo">Kaldera traite des demandes de remboursement d'assurance habitation. L'agent généraliste actuel
+    mélange les rôles et reste bloqué quand le partenaire anti-fraude ne répond pas.</p>
+
+  <div class="grille-2" style="align-items:start; gap:14px">
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <table class="tableau">
+        <tr><th style="width:62px">ID</th><th>Exigence imposée (direction des opérations)</th></tr>
+        <tr><td>🏁 EX-01</td><td>Toute demande se termine par une <b>décision</b> ou une <b>escalade humaine motivée</b>, jamais un blocage silencieux.</td></tr>
+        <tr><td>🚧 EX-02</td><td>Chaque agent a un rôle et une frontière ; aucun n'empiète sur un autre.</td></tr>
+        <tr><td>🔐 EX-03</td><td>Seules les données prévues au contrat partent chez le partenaire.</td></tr>
+        <tr><td>🚫 EX-04</td><td>Une réponse non conforme est rejetée, jamais propagée.</td></tr>
+        <tr><td>🛟 EX-05</td><td>Partenaire indisponible → mode dégradé défini par le métier.</td></tr>
+        <tr><td>🔁 EX-06</td><td>Aucune boucle infinie ; métriques par agent ; ajustements consignés.</td></tr>
+      </table>
+      <div class="carte">
+        <h3>📎 Des pièces en fichiers</h3>
+        <ul class="liste petit">
+          <li>Factures et dépôts de plainte en <b>PDF</b>, photos en <b>PNG / JPEG</b>, parfois scannés ou flous</li>
+          <li>Le <b>contrat d'assurance en PDF</b> : ses termes signés (formule, franchise, plafond) font foi</li>
+          <li>Lus <b>une fois, au dépôt</b>, par un VLM utilisé comme outil (2.4 ter), hors des 10 s</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <div class="carte">
+        <h3>⚠️ Symptômes de l'existant</h3>
+        <ul class="liste">
+          <li>🤹 Un agent généraliste qui mélange éligibilité, estimation et fraude</li>
+          <li>🧱 Partenaire muet ⇒ demande bloquée, clients en attente depuis des semaines</li>
+          <li>📜 Contrat partenaire durci : format strict, données limitées, pas de retry sauvage</li>
+        </ul>
+      </div>
+      <div class="carte">
+        <h3>📏 Engagements de service (spec §12)</h3>
+        <ul class="liste">
+          <li>⏱️ Une issue en <b>10 s</b> maximum par demande</li>
+          <li>⚡ Une demande n'est jamais retardée par une autre</li>
+          <li>🧾 Fiche de décision §11 + <code>trace</code> + <code>arret</code> (interface.md)</li>
+        </ul>
+      </div>
+      <div class="carte" style="border:1.5px solid var(--ext-bord)">
+        <h3>🤝 Contrat partenaire v2.0 (sept. 2026)</h3>
+        <ul class="liste">
+          <li>Schéma de requête <b>strict</b> : 7 champs, aucun autre</li>
+          <li><b>Minimisation</b> : ni identité, ni coordonnées, ni IBAN</li>
+          <li><b>1 seul appel</b> par dossier, aucune relance ; réponse en 2 s, abandon à 3 s</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>

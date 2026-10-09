@@ -1,0 +1,32 @@
+<section class="page" id="glossaire-3">
+  <style>
+    #glossaire-3 .tableau { font-size: 11.2px; }
+    #glossaire-3 .tableau td:first-child { font-weight: 700; width: 21%; }
+    #glossaire-3 .tableau td { padding: 4.6px 9px; }
+  </style>
+  <div class="surtitre">Annexe</div>
+  <h2 class="titre"><span class="num">A</span>📖 Glossaire 3/5</h2>
+  <p class="chapo">Les termes liés aux agents LLM.</p>
+
+  <table class="tableau">
+    <tr><th>Terme</th><th>Définition</th></tr>
+    <tr><td>Agent LLM</td><td>Programme dont un LLM choisit les actions (appels d'outils) pour atteindre un but, dans des limites fixées par le code.</td></tr>
+    <tr><td>Azure AI Foundry · <code>ChatCompletionsClient</code></td><td>Seul fournisseur réel des modèles, appelé par le client <code>ChatCompletionsClient</code> du paquet <code>azure-ai-inference</code> ; <code>AZURE_AI_CHAT_ENDPOINT</code> et <code>AZURE_AI_CHAT_KEY</code> sont partagés par les agents et le VLM.</td></tr>
+    <tr><td>Boucle ReAct</td><td>Raisonner → agir (appeler un outil) → observer le résultat, jusqu'à une réponse finale ; ici ≤ <code>tours_max</code> tours (2 ou 3) et ≤ 4 appels d'outil.</td></tr>
+    <tr><td>Appel d'outil (tool calling)</td><td>Le LLM demande l'exécution d'une fonction décrite par un schéma ; le code l'exécute (ou la refuse).</td></tr>
+    <tr><td>Allowlist d'outils</td><td>Liste fermée des outils qu'un agent peut appeler ; tout autre appel lève <code>OutilRefuse</code> : repli tracé.</td></tr>
+    <tr><td>Sortie structurée</td><td>Réponse finale du LLM au format JSON, validée par le modèle Pydantic de la section (le patch).</td></tr>
+    <tr><td>Référence déterministe</td><td>Patch calculé sans LLM avant tout appel (<code>_reference</code>) : étalon des champs décisifs et repli ; pour antifraude, elle appelle le partenaire.</td></tr>
+    <tr><td>Garde-fou de sortie</td><td><code>verifier_sortie</code> : champs décisifs = référence, aucune donnée sensible, contrôle du texte (ex. plafond cité) ; violation ⇒ repli.</td></tr>
+    <tr><td>Repli déterministe</td><td>Chemin sans LLM : la référence elle-même ; pris si LLM non configuré, disjoncteur ouvert, budget insuffisant, erreur, sortie invalide, outil refusé, tours épuisés ou garde-fou violé (≈ fallback Polly).</td></tr>
+    <tr><td>Budget dégressif</td><td>Temps LLM accordé à un agent : min(délai agent, temps restant − réserves aval).</td></tr>
+    <tr><td>Profil de modèle</td><td>Famille de modèle choisie pour un rôle (multimodal pour le VLM : <code>vision=true</code>) ; le nom exact est une configuration (<code>KALDERA_&lt;AGENT&gt;__MODELE</code>).</td></tr>
+    <tr><td>Fabrique de LLM</td><td><code>fabrique_llm(cfg, nom)</code> : le <code>ClientLLM</code> Azure d'un agent depuis sa <code>ConfigLLM</code> (dans <code>ConfigAgents</code>) ; <code>None</code> ⇒ repli <code>llm_non_configure</code>.</td></tr>
+    <tr><td>ClientLLM (port)</td><td>Interface synchrone <code>completer(systeme, messages, outils, timeout_s)</code> ; implémentations <code>AzureLLM</code> et <code>FakeLLM</code> (≈ ILlmClient).</td></tr>
+    <tr><td>FakeLLM</td><td>Faux LLM scripté pour les tests : rejoue des appels d'outils ou simule 7 défauts (menteur, bavard, lent, cassé, intrus, fuite, injecté).</td></tr>
+    <tr><td>Injection de prompt</td><td>Texte non fiable qui tente de se faire passer pour une instruction ; neutralisé par balisage (<code>&lt;donnees_non_fiables&gt;</code>), outils gardés et garde-fou.</td></tr>
+    <tr><td>Prompt système versionné</td><td>Consigne de rôle et de frontière d'un agent, stockée comme du code (<code>prompts/&lt;agent&gt;.md</code>) ; son empreinte <code>version_prompt</code> est tracée.</td></tr>
+    <tr><td>Disjoncteur LLM</td><td>&gt; 50 % de replis parmi les tentatives LLM des 60 dernières s (10 au moins) ⇒ repli des 4 agents sans appel (<code>disjoncteur</code>) ; se referme seul.</td></tr>
+    <tr><td>Jeton (token)</td><td>Unité de texte comptée par le LLM ; la sortie d'un appel est bornée par <code>jetons_max</code> (<code>max_tokens</code>).</td></tr>
+  </table>
+</section>

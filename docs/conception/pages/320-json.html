@@ -1,0 +1,70 @@
+<section class="page" id="json">
+  <style>
+    #json pre.code { font-size:10px; line-height:1.42; }
+    #json .pastille-n { color:var(--or); font-weight:800; }
+    #json .entete { font-weight:750; font-size:12px; margin-bottom:5px; display:flex; gap:8px; align-items:center; }
+    #json .verbe { background:var(--ext-bord); color:#fff; border-radius:4px; padding:1px 7px; font-size:11px; }
+  </style>
+  <div class="surtitre">Livrable 3 · Contrat A2A v2.0</div>
+  <h2 class="titre"><span class="num">3.3</span>🧾 La requête et la réponse, en JSON</h2>
+  <p class="chapo">Exemples tirés du contrat v2.0 §2 et §3. Les pastilles renvoient aux contrôles faits par le client A2A
+    (<code>partenaire.valider_reponse</code>).</p>
+
+  <div class="grille-2" style="gap:16px; align-items:start">
+    <div>
+      <div class="entete"><span class="verbe">POST</span> URL de l'Agent Card · <code>message/send</code> · jeton Bearer</div>
+<pre class="code">{
+  "jsonrpc": "2.0",
+  "id": "c0a8012e-4f1b-4c55-9d1e-2b7e1f0e6a10",  <span class="pastille-n">◀ ①</span>
+  "method": "message/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "messageId": "8d3f2a64-1c0e-4e2b-a7b5-0f6c9e1d2a33",
+      "parts": [                                    <span class="pastille-n">◀ ②</span>
+        { "kind": "data",
+          "data": {
+            "reference_dossier": "KAL-26-0042",     <span class="pastille-n">◀ ③</span>
+            "type_sinistre": "degat_des_eaux",
+            "montant_declare": 1850.0,
+            "date_survenance": "2026-08-14",
+            "anciennete_contrat_jours": 942,        <span class="pastille-n">◀ ④</span>
+            "sinistres_12_mois": 0,
+            "departement": "69"                     <span class="pastille-n">◀ ④</span>
+          } } ] } } }</pre>
+      <ul class="liste petit" style="margin-top:8px">
+        <li><b>①</b> UUID unique par appel : la réponse doit porter le même <code>id</code> (couche ②).</li>
+        <li><b>②</b> Exactement une partie de type <code>data</code>.</li>
+        <li><b>③</b> 7 champs, tous obligatoires, aucun autre (<code>RequeteAntifraude</code>, <code>extra="forbid"</code>, <code>strict</code>).</li>
+        <li><b>④</b> Champs calculés par Kaldera : ancienneté = survenance − souscription ; département dérivé du code postal.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="entete"><span class="verbe" style="background:var(--ok-bord)">200</span> Réponse : tâche terminée + artefact <code>data</code></div>
+<pre class="code">{
+  "jsonrpc": "2.0",
+  "id": "c0a8012e-4f1b-4c55-9d1e-2b7e1f0e6a10",  <span class="pastille-n">◀ ①</span>
+  "result": {
+    "kind": "task",
+    "id": "tsk-5d0c1b9e",
+    "status": { "state": "completed" },            <span class="pastille-n">◀ ⑤</span>
+    "artifacts": [
+      { "artifactId": "art-5d0c1b9e",
+        "parts": [
+          { "kind": "data",
+            "data": {
+              "reference_dossier": "KAL-26-0042",
+              "score": 0.08,                        <span class="pastille-n">◀ ⑥</span>
+              "niveau": "faible",                   <span class="pastille-n">◀ ⑥</span>
+              "indicateurs": [],
+              "evaluation_id": "EVA-3f9a1c2b7d",    <span class="pastille-n">◀ ⑦</span>
+              "version_modele": "af-2.3.1"
+            } } ] } ] } }</pre>
+      <ul class="liste petit" style="margin-top:8px">
+        <li><b>⑤</b> <code>result.kind = task</code>, <code>status.state = completed</code>, un seul artefact, une seule partie <code>data</code>, sinon réponse écartée.</li>
+        <li><b>⑥</b> Cohérence : <code>faible</code> si score &lt; 0,40 · <code>modere</code> si &lt; 0,75 · <code>eleve</code> sinon ; score dans [0, 1] ; même <code>reference_dossier</code>.</li>
+        <li><b>⑦</b> <code>evaluation_id</code> et <code>version_modele</code> conservés pour l'audit ; 6 champs exactement (<code>ReponseAntifraude</code>).</li>
+      </ul>
+    </div>
+  </div>
+</section>

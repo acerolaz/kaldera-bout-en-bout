@@ -1,0 +1,84 @@
+<section class="page" id="bornes">
+  <style>
+    #bornes .tableau td, #bornes .tableau th { padding: 4px 7px; font-size: 10.5px; }
+    #bornes .tableau tr.inter td { background: #5f3dc4; color: #fff; font-weight: 700; padding: 5px 7px; }
+    #bornes pre.code { font-size: 9px; line-height: 1.4; padding: 8px 10px; }
+    #bornes ol { margin: 0; padding-left: 18px; } #bornes ol li { margin: 1px 0; }
+    #bornes .carte, #bornes .note { padding: 8px 11px; }
+  </style>
+
+  <div class="surtitre">Livrable 2 · Bornes</div>
+  <h2 class="titre"><span class="num">2.3</span>🛑 Bornes = gardes, terminaison prouvée</h2>
+  <p class="chapo">Les bornes sont fixées a priori, paramétrables (<code>Bornes</code>, <code>etat.py</code>), exposées par
+    <code>bornes()</code>, éprouvées par <code>make epreuve</code> ; elles sont des <b>gardes</b> de la machine. L'ingestion a
+    ses propres bornes, hors du budget de 10 s.</p>
+
+  <div class="colonnes" style="grid-template-columns: 1fr 1fr">
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <table class="tableau">
+        <tr><th>Borne</th><th>Valeur</th><th>Rôle dans la machine</th><th>Justification</th></tr>
+        <tr><td><code>etapes_max</code></td><td class="fort">12</td><td>garde globale TG : <code>etapes + 1 ≥ etapes_max</code></td><td>chemin le plus long : 6 étapes (avec relance) → marge ×2</td></tr>
+        <tr><td><code>duree_max_s</code></td><td class="fort">8</td><td>garde globale TG (≤ 10, validé)</td><td>10 s (§12) moins 2 s de marge</td></tr>
+        <tr><td><code>relances_pieces_max</code></td><td class="fort">1</td><td>garde de T4</td><td>un seul tour de dépôt ; BCL-01 attend un <code>arret</code></td></tr>
+        <tr><td><code>delai_partenaire_s</code></td><td class="fort">3</td><td>délai de l'appel A2A, rogné au temps restant</td><td>contrat §5 ; PAN-02 à 5 s ⇒ mode dégradé</td></tr>
+        <tr><td>1 appel / dossier</td><td class="fort">1</td><td>registre A2A, <code>reserver()</code> avant l'envoi</td><td>contrat §6 ; doublon = <code>-32029</code></td></tr>
+        <tr class="inter"><td colspan="4">📥 Bornes d'ingestion · appliquées au dépôt, <b>hors</b> des 10 s</td></tr>
+        <tr><td><code>delai_analyse_s</code></td><td class="fort">60</td><td>délai d'un appel VLM ⇒ <code>echec</code></td><td>hors engagement : l'analyse précède l'admission</td></tr>
+        <tr><td><code>taille_max_mo</code></td><td class="fort">10</td><td>413 au dépôt</td><td>borne <code>bytea</code> raisonnable</td></tr>
+        <tr><td>types</td><td class="fort">pdf · png · jpeg</td><td>415 au dépôt (contrat : pdf seul)</td><td>type lu sur les <b>octets</b>, pas sur le nom</td></tr>
+      </table>
+      <div class="carte">
+        <h3>🔁 Le piège à boucle BCL-01</h3>
+        <p class="petit">Facture illisible → nouveau dépôt → facture <b>toujours illisible</b>. Sans garde, T4 bouclerait. Avec garde :
+          <code>arret = {borne: "relances_pieces_max", …}</code>, T5 vers decision, escalade gestionnaire.</p>
+      </div>
+      <div class="note alerte petit">⚠️ <b>Vigilance</b> : T4 <b>relit</b> les dépôts de l'espace assuré (port
+        <code>DepotPieces</code>, outil <code>lire_depot</code>), elle n'<b>attend</b> pas un dépôt. Une vraie attente violerait les
+        10 s du §12 (pattern interrupt / resume, 2.1 bis).</div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <div class="carte">
+        <h3>🔒 Trois verrous de terminaison</h3>
+        <ol class="petit">
+          <li><b>Graphe fermé, prouvé statiquement</b> : tout état non terminal atteint un état terminal, <b>T0 compris</b>, sans
+            rejouer un seul scénario.</li>
+          <li><b>Escalade forcée</b> : garde globale ou échec d'un agent ⇒ transition forcée vers decision ; l'issue reste écrite
+            par son seul propriétaire (decision elle-même en échec ⇒ fiche de secours).</li>
+          <li><b>Filet de sécurité</b> si le système plante, <b>reaper</b> si le processus meurt (2.5).</li>
+        </ol>
+      </div>
+<pre class="code"><span class="k">def</span> test_tout_etat_non_terminal_atteint_un_terminal() -&gt; None:
+    <span class="k">for</span> etat <span class="k">in</span> set(Etat) - TERMINAUX:
+        <span class="k">assert</span> peut_atteindre(etat, TERMINAUX), etat
+
+<span class="k">def</span> test_la_seule_boucle_est_la_relance_des_pieces() -&gt; None:
+    boucles = {(depart, suivant) <span class="k">for</span> depart, _, suivant <span class="k">in</span> TRANSITIONS
+               <span class="k">if</span> depart == suivant}
+    <span class="k">assert</span> boucles == {(Etat.PIECES, Etat.PIECES)}
+
+<span class="k">def</span> test_etat_terminal_sans_transition_leve_une_erreur() -&gt; None:
+    <span class="k">with</span> pytest.raises(TransitionInconnue):
+        transition(Etat.ACCEPTEE, _etat(), BORNES)
+
+<span class="k">def</span> test_t0_mene_a_decision() -&gt; None:
+    <span class="k">assert</span> (Etat.ELIGIBILITE, Etat.DECISION) <span class="k">in</span> {(d, s) <span class="k">for</span> d, _, s <span class="k">in</span> GARDES_ENTREE}
+
+<span class="k">def</span> test_is_eligible_non_appele_si_contrat_non_valide() -&gt; None:
+    espion = Espion()
+    fiche = _orchestrateur(eligibilite=espion).traiter(_contrat("non_exploitable"))
+    <span class="k">assert</span> espion.appels == 0   <span class="c"># + escalade gestionnaire, trace T0 puis T11</span></pre>
+      <div class="carte">
+        <h3>💥 Erreurs observables · 🏁 états terminaux</h3>
+        <ul class="liste petit">
+          <li><code>ErreurEcriture</code> · <code>TransitionInconnue</code> (et <code>KeyError</code>, <code>ValueError</code>…) → étape
+            <code>echec</code>, <code>echecs + 1</code>, escalade forcée motivée.</li>
+          <li><code>Indisponible</code> (avis A2A non obtenu) → étape antifraude <code>echec</code>, <code>motif</code> = cause, mode dégradé §9.</li>
+          <li><code>ErreurLLM</code> · <code>OutilRefuse</code> · <code>ToursEpuises</code> → pas d'échec : repli, <code>mode=repli</code>, cause tracée.</li>
+        </ul>
+        <p class="petit" style="margin-top:4px"><b style="color:#2b8a3e">acceptee</b> · <b style="color:#c92a2a">refusee</b> ·
+          🧑‍💼 <b style="color:#d9480f">escalade</b> gestionnaire / 🚨 cellule_fraude</p>
+      </div>
+    </div>
+  </div>
+</section>
