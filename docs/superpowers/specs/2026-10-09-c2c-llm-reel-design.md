@@ -118,8 +118,8 @@ répétitions :
 |---|---|---|
 | `replis` | étapes `mode = repli` ÷ étapes | > 0,20 |
 | `sorties_rejetees` | étapes `sortie_rejetee` ÷ étapes | > 0,05 |
-| `latence_llm_p95_ms` | p95 (rang le plus proche) de `latence_llm_ms` par étape | > `delai_agent_s` × 1000 de l'agent |
-| `tours_moyen` | somme des `tours_llm` ÷ étapes | > 2,5 |
+| `latence_llm_p95_ms` | p95 (rang le plus proche) de `latence_llm_ms` sur les étapes qui ont tenté le LLM (hors `disjoncteur`, `budget`, `llm_non_configure`) ; une étape `erreur_llm` compte pour l'infini, écrit `null` dans le rapport | > `delai_agent_s` × 1000 de l'agent |
+| `tours_moyen` | somme des `tours_llm` ÷ étapes qui ont tenté le LLM | > 2,5 |
 | `jetons_par_demande` | somme des `jetons` ÷ demandes rejouées | — |
 | `causes` | compte des replis par cause | — |
 

@@ -15,6 +15,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 import kaldera
@@ -100,11 +101,13 @@ def case(fiches: list[dict[str, Any]], agent: str, delai_s: float) -> dict[str, 
         "tours_moyen": sum(e["tours_llm"] for e in tentees) / len(tentees) if tentees else None,
     }
     limites = {**SEUILS, "latence_llm_p95_ms": delai_s * 1000}
+    p95 = brut["latence_llm_p95_ms"]
     return {
         "etapes": n,
         "replis": round(brut["replis"], 4),
         "sorties_rejetees": round(brut["sorties_rejetees"], 4),
-        "latence_llm_p95_ms": brut["latence_llm_p95_ms"],
+        # infini (trop d'erreur_llm) ⇒ None : JSON valide, l'alerte de latence reste
+        "latence_llm_p95_ms": None if p95 == math.inf else p95,
         "tours_moyen": None if brut["tours_moyen"] is None else round(brut["tours_moyen"], 2),
         "jetons_par_demande": round(sum(e["jetons"] for e in etapes) / len(fiches), 1),
         "causes": dict(Counter(e["cause"] for e in etapes if e["mode"] == "repli")),
@@ -153,11 +156,17 @@ def recommandation(
     return choix
 
 
-def _config() -> ConfigAgents:
+def _config() -> tuple[ConfigAgents, str | None]:
+    """La config des agents, et la cause si le .env est malformé (rien n'est alors mesurable)."""
     try:
-        return charger_config()
-    except ValueError:  # .env malformé (ValidationError) : rien n'est mesurable
-        return ConfigAgents.model_construct()
+        return charger_config(), None
+    except ValueError as exc:  # ValidationError : nommer les champs, jamais leurs valeurs
+        champs = (
+            ", ".join(".".join(map(str, e["loc"])) for e in exc.errors())
+            if isinstance(exc, ValidationError)
+            else type(exc).__name__
+        )
+        return ConfigAgents.model_construct(), f".env malformé ({champs}) : corriger le .env"
 
 
 def _scenarios() -> list[dict[str, Any]]:
@@ -212,12 +221,16 @@ def evaluer(
     fabrique: Fabrique = fabrique_llm,
     repetitions: int = REPETITIONS,
 ) -> dict[str, Any]:
-    cfg = cfg if cfg is not None else _config()
+    erreur = None
+    if cfg is None:
+        cfg, erreur = _config()
     brut = brut_modeles if brut_modeles is not None else ConfigEval().modeles
     liste = modeles(cfg, brut)
+    entete = {"date": date.today().isoformat(), "modeles": liste, "repetitions": repetitions}
+    if erreur:
+        return {**entete, "mesure": False, "reussi": False, "cause": erreur}
     configs = {m: config_pour(cfg, m) for m in liste}
     clients = {m: {nom: fabrique(c, nom) for nom in AGENTS_LLM} for m, c in configs.items()}
-    entete = {"date": date.today().isoformat(), "modeles": liste, "repetitions": repetitions}
     if not any(llm for par_agent in clients.values() for llm in par_agent.values()):
         return {**entete, "mesure": False, "reussi": False, "cause": SANS_MODELE}
     scenarios = scenarios if scenarios is not None else _scenarios()

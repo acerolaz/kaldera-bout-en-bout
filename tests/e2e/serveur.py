@@ -39,6 +39,8 @@ def main() -> None:
     from kaldera.postgres import pool
     from kaldera.vlm import ConfigIngestion, FakeVLM
     from kaldera.worker import travailler
+    from kaldera.disjoncteur import Disjoncteur
+    from kaldera.etat import BORNES
     from tools.demo_assure import preparer
     from tools.seed import lire_manifeste, verites_fake
 
@@ -54,10 +56,12 @@ def main() -> None:
     vlm = FakeVLM(verites_fake(lire_manifeste()))
     config = ConfigIngestion(_env_file=None)
 
+    disjoncteur = Disjoncteur.depuis(BORNES)  # un pour toute la boucle, comme worker.main
+
     def boucle() -> None:
         while True:
             try:
-                occupe = travailler(ingestion, vlm, config)
+                occupe = travailler(ingestion, vlm, config, disjoncteur)
             except ErreurPersistance:
                 occupe = False
             if not occupe:

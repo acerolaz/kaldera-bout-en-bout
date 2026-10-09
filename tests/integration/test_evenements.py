@@ -15,6 +15,8 @@ from kaldera.ingestion_postgres import IngestionPostgres
 from kaldera.ports import ErreurPersistance
 from kaldera.vlm import ConfigIngestion, FakeVLM
 from kaldera.worker import travailler
+from kaldera.disjoncteur import Disjoncteur
+from kaldera.etat import BORNES
 from tools.seed import MANIFESTE, lire_manifeste, verites_fake
 
 pytestmark = pytest.mark.integration
@@ -32,7 +34,7 @@ def _deposer(ingestion: IngestionPostgres, octets: bytes, type_piece: str) -> No
 
 
 def _vider(ingestion: IngestionPostgres, vlm: FakeVLM) -> None:
-    while travailler(ingestion, vlm, CONFIG):
+    while travailler(ingestion, vlm, CONFIG, Disjoncteur.depuis(BORNES)):
         pass
 
 

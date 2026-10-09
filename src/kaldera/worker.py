@@ -43,7 +43,7 @@ def travailler(
     ingestion: IngestionPostgres,
     vlm: ClientVLM,
     config: ConfigIngestion,
-    disjoncteur: Disjoncteur | None = None,
+    disjoncteur: Disjoncteur,
 ) -> bool:
     """Un tour : reprise, une tâche, admissions. Vrai si une tâche a été traitée."""
     ingestion.reprendre_bloquees(2 * config.delai_analyse_s, ESSAIS_MAX)
@@ -146,7 +146,7 @@ def _contrat(
 
 
 def _admettre(
-    ingestion: IngestionPostgres, reference: str, disjoncteur: Disjoncteur | None = None
+    ingestion: IngestionPostgres, reference: str, disjoncteur: Disjoncteur
 ) -> None:
     demande = ingestion.admettre(reference)
     if demande is None:

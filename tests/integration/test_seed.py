@@ -12,6 +12,8 @@ from kaldera.api import app, config_ingestion, depot_ingestion
 from kaldera.ingestion_postgres import IngestionPostgres
 from kaldera.vlm import ConfigIngestion, FakeVLM
 from kaldera.worker import travailler
+from kaldera.disjoncteur import Disjoncteur
+from kaldera.etat import BORNES
 from tools.seed import EchecSeed, attendre, deposer, lire_manifeste, verites_fake
 
 pytestmark = pytest.mark.integration
@@ -38,7 +40,7 @@ def test_seed_puis_traitement(api: TestClient, base: Any) -> None:
     with pytest.raises(EchecSeed, match="délai"):
         attendre(api, references, attente_s=0, pause_s=0)  # rien n'est encore traité
     ingestion, vlm = IngestionPostgres(base), FakeVLM(verites_fake(manifeste))
-    while travailler(ingestion, vlm, CONFIG):
+    while travailler(ingestion, vlm, CONFIG, Disjoncteur.depuis(BORNES)):
         pass
     attendre(api, references, attente_s=0, pause_s=0)
 
