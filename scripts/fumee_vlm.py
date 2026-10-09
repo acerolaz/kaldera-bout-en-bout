@@ -24,7 +24,7 @@ def main() -> None:
     config = ConfigIngestion()
     vlm = fabrique_vlm(config)
     if vlm is None:
-        print("Aucun VLM : renseigner AZURE_AI_* et KALDERA_INGESTION__VLM__* (VISION=true)")
+        print("Aucun VLM : renseigner AZURE_AI_CHAT_* et KALDERA_INGESTION__VLM__* (VISION=true)")
         return
     for fichier, tache, schema in (
         ("contrat.pdf", "extraire_contrat", ExtractionContrat),
