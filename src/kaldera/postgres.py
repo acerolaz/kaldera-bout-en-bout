@@ -115,10 +115,10 @@ class DepotPostgres:
         self.connexions = connexions
 
     def initiales(self, demande: dict[str, Any]) -> list[PieceRef]:
-        return self._lire("relance IS NULL ORDER BY piece_id", demande)
+        return self._lire("relance IS NULL ORDER BY depose_le, piece_id", demande)
 
     def depots(self, demande: dict[str, Any]) -> list[PieceRef]:
-        return self._lire("relance IS NOT NULL ORDER BY relance, piece_id", demande)
+        return self._lire("relance IS NOT NULL ORDER BY relance, depose_le, piece_id", demande)
 
     def _lire(self, condition: str, demande: dict[str, Any]) -> list[PieceRef]:
         requete = (  # condition : littéral de cette classe, jamais une donnée

@@ -18,6 +18,8 @@ dependencies = [
     "python-multipart>=0.0.32",
     "pypdfium2>=5.14.0",
     "pillow>=12.3.0",
+    "argon2-cffi>=25.1.0",
+    "itsdangerous>=2.2.0",
 ]
 
 [dependency-groups]
