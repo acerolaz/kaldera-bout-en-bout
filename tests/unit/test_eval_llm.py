@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
-from kaldera.llm import ConfigAgents, ConfigLLM
+import pytest
+
+from kaldera.agents_llm import SPECS
+from kaldera.llm import ClientLLM, ConfigAgents, ConfigLLM, FakeLLM, ReponseLLM, fidele
 from tools import eval_llm
 
 
@@ -111,3 +116,85 @@ def test_recommandation_le_moins_de_replis_parmi_les_cases_vertes() -> None:
     }
     inv = {"A": {"taux": 1.0}, "B": {"taux": 1.0}, "C": {"taux": 1.0}, "D": {"taux": 0.9}}
     assert eval_llm.recommandation(mat, inv) == {"pieces": "B", "antifraude": None}
+
+
+def test_case_alerte_sur_la_valeur_brute_non_arrondie() -> None:
+    # tours_moyen brut = (101 * 3 + 99 * 2) / 200 = 2.505 > 2.5, mais round(.., 2) peut dire 2.5
+    etapes = [_etape("pieces", tours_llm=3)] * 101 + [_etape("pieces", tours_llm=2)] * 99
+    c = eval_llm.case([_fiche(*etapes)], "pieces", delai_s=1.2)
+    assert "tours_moyen" in c["alertes"]
+
+
+RACINE = Path(__file__).resolve().parents[2]
+SCENARIOS = {
+    s["id"]: s
+    for s in map(json.loads, (RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines())
+}
+
+
+def _fabrique(cfg: ConfigAgents, nom: str) -> ClientLLM | None:
+    """« sain » : rédige fidèlement ; « casse » : JSON invalide à chaque appel."""
+    if getattr(cfg, nom).modele == "casse":
+        return FakeLLM(lambda m, o: ReponseLLM(texte="{pas du json", jetons=5), modele="casse")
+    return fidele(SPECS[nom].champ, SPECS[nom].gabarit)
+
+
+def _evaluer(brut: str) -> dict[str, Any]:
+    return eval_llm.evaluer(
+        [SCENARIOS["NOM-01"], SCENARIOS["NOM-07"]],
+        cfg=ConfigAgents.model_construct(),
+        brut_modeles=brut,
+        fabrique=_fabrique,
+        repetitions=1,
+    )
+
+
+def test_evaluer_matrice_sain_et_casse(tmp_path: Path) -> None:
+    rapport = _evaluer("sain,casse")
+    assert rapport["mesure"] and rapport["modeles"] == ["sain", "casse"]
+    for agent in eval_llm.AGENTS_LLM:
+        assert rapport["matrice"][agent]["sain"]["alertes"] == []
+        assert "replis" in rapport["matrice"][agent]["casse"]["alertes"]
+        assert rapport["recommandation"][agent] == "sain"
+    # le repli rend la référence : l'invariance tient même avec un modèle cassé
+    assert rapport["invariance"]["sain"]["taux"] == rapport["invariance"]["casse"]["taux"] == 1.0
+    assert rapport["bornes"]["sain"]["ok"] and not rapport["reussi"]
+    chemin = eval_llm.ecrire_rapport(rapport, tmp_path)
+    texte = chemin.read_text("utf-8")
+    for titre in ("Matrice agent × modèle", "Modèle recommandé par rôle", "Invariance",
+                  "Bornes remesurées"):
+        assert f"## {titre}" in texte
+    assert json.loads(chemin.with_suffix(".json").read_text("utf-8"))["modeles"] == [
+        "sain", "casse"
+    ]
+
+
+def test_evaluer_tout_vert() -> None:
+    rapport = _evaluer("sain")
+    assert rapport["reussi"], rapport["matrice"]
+
+
+def test_sans_cles_non_mesure(tmp_path: Path) -> None:
+    rapport = eval_llm.evaluer(cfg=ConfigAgents.model_construct(), brut_modeles="Kimi-K2.6")
+    assert not rapport["mesure"] and "aucun modèle configuré" in rapport["cause"]
+    texte = eval_llm.ecrire_rapport(rapport, tmp_path).read_text("utf-8")
+    assert "non mesuré" in texte and "## Matrice" not in texte
+
+
+def test_config_malformee_non_mesure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def malformee() -> ConfigAgents:
+        raise ValueError("KALDERA_PIECES__DELAI_AGENT_S=abc")
+
+    monkeypatch.setattr(eval_llm, "charger_config", malformee)
+    rapport = eval_llm.evaluer(brut_modeles="")
+    assert not rapport["mesure"]
+
+
+def test_main_sort_en_2_sans_cles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(eval_llm, "charger_config", ConfigAgents.model_construct)
+    monkeypatch.setattr(eval_llm, "RAPPORTS", tmp_path)
+    monkeypatch.setenv("KALDERA_EVAL__MODELES", "")
+    with pytest.raises(SystemExit) as sortie:
+        eval_llm.main()
+    assert sortie.value.code == 2
+    assert list(tmp_path.glob("eval-*.md"))
