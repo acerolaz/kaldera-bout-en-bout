@@ -97,5 +97,7 @@ export const T = {
     vous: "Vous",
     agent: "Assistant",
     erreur: "Message non envoyé. Réessayez.",
+    trop: "Vous avez envoyé trop de messages pour ce dossier. Un gestionnaire pourra vous répondre.",
+    fermer: "Fermer",
   },
 } as const;
