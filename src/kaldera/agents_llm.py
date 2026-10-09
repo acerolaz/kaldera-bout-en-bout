@@ -210,7 +210,7 @@ SPECS: Mapping[str, SpecAgent] = MappingProxyType(
             _outils_antifraude,
             controle_antifraude,
             lambda b, e: AgentAntifraude(e or _sans_partenaire, b.delai_partenaire_s),
-            prives=("avis",),
+            prives=("avis", "cause"),
         ),
         "decision": SpecAgent(
             "issue",
