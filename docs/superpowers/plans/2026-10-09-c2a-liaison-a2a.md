@@ -410,15 +410,15 @@ def test_projection_exactement_les_7_champs() -> None:
 def test_aucune_donnee_interdite_dans_la_requete(scenario: str) -> None:
     for demande in SCENARIOS[scenario]["demandes"]:
         brut = json.dumps(partenaire.projeter(demande).model_dump(), ensure_ascii=False)
-        assure, contrat = demande["assure"], demande["contrat"]
+        assure = demande["assure"]
         interdites = [
-            *(assure[k] for k in ("nom", "prenom", "email", "telephone", "iban", "adresse")),
-            assure["code_postal"],
-            assure["id_client"],
-            contrat["numero"],
-            demande["sinistre"]["description"],
+            *(assure.get(k) for k in ("nom", "prenom", "email", "telephone", "iban", "adresse")),
+            assure.get("code_postal"),
+            assure.get("id_client"),
+            demande["contrat"].get("numero"),
+            demande["sinistre"].get("description"),
         ]
-        assert not [v for v in interdites if str(v) in brut]
+        assert not [v for v in interdites if v and str(v) in brut]
 
 
 @pytest.mark.parametrize(
@@ -705,7 +705,7 @@ Dans `tests/unit/test_agents.py`, ajouter `from kaldera.partenaire import Indisp
 
 ```python
 def test_cause_de_l_indisponibilite_recopiee() -> None:
-    partenaire = Partenaire(Indisponible("délai > 3 s"))  # type: ignore[arg-type]
+    partenaire = Partenaire(Indisponible("délai > 3 s"))
     avis = AgentAntifraude(partenaire, delai_s=3)(
         {"demande": _demande("PAN-01", 3), "estimation": {"justifie": 8800.0}}
     )["avis_fraude"]
@@ -1287,7 +1287,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `docs/journal_ajustements.md` (tableau principal ; section `## Restant (chantier 2)`)
-- Modify: `README.md:228-232` (`## Known issues`)
+- Modify: `README.md` (`## Known issues`, premier point)
 
 **Interfaces:**
 - Consumes: mesures des Tasks 5 et 6.

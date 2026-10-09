@@ -64,7 +64,8 @@ SSE (écarté par le dossier, 3.2).
 
 `url_appel(base)` lit `GET {base}/.well-known/agent.json` avec un délai de **1 s** et retourne le
 champ `url`. Seul un succès est mis en cache (dictionnaire de module, clé = URL de base). Carte
-illisible (connexion refusée, HTTP ≠ 200, JSON invalide, `url` absente ou non `http(s)`) ⇒
+illisible (connexion refusée, HTTP ≠ 200, JSON invalide, `url` absente ou d'une **autre origine** que la base — le jeton
+Bearer ne suit jamais un hôte annoncé par la carte) ⇒
 `f"{base}/a2a"`, non mis en cache : le prochain orchestrateur relira la carte.
 
 La lecture se fait à la construction de l'orchestrateur (`Orchestrateur.__init__`), donc une fois par
@@ -87,7 +88,7 @@ dans un autre conteneur (`http://partenaire:8100`) recevrait la bonne adresse.
 | `departement` | `assure.code_postal` dérivé | voir ci-dessous |
 
 Département : 2 premiers caractères ; Corse `20000`–`20199` ⇒ `2A`, `20200`–`20999` ⇒ `2B` ;
-outre-mer (`97…`, `98…`) ⇒ 3 premiers chiffres. Code postal absent ou mal formé ⇒ projection en échec.
+outre-mer (`97…`) ⇒ 3 premiers chiffres (motif du simulateur : `^(\d{2}|2A|2B|97\d)$`). Code postal absent ou mal formé ⇒ projection en échec.
 
 `projeter(demande) -> RequeteAntifraude` lève une erreur si une donnée manque ou viole une
 contrainte. **Projection en échec ⇒ rien n'est envoyé** et le registre n'est pas consommé.
@@ -101,7 +102,8 @@ Au niveau 1, la date de souscription est déjà celle du contrat PDF validé (le
 
 1. `projeter(demande)` : échec ⇒ `Indisponible("projection : <champ> invalide")` ;
 2. `registre.reserver(reference)` : `False` ⇒ `Indisponible("registre : dossier déjà soumis")` ;
-   `psycopg.Error` ⇒ `Indisponible("registre indisponible")` ;
+   `ErreurPersistance` (toute `psycopg.Error`, cf. `postgres._connexion`) ⇒
+   `Indisponible("registre indisponible")` ;
 3. envoi `POST` à l'URL d'appel, en-tête `Authorization: Bearer <PARTENAIRE_JETON>`, échéance globale
    `timeout` (le fil existant est conservé) ; aucune relance, quel que soit le résultat ;
 4. `valider_reponse(...)` (§3.4) ;
@@ -168,7 +170,7 @@ l'entrée fautive (`EVA-NC`, `rembourser_integralement`) : la cause est construi
   contient aucune valeur de la réponse fautive ;
 - registre (`httpx.post` remplacé par un compteur) : réservation avant l'envoi ; réservation refusée
   ⇒ 0 envoi ; `noter` appelé avec l'`evaluation_id` après un avis valide, pas après un rejet ;
-  `psycopg.Error` à la réservation ⇒ 0 envoi ;
+  `ErreurPersistance` à la réservation ⇒ 0 envoi ;
 - Agent Card (`httpx.get` remplacé) : carte lisible ⇒ son `url` ; carte en 503 ou illisible ⇒
   `/a2a`, non mise en cache ; second appel après succès ⇒ aucune requête.
 
