@@ -82,7 +82,9 @@ Configuration (`.env`) :
 - `KALDERA_<AGENT>__MODELE` (et `DELAI_AGENT_S`, `JETONS_MAX`, `TOURS_MAX`), pour
   `PIECES`, `ESTIMATION`, `ANTIFRAUDE` et `DECISION`. Sans ces lignes, chaque
   agent tourne en repli déterministe, tracé `llm_non_configure`.
-- `KALDERA_DATABASE_URL` : sans cette variable, aucune persistance n'est active.
+- `KALDERA_DATABASE_URL` : sans cette variable, aucune persistance n'est active. En local,
+  avec le PostgreSQL de Docker Compose : `postgresql://kaldera:kaldera@localhost:5433/kaldera_test`
+  (base partagée avec les tests d'intégration et `make front-e2e`, qui la vident).
 - `KALDERA_INGESTION__VLM__MODELE` et `KALDERA_INGESTION__VLM__VISION=true` :
   VLM d'ingestion. Sans eux, le worker refuse de démarrer.
 - `PARTENAIRE_URL`, `PARTENAIRE_JETON` : service anti-fraude.
@@ -111,6 +113,26 @@ make worker     # analyse les fichiers, admet et fait traiter les demandes
 make reaper     # escalade de secours des demandes bloquées
 ```
 
+Enregistrer une demande et son contrat en base, à la main, par l'API (`make api` et
+`make worker` lancés). Le corps de `POST /demandes` reprend le champ `json` d'une ligne
+`"role": "demande"` du manifeste :
+
+```bash
+REF=KAL-26-0101; PIECES=fixtures/pieces/$REF
+jq -c "select(.reference==\"$REF\" and .role==\"demande\") | .json" \
+  fixtures/pieces/manifeste.jsonl > demande.json
+curl -X POST localhost:8000/demandes -H 'Content-Type: application/json' -d @demande.json  # 201 ; 409 si déjà connue
+curl -F role=contrat -F fichier=@$PIECES/contrat.pdf localhost:8000/demandes/$REF/pieces  # 202
+curl -F role=initiale -F type=facture -F fichier=@$PIECES/initiale_01_facture.pdf \
+  localhost:8000/demandes/$REF/pieces                                     # type : facture, photo, depot_plainte
+curl -X POST localhost:8000/demandes/$REF/soumettre                       # 202 : part au worker
+curl localhost:8000/demandes/$REF                                         # statut, puis fiche de décision
+```
+
+Le contrat est lu par le VLM, puis contrôlé par les 3 verrous (① schéma et numéro, ② barème, ③ couche texte du PDF).
+Un contrat illisible ou incohérent part en escalade (règle 0). Codes de refus du dépôt :
+404 (demande inconnue), 409 (déjà soumise), 413 (taille), 415 (format), 422 (champ manquant).
+
 Épreuve de l'ingestion (sur une base vide) :
 
 ```bash
@@ -127,16 +149,44 @@ Espace sinistre de l'assuré (`KALDERA_DATABASE_URL`, `KALDERA_SESSION_SECRET` e
 ```bash
 make up
 docker compose --profile integration up -d --wait postgres
-make demo-assure   # demande KAL-26-0101 et compte « claire »
+make demo-assure   # demande KAL-26-0101, son contrat et le compte « claire »
 make api
 make worker
 make front         # http://localhost:5173
 ```
 
+Connexion : `claire` / `kaldera-demo`. Ce mot de passe peut être changé par
+`KALDERA_DEMO_MOT_DE_PASSE`, et ne sert jamais pour un vrai compte. `make demo-assure` et
+`make seed` créent tous deux `KAL-26-0101` : on n'en lance qu'un par base (sinon « base déjà
+préparée » ou « base déjà semée »).
+
 Tests de fumée manuels, avec les vrais modèles (hors CI) :
 `uv run python scripts/fumee_llm.py` et `make fumee-vlm`.
 
 Les cibles `make` chargent `.env`. Hors `make` : `set -a; . ./.env; set +a`.
+
+## Administration
+
+Il n'y a pas encore de console d'administration (specs 2 et 3, maquette dans
+`design-system/kaldera/pages/console-admin.md`), ni de commande pour créer un compte assuré
+en dehors de la démo. L'exploitation se fait avec ces commandes :
+
+```bash
+# Partenaire anti-fraude simulé
+make ctl ARGS=etat                                  # mode courant, nombre d'appels reçus
+make ctl ARGS=normal                                # réponses conformes
+make ctl ARGS=panne                                 # HTTP 503 (mode dégradé)
+make ctl ARGS="lent --delai 6"                      # réponses tardives (délai en secondes)
+make ctl ARGS="invalide --variante rotation"        # réponses non conformes au contrat
+make ctl ARGS="journal --brut"                      # appels reçus, en JSON complet
+make ctl ARGS=reset                                 # vide le journal, oublie les dossiers évalués
+
+# Demandes et base
+make reaper                                         # escalade les demandes bloquées
+curl localhost:8000/demandes/KAL-26-0101            # statut et fiche d'une demande
+docker compose --profile integration exec postgres psql -U kaldera kaldera_test  # inspecter la base
+docker compose --profile integration down -v        # vider la base (et tout arrêter)
+```
 
 ## Layout
 
