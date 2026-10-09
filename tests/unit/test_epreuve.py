@@ -7,7 +7,14 @@ import json
 from pathlib import Path
 from typing import Any
 
+import httpx
+import pytest
+
+from kaldera import postgres
 from kaldera.etat import Bornes
+from kaldera.memoire import SnapshotsEnMemoire
+from kaldera.postgres import registre_par_defaut as REGISTRE_PAR_DEFAUT
+from kaldera.postgres import snapshots_par_defaut as SNAPSHOTS_PAR_DEFAUT
 from tools import epreuve
 
 RACINE = Path(__file__).resolve().parents[2]
@@ -216,3 +223,36 @@ def test_ecrire_rapport(tmp_path: Path) -> None:
     assert chemin.name == "epreuve-2026-10-09.md"
     assert "en échec" in texte and "T2" in texte and "ING-01" in texte and "EX-02" in texte
     assert json.loads(chemin.with_suffix(".json").read_text("utf-8"))["reussi"] is False
+
+
+def test_epreuve_rejouable_deux_fois_meme_avec_une_base(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review Focus 1 : `make` exporte le .env ; sans registre en mémoire, le 2ᵉ passage (ou une
+    base injoignable) donnerait « registre … » au lieu de l'avis du partenaire."""
+    monkeypatch.setenv("KALDERA_DATABASE_URL", "postgresql://x:x@127.0.0.1:1/x")
+    monkeypatch.setattr(postgres, "registre_par_defaut", REGISTRE_PAR_DEFAUT)  # le vrai
+    monkeypatch.setattr(postgres, "snapshots_par_defaut", SNAPSHOTS_PAR_DEFAUT)
+    scenario = copy.deepcopy(SCENARIOS["AF-01"])
+    with epreuve.partenaire_simule() as url:
+        for _ in range(2):
+            rejeu = epreuve.rejouer(url, scenario)
+            assert all(f["avis_fraude"] is not None for f in rejeu["fiches"]), rejeu["fiches"]
+    assert isinstance(epreuve.orchestrateur(url).snapshots, SnapshotsEnMemoire)
+
+
+def test_simulateur_arrete_meme_si_le_rejeu_leve() -> None:
+    """Review Focus 2."""
+    with pytest.raises(RuntimeError), epreuve.partenaire_simule() as url:
+        assert httpx.get(f"{url}/_sim/etat", timeout=2).status_code == 200
+        raise RuntimeError("rejeu interrompu")
+    with pytest.raises(httpx.HTTPError):
+        httpx.get(f"{url}/_sim/etat", timeout=1)
+
+
+def test_epreuve_complete_reussie(tmp_path: Path) -> None:
+    """Fumée : les 28 scénarios rejoués contre le simulateur en processus (≈ 10 s)."""
+    rapport = epreuve.evaluer()
+    echecs = {k: e for k, e in rapport["verdicts"].items() if e}
+    assert rapport["reussi"], (echecs, [s for s in rapport["seuils"] if not s["ok"]])
+    assert len(rapport["scenarios"]) == 28
+    assert rapport["couverture"]["manquantes"] == []
+    assert epreuve.ecrire_rapport(rapport, tmp_path).exists()

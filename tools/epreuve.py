@@ -7,12 +7,26 @@ Usage : uv run python -m tools.epreuve (ou make epreuve)
 from __future__ import annotations
 
 import json
+import os
+import socket
+import threading
+import time
 from collections import Counter
+from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from datetime import date
 from pathlib import Path
 from typing import Any
 
-from kaldera.etat import PROPRIETAIRES, Bornes
+import httpx
+import uvicorn
+
+import kaldera
+from kaldera.etat import BORNES, PROPRIETAIRES, Bornes
 from kaldera.machine import TRANSITIONS
+from kaldera.memoire import RegistreA2AEnMemoire, SnapshotsEnMemoire
+from kaldera.orchestrateur import Orchestrateur
 
 RAPPORTS = Path(__file__).resolve().parents[1] / "eval/rapports"
 CHAMPS_CONTRAT = frozenset(
@@ -27,6 +41,8 @@ CHAMPS_CONTRAT = frozenset(
     }
 )
 HORS_SCENARIOS = {"T0": "ING-01 / ING-02 (make eval-ingestion)"}  # garde d'entrée : niveau 1
+SCENARIOS = Path(__file__).resolve().parents[1] / "eval/scenarios.jsonl"
+JETON_RECETTE = "jeton-recette"
 
 
 def valeurs_personnelles(demande: dict[str, Any]) -> list[str]:
@@ -286,3 +302,94 @@ def ecrire_rapport(rapport: dict[str, Any], dossier: Path = RAPPORTS) -> Path:
     ]
     chemin.write_text("\n".join(lignes) + "\n", "utf-8")
     return chemin
+
+
+@contextmanager
+def partenaire_simule() -> Iterator[str]:
+    """Partenaire simulé (``external_agent``) dans le processus, sur un port libre."""
+    os.environ.setdefault("PARTENAIRE_JETON", JETON_RECETTE)  # même jeton côté client et simulateur
+    from external_agent.app import app
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", ws="none")
+    serveur = uvicorn.Server(config)
+    fil = threading.Thread(target=serveur.run, daemon=True)
+    fil.start()
+    limite = time.monotonic() + 10
+    while not serveur.started:
+        if time.monotonic() > limite or not fil.is_alive():
+            serveur.should_exit = True
+            raise RuntimeError("le partenaire simulé n'a pas démarré")
+        time.sleep(0.05)
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        serveur.should_exit = True
+        fil.join(5)
+
+
+def orchestrateur(url: str) -> Orchestrateur:
+    """Snapshots et registre en mémoire : une épreuve ne dépend d'aucune base et se rejoue."""
+    return Orchestrateur(url, snapshots=SnapshotsEnMemoire(), registre=RegistreA2AEnMemoire())
+
+
+def rejouer(url: str, scenario: dict[str, Any]) -> dict[str, Any]:
+    with httpx.Client(base_url=url, timeout=5) as sim:
+        sim.post("/_sim/reset").raise_for_status()
+        sim.post("/_sim/mode", json=scenario["partenaire"]).raise_for_status()
+        orch = orchestrateur(url)
+        # en parallèle, comme traiter_lot (§12)
+        with ThreadPoolExecutor() as pool:
+            fiches = list(pool.map(orch.traiter, scenario["demandes"]))
+        journal = sim.get("/_sim/journal").json()
+    return {"scenario": scenario, "fiches": fiches, "journal": journal}
+
+
+def evaluer(scenarios: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    if scenarios is None:
+        lignes = SCENARIOS.read_text("utf-8").splitlines()
+        scenarios = [json.loads(ligne) for ligne in lignes if ligne.strip()]
+    debut = time.monotonic()
+    with partenaire_simule() as url:
+        rejeux = [rejouer(url, s) for s in scenarios]
+    fiches = [f for r in rejeux for f in r["fiches"]]
+    equipe = kaldera.metriques_equipe(fiches)
+    v = verdicts(rejeux, BORNES)
+    couv = couverture(rejeux)
+    s = seuils(rejeux, equipe, BORNES)
+    par_scenario = []
+    for r in rejeux:
+        ecarts = verdicts([r], BORNES)
+        tous = [e for liste in ecarts.values() for e in liste]
+        par_scenario.append({"id": r["scenario"]["id"], "ok": not tous, "ecarts": tous})
+    modeles = sorted(
+        {e.get("modele") or "aucun" for f in fiches for e in f["trace"] if "mode" in e}
+    )
+    reussi = all(not e for e in v.values()) and not couv["manquantes"]
+    return {
+        "date": date.today().isoformat(),
+        "reussi": reussi and all(x["ok"] for x in s),
+        "modeles": modeles,
+        "duree_s": round(time.monotonic() - debut, 1),
+        "seuils": s,
+        "verdicts": v,
+        "couverture": couv,
+        "scenarios": par_scenario,
+        "metriques": kaldera.metriques_par_agent(fiches),
+        "equipe": equipe,
+        "bornes": bornes_observees(rejeux, equipe, BORNES),
+    }
+
+
+def main() -> None:
+    rapport = evaluer()
+    chemin = ecrire_rapport(rapport)
+    print(chemin.read_text("utf-8"))
+    if not rapport["reussi"]:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()
