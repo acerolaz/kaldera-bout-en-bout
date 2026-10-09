@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve eval fumee-vlm demo-assure front front-test front-e2e
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve eval fumee-vlm demo-assure front front-test front-e2e recette recette-reset
 
 install:
 	uv sync
@@ -82,3 +82,11 @@ front-test:
 front-e2e:
 	docker compose --profile integration up -d --wait postgres
 	cd front && npx playwright install chromium && TEST_DATABASE_URL=$(TEST_DATABASE_URL) npx playwright test
+
+# Recette (docs/recette/cahier-recette.pdf) : repart d'une base vide, puis make api, make worker, make front
+recette: recette-reset
+	docker compose --profile integration up -d --build --wait
+	uv run python -m tools.demo_assure
+
+recette-reset:
+	docker compose --profile integration down -v
