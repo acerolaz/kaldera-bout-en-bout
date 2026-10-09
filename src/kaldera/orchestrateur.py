@@ -49,7 +49,9 @@ def client_partenaire(partenaire_url: str | None, registre: RegistreA2A | None) 
     appel = partenaire.url_appel(partenaire.url_partenaire(partenaire_url))
     reserve: RegistreA2A = registre or postgres.registre_par_defaut() or RegistreA2AEnMemoire()
 
-    def evaluer(demande: dict[str, Any], timeout: float) -> dict[str, Any] | partenaire.Indisponible:
+    def evaluer(
+        demande: dict[str, Any], timeout: float
+    ) -> dict[str, Any] | partenaire.Indisponible:
         return partenaire.evaluer_risque(demande, appel, registre=reserve, timeout=timeout)
 
     return evaluer

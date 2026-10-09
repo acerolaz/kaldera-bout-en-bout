@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from kaldera.postgres import registre_par_defaut, snapshots_par_defaut  # avant le patch autouse du conftest
+# avant le patch autouse du conftest
+from kaldera.postgres import registre_par_defaut, snapshots_par_defaut
 
 
 def test_sans_url_aucune_persistance() -> None:

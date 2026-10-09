@@ -225,7 +225,11 @@ def test_historique_absent_zero_sinistre() -> None:
         (("assure", "code_postal"), None, "projection : donnée invalide"),
         (("sinistre", "montant_declare"), 0, "projection : montant_declare invalide"),
         (("sinistre", "type"), "tempete", "projection : type_sinistre invalide"),
-        (("contrat", "date_souscription"), "2027-01-01", "projection : anciennete_contrat_jours invalide"),
+        (
+            ("contrat", "date_souscription"),
+            "2027-01-01",
+            "projection : anciennete_contrat_jours invalide",
+        ),
     ],
 )
 def test_projection_en_echec_cause_sans_valeur(
