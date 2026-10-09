@@ -40,7 +40,7 @@ def m(commande):
 
 def tableau(entetes, lignes, largeurs):
     donnees = [[p(e, ENT) for e in entetes]] + [[p(c) for c in ligne] for ligne in lignes]
-    t = Table(donnees, colWidths=[l * cm for l in largeurs], repeatRows=1)
+    t = Table(donnees, colWidths=[largeur * cm for largeur in largeurs], repeatRows=1)
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), BLEU),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#9aa8b8")),
@@ -133,7 +133,8 @@ UI = [
 ADMIN = [
     ("Après le parcours", [
         ("A-01", f"{m('make ctl ARGS=journal')}",
-         "Un seul appel au partenaire, pour KAL-26-0101, HTTP 200, conforme."),
+         "Journal vide : KAL-26-0101 ne lève aucun indicateur F1–F4, le partenaire "
+         "n'est pas appelé."),
         ("A-02", f"{m('make reaper')}, observer 20 s puis Ctrl+C.",
          "Aucune ligne « escaladée par le reaper » : aucune demande bloquée."),
         ("A-03", f"{m('make scenarios')}",
@@ -184,7 +185,9 @@ def construire():
         Paragraph("1. Setup de recette (administrateur)", H1),
         Paragraph("<b>Prérequis, une seule fois</b> (Docker, uv et Node.js installés), dans "
                   "<i>kaldera-bout-en-bout</i> :", TXT),
-        Paragraph("make install<br/>cp .env.example .env<br/>cd front &amp;&amp; npm install", CODE),
+        Paragraph(
+            "make install<br/>cp .env.example .env<br/>cd front &amp;&amp; npm install", CODE
+        ),
         Paragraph("Variables à renseigner dans <i>.env</i> :", TXT),
         tableau(["Variable", "Valeur pour la démo"], [
             ["KALDERA_DATABASE_URL", "postgresql://kaldera:kaldera@localhost:5433/kaldera_test"],

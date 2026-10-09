@@ -16,7 +16,16 @@ from kaldera.agents_llm import IDENTITE, SPECS, AgentLLM, creer_agent
 from kaldera.etat import Bornes, EtatDemande
 from kaldera.machine import Etat
 from kaldera.orchestrateur import vue_filtree
-from kaldera.llm import SABOTEURS, AppelOutil, ConfigLLM, ErreurLLM, FakeLLM, ReponseLLM, fidele, saboteur
+from kaldera.llm import (
+    SABOTEURS,
+    AppelOutil,
+    ConfigLLM,
+    ErreurLLM,
+    FakeLLM,
+    ReponseLLM,
+    fidele,
+    saboteur,
+)
 
 RACINE = Path(__file__).resolve().parents[2]
 SCENARIOS = {

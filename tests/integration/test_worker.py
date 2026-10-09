@@ -17,6 +17,8 @@ from kaldera.ingestion_postgres import IngestionPostgres
 from kaldera.orchestrateur import Orchestrateur
 from kaldera.vlm import ConfigIngestion, FakeVLM
 from kaldera.worker import travailler
+from kaldera.disjoncteur import Disjoncteur
+from kaldera.etat import BORNES
 from tests.fabrique_pdf import PNG, pdf_texte
 from tests.integration.dossiers import json_demande
 
@@ -103,7 +105,7 @@ def deposer_dossier(
 
 
 def vider(ingestion: IngestionPostgres, vlm: FakeVLM) -> None:
-    while travailler(ingestion, vlm, CONFIG):
+    while travailler(ingestion, vlm, CONFIG, Disjoncteur.depuis(BORNES)):
         pass
 
 
@@ -204,7 +206,7 @@ def test_soumission_avant_la_fin_des_analyses(
 ) -> None:
     demande = SCENARIOS["NOM-01"]["demandes"][0]
     vlm = FakeVLM(deposer_dossier(client, demande))
-    assert travailler(ingestion, vlm, CONFIG) is True  # 1 tâche sur 3
+    assert travailler(ingestion, vlm, CONFIG, Disjoncteur.depuis(BORNES)) is True  # 1 tâche sur 3
     assert client.get(f"/demandes/{demande['reference']}").json()["statut"] == "admission"
     vider(ingestion, vlm)
     assert _fiche(client, demande["reference"])["decision"] == "acceptee"
@@ -290,7 +292,7 @@ def test_fichier_qui_fait_planter_le_worker_finit_en_echec(
         m.setattr(worker, "texte_pdf", plante)
         for _ in range(worker.ESSAIS_MAX):
             with pytest.raises(AttributeError):
-                travailler(ingestion, vlm, CONFIG)
+                travailler(ingestion, vlm, CONFIG, Disjoncteur.depuis(BORNES))
             with ingestion.connexions.connection() as conn:  # le worker suivant la reprend
                 conn.execute(
                     "UPDATE file_ingestion SET pris_le = now() - interval '1 hour' "

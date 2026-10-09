@@ -13,6 +13,8 @@ from kaldera.api import app, config_ingestion, depot_ingestion
 from kaldera.ingestion_postgres import IngestionPostgres
 from kaldera.vlm import ConfigIngestion, FakeVLM
 from kaldera.worker import travailler
+from kaldera.disjoncteur import Disjoncteur
+from kaldera.etat import BORNES
 from tools.eval_ingestion import ecrire_rapport, evaluer
 from tools.seed import attendre, deposer, lire_manifeste, verites_fake
 
@@ -33,7 +35,7 @@ def test_chaine_complete_fakevlm(api: TestClient, base: Any, tmp_path: Path) -> 
     manifeste = lire_manifeste()
     references = deposer(api, manifeste)
     ingestion, vlm = IngestionPostgres(base), FakeVLM(verites_fake(manifeste))
-    while travailler(ingestion, vlm, CONFIG):
+    while travailler(ingestion, vlm, CONFIG, Disjoncteur.depuis(BORNES)):
         pass
     attendre(api, references, attente_s=0, pause_s=0)
     rapport = evaluer(base, manifeste)
@@ -57,7 +59,8 @@ def test_epreuve_sur_base_vide(base: Any) -> None:
 def test_numero_mesure_par_le_verrou_1(api: TestClient, base: Any) -> None:
     manifeste = [x for x in lire_manifeste() if x["reference"] == "KAL-26-0101"]
     deposer(api, manifeste)
-    while travailler(IngestionPostgres(base), FakeVLM(verites_fake(manifeste)), CONFIG):
+    ingestion, vlm = IngestionPostgres(base), FakeVLM(verites_fake(manifeste))
+    while travailler(ingestion, vlm, CONFIG, Disjoncteur.depuis(BORNES)):
         pass
     with base.connection() as conn:  # le VLM a lu un autre numéro que celui de la demande
         conn.execute("UPDATE contrats SET violations = '{\"① numéro ≠ demande\"}'")

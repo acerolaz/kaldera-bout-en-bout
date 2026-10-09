@@ -1,7 +1,8 @@
 """Port LLM des agents métier (dossier 1.4 → 1.4 ter).
 
 Les agents ne connaissent que ``ClientLLM`` ; le SDK Azure (azure-ai-inference) n'apparaît que
-dans l'adaptateur. ``FakeLLM`` rejoue un script : il sert aux tests (niveaux ① et ② du plan d'épreuve).
+dans l'adaptateur. ``FakeLLM`` rejoue un script : il sert aux tests (niveaux ① et ② du plan
+d'épreuve).
 """
 
 from __future__ import annotations

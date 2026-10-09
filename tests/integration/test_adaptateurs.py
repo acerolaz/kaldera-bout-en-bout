@@ -35,11 +35,13 @@ def _pieces(conn: Any) -> None:
     ]
     for sha, relance, type_, statut, lisible, montant in lignes:
         conn.execute(
-            "INSERT INTO blobs (sha256, contenu, mime, taille) VALUES (%s, 'x', 'application/pdf', 1)",
+            "INSERT INTO blobs (sha256, contenu, mime, taille) "
+            "VALUES (%s, 'x', 'application/pdf', 1)",
             (sha,),
         )
         conn.execute(
-            "INSERT INTO pieces (reference, sha256, relance, type, statut_analyse, lisible, montant) "
+            "INSERT INTO pieces "
+            "(reference, sha256, relance, type, statut_analyse, lisible, montant) "
             "VALUES ('KAL-26-9001', %s, %s, %s, %s, %s, %s)",
             (sha, relance, type_, statut, lisible, montant),
         )

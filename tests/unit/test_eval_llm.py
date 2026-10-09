@@ -192,11 +192,14 @@ def test_sans_cles_non_mesure(tmp_path: Path) -> None:
 
 def test_config_malformee_non_mesure(monkeypatch: pytest.MonkeyPatch) -> None:
     def malformee() -> ConfigAgents:
-        raise ValueError("KALDERA_PIECES__DELAI_AGENT_S=abc")
+        ConfigLLM.model_validate({"modele": "m", "delai_agent_s": "secret-abc"})
+        raise AssertionError("ValidationError attendue")
 
     monkeypatch.setattr(eval_llm, "charger_config", malformee)
-    rapport = eval_llm.evaluer(brut_modeles="")
+    rapport = eval_llm.evaluer(brut_modeles="Kimi-K2.6")
     assert not rapport["mesure"]
+    assert rapport["cause"].startswith(".env malformé (delai_agent_s)")
+    assert "secret-abc" not in rapport["cause"]  # le champ est nommé, sa valeur jamais
 
 
 def test_main_sort_en_2_sans_cles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -224,6 +227,12 @@ def _erreurs(n_erreur: int, total: int = 100) -> list[dict[str, Any]]:
 def test_case_alerte_latence_quand_plus_de_5_pct_sans_reponse() -> None:
     c = eval_llm.case([_fiche(*_erreurs(15))], "pieces", delai_s=1.2)
     assert c["alertes"] == ["latence_llm_p95_ms"]  # 15 % de replis : sous le seuil des replis
+
+
+def test_latence_infinie_ecrite_null_dans_le_json() -> None:
+    c = eval_llm.case([_fiche(*_erreurs(15))], "pieces", delai_s=1.2)
+    assert c["latence_llm_p95_ms"] is None and c["alertes"] == ["latence_llm_p95_ms"]
+    json.loads(json.dumps(c, allow_nan=False))  # pas d'Infinity : JSON strict
 
 
 def test_case_pas_d_alerte_latence_sous_5_pct_sans_reponse() -> None:
