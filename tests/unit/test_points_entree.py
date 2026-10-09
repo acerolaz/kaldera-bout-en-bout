@@ -60,7 +60,7 @@ def test_metriques_llm_par_agent() -> None:
 def test_lot_traite_les_demandes_en_parallele(monkeypatch: pytest.MonkeyPatch) -> None:
     def lente(self: Orchestrateur, demande: dict[str, Any]) -> dict[str, Any]:
         time.sleep(0.2)
-        return {"reference": demande["reference"], "trace": []}
+        return {"reference": demande["reference"], "issue": "decision", "trace": []}
 
     monkeypatch.setattr(Orchestrateur, "traiter", lente)
     demandes = [{"reference": f"KAL-26-{i:04d}"} for i in range(8)]
@@ -88,7 +88,9 @@ def test_une_demande_qui_plante_n_arrete_pas_le_lot(monkeypatch: pytest.MonkeyPa
 
 
 def test_lot_vide() -> None:
-    assert kaldera.traiter_lot([]) == {"fiches": [], "metriques": {}}
+    resultat = kaldera.traiter_lot([])
+    assert resultat["fiches"] == [] and resultat["metriques"] == {}
+    assert resultat["equipe"]["demandes"] == 0
 
 
 @pytest.mark.parametrize("malformee", [None, "KAL-26-0101", {1: "clé non textuelle"}])
