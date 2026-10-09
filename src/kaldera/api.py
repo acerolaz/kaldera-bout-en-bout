@@ -5,6 +5,9 @@ Routes ``def`` synchrones : FastAPI les exécute dans son pool de threads (psyco
 
 from __future__ import annotations
 
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -13,13 +16,26 @@ from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, Up
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from .api_assure import router as routeur_assure
+from .auth import ConfigAssure
 from .ingestion import FichierRefuse, controler_fichier
 from .ingestion_postgres import IngestionPostgres
 from .ports import ErreurPersistance
 from .postgres import ConfigBase, pool
 from .vlm import ConfigIngestion
 
-app = FastAPI(title="Kaldera — dépôt des demandes et des pièces")
+LOGGER = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def _cycle(application: FastAPI) -> AsyncIterator[None]:
+    if ConfigAssure().session_secret is None:
+        LOGGER.warning("KALDERA_SESSION_SECRET absente : l'espace assuré (/assure) répond 503")
+    yield
+
+
+app = FastAPI(title="Kaldera — dépôt des demandes et des pièces", lifespan=_cycle)
+app.include_router(routeur_assure)
 
 
 def depot_ingestion() -> IngestionPostgres:
