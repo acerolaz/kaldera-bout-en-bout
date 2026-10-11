@@ -156,7 +156,6 @@ class ConfigAgents(BaseSettings):
     estimation: ConfigLLM | None = None
     antifraude: ConfigLLM | None = None
     decision: ConfigLLM | None = None
-    relance: ConfigLLM | None = None  # agent de relance de l'espace assuré (UI1), hors moteur
     azure_ai_chat_endpoint: str | None = Field(
         default=None, validation_alias=AliasChoices("AZURE_AI_CHAT_ENDPOINT")
     )
