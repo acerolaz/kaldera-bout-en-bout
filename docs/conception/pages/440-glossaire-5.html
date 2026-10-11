@@ -5,7 +5,7 @@
   </style>
   <div class="surtitre">Annexe</div>
   <h2 class="titre"><span class="num">A</span>📖 Glossaire 5/5</h2>
-  <p class="chapo">Les termes liés à la liaison A2A et à la mesure (chantier 2).</p>
+  <p class="chapo">Les termes liés à la liaison A2A, à la mesure (chantier 2) et à l'IHM gestionnaire (chantier 3).</p>
 
   <table class="tableau">
     <tr><th>Terme</th><th>Définition</th></tr>
@@ -14,5 +14,8 @@
     <tr><td>Épreuve (<code>make epreuve</code>)</td><td><code>tools/epreuve.py</code> rejoue les 28 scénarios contre le partenaire simulé, lancé dans le processus : verdict EX-01 → EX-06, couverture T1–T11, seuils d'équipe ; rapport md + json, code 1 si échec.</td></tr>
     <tr><td>Eval (<code>make eval</code>)</td><td><code>tools/eval_llm.py</code> : passe de référence sans LLM, puis 5 répétitions par modèle ; matrice agent × modèle (replis &gt; 20 %, sorties rejetées &gt; 5 %, latence p95 &gt; délai, tours &gt; 2,5), recommandation par rôle, bornes remesurées. Sans clés : « non mesuré », code 2.</td></tr>
     <tr><td>Invariance</td><td>Mêmes champs décisifs (issue, décision, montant, file, mode dégradé) avec ou sans LLM ; éprouvée par <code>tests/unit/test_invariance.py</code> et par <code>make eval</code>.</td></tr>
+    <tr><td>Design system</td><td>Règles visuelles communes (couleurs, typographie, composants, états) du back-office, dans <code>design-system/kaldera/</code> ; produit avec <code>ui-ux-pro-max</code>.</td></tr>
+    <tr><td>Token de design</td><td>Variable CSS nommée (<code>--primary</code>, <code>--ton-danger</code>…) définie une fois par thème ; les écrans n'utilisent jamais une couleur en dur.</td></tr>
+    <tr><td>Thème clair / sombre</td><td>Jeu de tokens choisi par l'attribut <code>data-theme</code> ; défaut : thème du système ; choix mémorisé (<code>kaldera.theme</code>).</td></tr>
   </table>
 </section>

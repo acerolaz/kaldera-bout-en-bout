@@ -160,7 +160,7 @@ donne la matrice agent × modèle (replis, sorties rejetées, latence LLM p95, t
 modèle recommandé par rôle, l'invariance des issues et les bornes remesurées. Code de sortie : 0
 tout vert, 1 alerte, 2 non mesuré (aucune clé ou aucun modèle).
 
-IHM (back-office gestionnaire, chantier 3 en cours) :
+IHM : back-office gestionnaire (chantier 3 ; socle livré en C3-1, écrans E1 / E2 / E3 à venir) :
 
 ```bash
 make up
@@ -168,8 +168,16 @@ docker compose --profile integration up -d --wait postgres
 make demo    # demande KAL-26-0101 et son contrat
 make api     # http://127.0.0.1:8000/docs
 make worker
-make front   # http://localhost:5173 : page d'attente
+make front   # http://localhost:5173 : back-office gestionnaire
 ```
+
+Thème clair / sombre : bouton en haut à droite, choix mémorisé dans le navigateur (`kaldera.theme`) ;
+sans choix, le thème du système. Design system : `design-system/kaldera/MASTER.md` (généré avec
+`ui-ux-pro-max`, tokens et contrastes) et `design-system/kaldera/pages/back-office.md`.
+
+| Clair | Sombre |
+|---|---|
+| ![IHM en thème clair](docs/captures/ihm-clair.png) | ![IHM en thème sombre](docs/captures/ihm-sombre.png) |
 
 `make demo` et `make seed` créent tous deux `KAL-26-0101` : on n'en lance qu'un par base (sinon
 « base déjà préparée » ou « base déjà semée »).
@@ -246,7 +254,7 @@ make fmt        # ruff format + autofix
 make lint       # ruff check
 make typecheck  # mypy
 make front-test # Vitest (front)
-make front-e2e  # Playwright : test de fumée du back-office (démarre PostgreSQL de test)
+make front-e2e  # Playwright : socle du back-office (thème, clavier, axe ; démarre PostgreSQL de test)
 make down       # arrête les services docker
 ```
 

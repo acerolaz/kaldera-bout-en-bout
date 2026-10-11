@@ -7,8 +7,9 @@
 ---
 
 **Project:** Kaldera
-**Generated:** 2026-10-09 01:53:13
-**Category:** Insurance Platform
+**Generated:** 2026-10-12 01:09:30 (`ui-ux-pro-max` 2.11.0, adapté au back-office gestionnaire)
+**Category:** Analytics Dashboard
+**Style:** Data-Dense Dashboard
 
 ---
 
@@ -16,47 +17,59 @@
 
 ### Color Palette
 
-| Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#14532D` | `--color-primary` |
-| On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#166534` | `--color-secondary` |
-| Accent/CTA | `#14532D` | `--color-accent` |
-| Background | `#F8FAFC` | `--color-background` |
-| Foreground | `#0F172A` | `--color-foreground` |
-| Muted | `#EEF2EC` | `--color-muted` |
-| Border | `#E2E8F0` | `--color-border` |
-| Destructive | `#B91C1C` | `--color-destructive` |
-| Ring | `#A16207` | `--color-ring` |
-| Accent or | `#A16207` | `--color-gold` |
-| Or sur vert | `#FACC15` | `--color-gold-on-primary` |
-| Muted foreground | `#475569` | `--color-muted-foreground` |
-| Succès | `#166534` | `--color-success` |
-| À refaire | `#854D0E` | `--color-warning` |
+Deux thèmes, mêmes noms de variables : `:root` (clair) et `[data-theme="dark"]` (sombre). Les contrastes sont donnés sur la carte (`--card`) ; ils sont vérifiés par `contraste.test.ts`, thème par thème.
 
-**Color Notes:** Identité Kaldera vert foncé + or (voir « Adaptations Kaldera »).
+#### Thème clair
 
-| Paire | Contraste | Usage autorisé |
-|---|---|---|
-| `#0F172A` sur `#F8FAFC` | 17,06:1 | texte courant |
-| `#14532D` sur `#FFFFFF` | 9,11:1 | boutons, titres, texte |
-| `#166534` sur `#FFFFFF` | 7,13:1 | statut « validée », liens |
-| `#475569` sur `#F8FAFC` | 7,24:1 | texte secondaire |
-| `#B91C1C` sur `#FFFFFF` | 6,47:1 | erreurs |
-| `#854D0E` sur `#FFFFFF` | 6,85:1 | statut « à refaire » |
-| `#A16207` sur `#FFFFFF` | 4,92:1 | **accents** : bordure de l'étape courante, icônes, anneau de focus (≥ 3:1) |
-| `#FACC15` sur `#14532D` | 5,95:1 | or sur l'en-tête vert |
+| Rôle | Hex | Variable CSS | Contraste sur carte |
+|------|-----|--------------|---------------------|
+| Fond | `#F8FAFC` | `--background` | — |
+| Carte | `#FFFFFF` | `--card` | — |
+| Texte | `#0F172A` | `--foreground` | 17,9 |
+| Texte secondaire | `#475569` | `--muted-foreground` | 7,6 |
+| Primaire | `#14532D` | `--primary` | 9,1 (texte blanc `--primary-foreground` `#FFFFFF` sur bouton) |
+| Anneau de focus (or) | `#A16207` | `--ring` | ≥ 3 (4,7 sur fond) |
+| Or sur primaire | `#FACC15` | `--or-sur-primaire` | 5,95 sur `#14532D` |
+| Succès | `#166534` | `--ton-succes` | 7,1 |
+| Attention | `#854D0E` | `--ton-attention` | 6,9 |
+| Danger | `#B91C1C` | `--ton-danger` | 6,5 |
+| Info | `#1D4ED8` | `--ton-info` | 6,7 |
+| Neutre | `#475569` | `--ton-neutre` | 7,6 |
+| Bordure | `#E2E8F0` | `--border` | décoratif |
+
+#### Thème sombre
+
+| Rôle | Hex | Variable CSS | Contraste sur carte |
+|------|-----|--------------|---------------------|
+| Fond | `#0B1410` | `--background` | — |
+| Carte | `#111D17` | `--card` | — |
+| Texte | `#E6EEE9` | `--foreground` | 14,7 |
+| Texte secondaire | `#9AAFA3` | `--muted-foreground` | 7,5 |
+| Primaire | `#4ADE80` | `--primary` | 8,6 (texte `--primary-foreground` `#052E16` sur bouton) |
+| Anneau de focus (or) | `#FACC15` | `--ring` | ≥ 3 (12,2 sur fond) |
+| Succès | `#4ADE80` | `--ton-succes` | 9,9 |
+| Attention | `#FBBF24` | `--ton-attention` | 10,4 |
+| Danger | `#F87171` | `--ton-danger` | 6,3 |
+| Info | `#60A5FA` | `--ton-info` | 6,8 |
+| Neutre | `#9AAFA3` | `--ton-neutre` | 7,5 |
+| Bordure | `#2A3B32` | `--border` | décoratif |
+
+`--or` (accent) et `--or-sur-primaire` sont conservés ; `--a-refaire` est retiré (remplacé par `--ton-attention`). Les tons `--ton-*` colorent les statuts (voir « Statuts »).
+
+**Color Notes:** vert + or (identité Kaldera), tons de statut séparés. Recherche `--domain color` : sur fond sombre, éclaircir les teintes (variantes 400) plutôt que reprendre les teintes du clair ; viser 4,5:1 minimum pour le texte.
 
 ### Typography
 
 - **Heading Font:** IBM Plex Sans
 - **Body Font:** IBM Plex Sans
-- **Mood:** financial, trustworthy, professional, corporate, banking, serious
-- **Google Fonts:** [IBM Plex Sans + IBM Plex Sans](https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap)
+- **Mono Font:** IBM Plex Mono (références, n° de police, identifiants)
+- **Chiffres:** `font-variant-numeric: tabular-nums` pour montants, durées et pourcentages
+- **Mood:** dashboard, data, précis, sobre
+- **Google Fonts:** [IBM Plex Sans + IBM Plex Mono](https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap)
 
 **CSS Import:**
 ```css
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 ```
 
 ### Spacing Variables
@@ -69,16 +82,15 @@
 | `--space-lg` | `24px` / `1.5rem` | Section padding |
 | `--space-xl` | `32px` / `2rem` | Large gaps |
 | `--space-2xl` | `48px` / `3rem` | Section margins |
-| `--space-3xl` | `64px` / `4rem` | Hero padding |
 
 ### Shadow Depths
 
 | Level | Value | Usage |
 |-------|-------|-------|
 | `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
 | `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
-| `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
+
+Les cartes de données n'ont pas d'ombre : séparation par bordure `--border`.
 
 ---
 
@@ -89,29 +101,28 @@
 ```css
 /* Primary Button */
 .btn-primary {
-  background: #14532D;
-  color: white;
-  padding: 12px 24px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 8px 16px;
   border-radius: 8px;
   font-weight: 600;
-  transition: all 200ms ease;
+  transition: background-color 200ms ease;
   cursor: pointer;
 }
 
 .btn-primary:hover {
   opacity: 0.9;
-  transform: translateY(-1px);
 }
 
 /* Secondary Button */
 .btn-secondary {
   background: transparent;
-  color: #14532D;
-  border: 2px solid #14532D;
-  padding: 12px 24px;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  padding: 8px 16px;
   border-radius: 8px;
   font-weight: 600;
-  transition: all 200ms ease;
+  transition: background-color 200ms ease;
   cursor: pointer;
 }
 ```
@@ -120,11 +131,10 @@
 
 ```css
 .card {
-  background: #F8FAFC;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
+  padding: 16px;
 }
 
 /* Cartes non cliquables : pas d'effet de survol (évite de suggérer une action) */
@@ -134,17 +144,17 @@
 
 ```css
 .input {
-  padding: 12px 16px;
-  border: 1px solid #E2E8F0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 16px;
   transition: border-color 200ms ease;
 }
 
-.input:focus {
-  border-color: #14532D;
+.input:focus-visible {
+  border-color: var(--primary);
   outline: none;
-  box-shadow: 0 0 0 3px #A16207;  /* anneau or, 4,71:1 sur le fond */
+  box-shadow: 0 0 0 3px var(--ring);  /* anneau or */
 }
 ```
 
@@ -157,10 +167,10 @@
 }
 
 .modal {
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   padding: 32px;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-lg);
   max-width: 500px;
   width: 90%;
 }
@@ -170,21 +180,54 @@
 
 ## Style Guidelines
 
-**Style:** Trust & Authority
+**Style:** Data-Dense Dashboard
 
-**Keywords:** sobriété, lisibilité, statuts explicites, horodatages, aucune information superflue
+**Keywords:** données denses, tableaux, marges serrées, lisibilité, statuts explicites, aucune information superflue
 
-**Best For:** Healthcare/medical landing pages, financial services, enterprise software, premium/luxury products, legal services
+**Best For:** Business intelligence dashboards, operational dashboards, enterprise reporting
 
-**Key Effects:** transitions de 150–300 ms sur les changements de statut ; aucune animation décorative (carrousel, pulsation) ; `prefers-reduced-motion` coupe l'anneau animé.
+**Key Effects:** transitions de 150–300 ms sur les changements d'état ; mise en évidence de la ligne au survol ; aucune animation décorative ; `prefers-reduced-motion` respecté.
+
+Recherches complémentaires : `--domain ux` (états vide / chargement : message utile, squelette ; anneau de focus visible sur chaque élément interactif), `--stack shadcn` (définir les deux jeux de couleurs ; ici `[data-theme="dark"]` remplace la classe `.dark`, via `@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));`).
 
 ### Page Pattern
 
-**Pattern Name:** Espace client authentifié (application, pas une page d'accueil)
+**Pattern Name:** Application interne de back-office (pas de page d'accueil)
 
-- Pas de hero, de logos clients ni de CTA « Contact Sales » : l'assuré est connecté et vient suivre **son** dossier.
-- Une action principale par écran (déposer, soumettre), en bouton plein vert ; les actions secondaires en contour.
-- Signaux de confiance discrets : référence du dossier, horodatages, statuts écrits en toutes lettres.
+- En-tête + contenu : pas de hero, de logos clients ni de CTA commercial.
+- Une action principale par écran ; les actions secondaires en contour.
+- Signaux de confiance discrets : références, horodatages, statuts écrits en toutes lettres.
+
+### Statuts
+
+Règle : **icône + libellé + couleur, jamais la couleur seule** ; un statut passe toujours par `<Statut code />` (jamais une classe de couleur dans un écran). Code inconnu : ton `neutre`, libellé = code brut. Icônes Lucide, `aria-hidden`.
+
+| Famille | Code | Libellé | Icône Lucide | Ton |
+|---|---|---|---|---|
+| Demande | `admission` | En analyse | `FileSearch` | info |
+| Demande / Étape | `en_cours` | En traitement | `Loader` | info |
+| Demande | `terminee` | Terminée | `CircleCheck` | succes |
+| Demande | `secours` | Fiche de secours | `LifeBuoy` | attention |
+| Issue | `acceptee` | Acceptée | `CircleCheck` | succes |
+| Issue | `refusee` | Refusée | `CircleX` | danger |
+| Issue | `escalade` | Escaladée | `UserRound` | attention |
+| Étape | `en_attente` | En attente | `Clock` | neutre |
+| Étape | `termine` | Terminée | `CircleCheck` | succes |
+| Étape | `sautee` | Sautée | `SkipForward` | neutre |
+| Étape | `echec` | Échec | `CircleX` | danger |
+| Étape | `repli` | Repli déterministe | `RotateCcw` | attention |
+| Étape | `degrade` | Mode dégradé | `LifeBuoy` | attention |
+| Badge | `mode_degrade` | Mode dégradé | `LifeBuoy` | attention |
+| Badge | `borne` | Borne atteinte | `OctagonX` | danger |
+
+`en_cours` est un seul code, commun à la demande et à l'étape, avec un seul rendu (« En traitement », `Loader`, info).
+
+### Thème
+
+- Tokens sur `:root` (clair) et `[data-theme="dark"]` (sombre) ; `color-scheme: light` / `dark`.
+- Clé `localStorage` `kaldera.theme` (`clair` / `sombre`) ; absente ou invalide : thème système, suivi en direct.
+- Bouton de bascule : icône `Moon` en clair (« Passer au thème sombre »), `Sun` en sombre (« Passer au thème clair »).
+- Script synchrone dans `index.html` avant le rendu (pas de flash).
 
 ---
 
@@ -192,24 +235,25 @@
 
 | Recommandation de l'outil | Retenu | Raison |
 |---|---|---|
-| Bleu « confiance » `#2563EB` + CTA orange `#EA580C` | Vert foncé `#14532D` + or `#A16207` | Contrainte d'identité du brief. Compatible : la recherche `--domain color` propose elle-même « Trust navy + premium gold » (`#A16207`) pour la finance traditionnelle ; le vert foncé remplace le bleu marine en restant largement au-dessus du seuil AA (9,11:1 sur blanc). |
-| CTA de couleur d'accent | CTA vert plein, l'or en accent seulement | Un bouton or porterait du texte blanc à 4,92:1, juste au-dessus du seuil ; le vert donne 9,11:1. |
-| Page « Enterprise Gateway » (hero, Contact Sales) | Espace client authentifié | La recommandation vise une page d'accueil commerciale, pas un espace privé. |
-| Cartes cliquables avec effet de levée | Cartes statiques | Une carte qui bouge au survol suggère une action qui n'existe pas. |
-| Anneau de focus bleu | Anneau or `#A16207` (4,71:1 sur le fond) | Visible et distinct du vert des boutons. |
+| Bleu `#1E40AF` + ambre `#D97706` | Vert `#14532D` + or `#A16207` (clair) ; vert `#4ADE80` + or `#FACC15` (sombre) | Identité du brief (dossier de conception) |
+| Fira Sans / Fira Code | IBM Plex Sans / IBM Plex Mono | Continuité de l'identité, même famille, déjà chargée |
+| Pattern « Operations Landing » (hero, CTA) | Application interne : en-tête + contenu | Back-office local, pas une page commerciale |
+| Anneau de focus or `#A16207` | `#FACC15` (`--or-sur-primaire`) dans l'en-tête vert | `#A16207` sur `#14532D` ne fait que 1,85:1, insuffisant |
+| Cartes avec ombre et levée au survol | Cartes à bordure, sans effet de survol | Densité ; une carte qui bouge suggère une action inexistante |
 
-Recherches complémentaires utilisées : `--domain ux` (erreurs annoncées par `aria-live` ou `role=alert`, erreur sous le champ, chemin de récupération, validation au blur, types d'input), `--domain chart` (jauge ou bullet chart pour un avancement → anneau de progression), `--stack shadcn` (laisser Dialog et Sheet gérer le focus, toasts sémantiques `sonner`, `FormLabel` obligatoire, jamais le placeholder seul).
+---
 
 ## Anti-Patterns (Do NOT Use)
 
-- ❌ Exposer un état interne, un score ou une information anti-fraude à l'assuré
 - ❌ Statut indiqué par la seule couleur
+- ❌ Emoji comme icône
 - ❌ Or utilisé pour le texte courant
-- ❌ AI purple/pink gradients
+- ❌ Ornate design
+- ❌ No filtering
 
 ### Additional Forbidden Patterns
 
-- ❌ **Emojis as icons** — Use SVG icons (Heroicons, Lucide, Simple Icons)
+- ❌ **Emojis as icons** — Use SVG icons (Lucide)
 - ❌ **Missing cursor:pointer** — All clickable elements must have cursor:pointer
 - ❌ **Layout-shifting hovers** — Avoid scale transforms that shift layout
 - ❌ **Low contrast text** — Maintain 4.5:1 minimum contrast ratio
@@ -223,11 +267,12 @@ Recherches complémentaires utilisées : `--domain ux` (erreurs annoncées par `
 Before delivering any UI code, verify:
 
 - [ ] No emojis used as icons (use SVG instead)
-- [ ] All icons from consistent icon set (Heroicons/Lucide)
+- [ ] All icons from Lucide
 - [ ] `cursor-pointer` on all clickable elements
 - [ ] Hover states with smooth transitions (150-300ms)
 - [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
+- [ ] Dark mode : contraste 4.5:1 minimum
+- [ ] Focus visible dans l'en-tête et dans le contenu
 - [ ] `prefers-reduced-motion` respected
 - [ ] Responsive: 375px, 768px, 1024px, 1440px
 - [ ] No content hidden behind fixed navbars

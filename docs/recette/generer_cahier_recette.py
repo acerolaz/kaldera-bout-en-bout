@@ -56,15 +56,24 @@ def groupes(liste):
     """Une fiche par groupe : ID, action, résultat attendu, OK/KO, remarques."""
     return [KeepTogether([Paragraph(nom, H2), tableau(
         ["ID", "Action", "Résultat attendu", "OK / KO", "Remarques"],
-        [[i, a, r, STATUTS.get(i, ""), ""] for i, a, r in lignes], [1.3, 6.2, 6.6, 1.4, 2.5])])
+        [[i, a, r, STATUTS.get(i, ""), REMARQUES.get(i, "")] for i, a, r in lignes], [1.3, 6.2, 6.6, 1.4, 2.5])])
         for nom, lignes in liste]
 
 
 # Statut relevé au dernier déroulé (vide : à dérouler) ; mis à jour à chaque recette.
 STATUTS: dict[str, str] = {
-    "S-01": "OK", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "OK",
-    "U-01": "OK",
-    "A-01": "OK", "A-02": "OK", "A-03": "OK", "A-04": "OK",
+    "S-01": "NT", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "OK",
+    "U-01": "OK", "U-02": "OK", "U-03": "OK", "U-04": "OK",
+    "A-01": "OK", "A-02": "OK", "A-03": "OK", "A-04": "NT",
+}
+
+# Remarque relevée au dernier déroulé (vide : aucune) ; mise à jour à chaque recette.
+REMARQUES: dict[str, str] = {
+    "S-01": "Adapté : base vidée (TRUNCATE des tests) au lieu de make recette ; "
+            "PostgreSQL du checkout principal conservé.",
+    "S-03": "Pas de profil VLM Azure sur ce poste.",
+    "A-03": "Anti-fraude en mode dégradé (PARTENAIRE_URL absent).",
+    "A-04": "make recette-reset non lancé : PostgreSQL du checkout principal conservé.",
 }
 
 SETUP = [
@@ -78,17 +87,28 @@ SETUP = [
         ("S-03", f"Terminal 2 : {m('make worker')}",
          "Le worker démarre sans erreur et attend des pièces à analyser."),
         ("S-04", f"Terminal 3 : {m('make front')}",
-         "Vite sert la page d'attente du back-office gestionnaire sur http://localhost:5173."),
+         "Vite sert le back-office gestionnaire sur http://localhost:5173."),
         ("S-05", f"{m('make ctl ARGS=etat')}",
          "Partenaire en mode <i>normal</i>, aucun appel reçu."),
     ]),
 ]
 
 UI = [
-    ("Page d'attente", [
+    ("Socle du back-office", [
         ("U-01", "Ouvrir <b>http://localhost:5173</b>.",
-         "Titre « Kaldera · back-office gestionnaire », texte « En construction (chantier 3). » ; "
-         "aucune page de connexion, aucun espace assuré."),
+         "En-tête « Kaldera · back-office gestionnaire », lien « Demandes » souligné (page "
+         "courante), bouton de thème ; titre « Liste des demandes » et cadre « Écran livré au "
+         "sous-projet C3-2 »."),
+        ("U-02", "Cliquer le bouton de thème (lune), recharger la page, puis recliquer (soleil).",
+         "Passage en sombre ; après rechargement la page reste en sombre, sans flash clair ; "
+         "second clic : retour en clair. Navigateur sans choix enregistré (fenêtre privée) : "
+         "la page suit le thème du système."),
+        ("U-03", "Recharger, puis appuyer sur Tab trois fois.",
+         "1er Tab : « Aller au contenu » apparaît en haut à gauche ; 2e : « Demandes » ; 3e : "
+         "bouton de thème. Anneau de focus or visible à chaque fois, dans les deux thèmes."),
+        ("U-04", "Ouvrir <i>/demandes/KAL-26-0101</i>, <i>/lots/1</i>, puis <i>/inconnu</i>.",
+         "Titres « Dossier KAL-26-0101 » et « Lot 1 » (cadres C3-2 / C3-3) ; adresse inconnue : "
+         "« Page introuvable » et lien « Retour à la liste des demandes »."),
     ]),
 ]
 
@@ -128,16 +148,16 @@ def construire():
         tableau(["Rubrique", "Valeur"], [
             ["Objet", "Recette de démonstration : setup par commandes make (administrateur), "
                       "interface gestionnaire en construction, contrôles d'exploitation."],
-            ["Version testée", "<i>kaldera-bout-en-bout</i>, branche <i>feature/chantier3-c3-0-retrait</i>"],
+            ["Version testée", "<i>kaldera-bout-en-bout</i>, branche <i>feature/chantier3-c3-1-design-system</i>"],
             ["Date", "12 octobre 2026"],
-            ["Durée estimée", "15 minutes environ"],
+            ["Durée estimée", "20 minutes environ"],
             ["Testeur", ""],
         ], [4, 14]),
         Spacer(1, 1 * cm),
         Paragraph("Légende", H2),
         Paragraph("<b>OK</b> : résultat conforme · <b>KO</b> : écart (le décrire en remarque) · "
                   "<b>NT</b> : non testé. Les cas s'enchaînent dans l'ordre : "
-                  "<b>S-01 à S-05</b>, puis <b>U-01</b>, puis <b>A-01 à A-04</b>.", TXT),
+                  "<b>S-01 à S-05</b>, puis <b>U-01 à U-04</b>, puis <b>A-01 à A-04</b>.", TXT),
         Spacer(1, 1 * cm),
         Paragraph("Validation", H2),
         tableau(["Rôle", "Nom", "Date", "Signature"],
@@ -171,14 +191,13 @@ def construire():
         PageBreak(),
 
         Paragraph("2. Interface gestionnaire", H1),
-        Paragraph("Navigateur sur http://localhost:5173. L'espace assuré est retiré (v5) ; les "
-                  "cas du back-office gestionnaire (EX-D44 → EX-D51) s'ajoutent avec chaque "
-                  "sous-projet du chantier 3.", TXT),
+        Paragraph("Navigateur sur http://localhost:5173. Le socle du back-office (C3-1) est livré ; "
+                  "les écrans E1, E2, E3 (EX-D44 → EX-D50) s'ajoutent avec les sous-projets C3-2 à C3-4.", TXT),
         *groupes(UI),
         PageBreak(),
 
         Paragraph("3. Contrôles d'exploitation (administrateur)", H1),
-        Paragraph("Le back-office gestionnaire (chantier 3) n'est pas encore livré : "
+        Paragraph("Les écrans du back-office (C3-2 à C3-4) ne sont pas encore livrés : "
                   "les contrôles se font par make.", TXT),
         *groupes(ADMIN),
         Spacer(1, 12),
