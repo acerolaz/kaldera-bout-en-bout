@@ -6,7 +6,7 @@ import { useTheme } from "@/useTheme";
 // Dans l'en-tête vert (clair), l'anneau or foncé ne tient pas 3:1 : on prend l'or clair.
 // Le lien utilise outline, le Button shadcn utilise ring : les deux sont surchargés.
 const FOCUS_ENTETE =
-  "focus-visible:outline-or-sur-primaire focus-visible:ring-or-sur-primaire dark:focus-visible:outline-ring dark:focus-visible:ring-ring";
+  "focus-visible:outline-or-sur-primaire focus-visible:ring-or-sur-primaire dark:focus-visible:outline-ring dark:focus-visible:ring-ring focus-visible:border-or-sur-primaire dark:focus-visible:border-ring";
 
 export function Coquille() {
   const { theme, basculer } = useTheme();
@@ -15,7 +15,7 @@ export function Coquille() {
     <>
       <a
         href="#contenu"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-foreground"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-foreground focus-visible:outline-or-sur-primaire dark:focus-visible:outline-ring"
       >
         Aller au contenu
       </a>

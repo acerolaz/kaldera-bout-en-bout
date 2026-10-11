@@ -16,23 +16,35 @@ test("E1, thème mémorisé sans flash, axe dans les deux thèmes", async ({ pag
   expect(await theme(page)).toBe("dark");
   await sansViolation(page);
 
+  // Bundle bloqué : seul le script inline de index.html peut poser le thème (avant React).
+  await page.route("**/src/main.tsx", (r) => r.abort());
   await page.reload({ waitUntil: "domcontentloaded" });
-  expect(await theme(page)).toBe("dark"); // posé par le script de index.html, avant React
+  expect(await theme(page)).toBe("dark");
+  await page.unroute("**/src/main.tsx");
+  await page.reload();
   await expect(page.getByRole("button", { name: "Passer au thème clair" })).toBeVisible();
 });
 
 test("sans choix enregistré, le thème suit le système", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
+  await page.route("**/src/main.tsx", (r) => r.abort()); // seul le script inline agit
   await page.goto("/");
   expect(await theme(page)).toBe("dark");
 });
 
-test("clavier : lien d'évitement, Demandes, bouton de thème", async ({ page }) => {
+test("clavier : lien d'évitement, Demandes, bouton de thème (anneau or clair)", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Aller au contenu" })).toBeFocused();
+  const evitement = page.getByRole("link", { name: "Aller au contenu" });
+  await expect(evitement).toBeFocused();
+  await expect(evitement).toHaveCSS("outline-color", "rgb(250, 204, 21)"); // #FACC15
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Demandes" })).toBeFocused();
+  const demandes = page.getByRole("link", { name: "Demandes" });
+  await expect(demandes).toBeFocused();
+  await expect(demandes).toHaveCSS("outline-color", "rgb(250, 204, 21)");
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: /Passer au thème/ })).toBeFocused();
+  const bouton = page.getByRole("button", { name: /Passer au thème/ });
+  await expect(bouton).toBeFocused();
+  await expect(bouton).toHaveCSS("box-shadow", /rgb\(250, 204, 21\)/);
 });

@@ -33,6 +33,7 @@ const PAIRES: [string, string, number][] = [
   ["muted-foreground", "card", 4.5],
   ["muted-foreground", "muted", 4.5],
   ["primary-foreground", "primary", 4.5],
+  ["primary", "background", 4.5], // lien 404 en text-primary
   ["destructive", "card", 4.5],
   ...TONS.flatMap((ton): [string, string, number][] => [
     [ton, "card", 4.5],
