@@ -20,7 +20,7 @@
       <code>DepotPieces</code>, <code>Snapshots</code>, <code>RegistreA2A</code> → <code>DepotPostgres</code>, <code>SnapshotsPostgres</code>,
       <code>RegistreA2APostgres</code> avec une base ; <code>DepotDepuisDemande</code>, <code>SnapshotsEnMemoire</code>, <code>RegistreA2AEnMemoire</code>
       sinon et en tests unitaires. Ingestion : <code>IngestionPostgres</code>.
-      <b>psycopg 3 synchrone + <code>ConnectionPool</code></b> ; 4 migrations SQL versionnées (<code>001</code> → <code>004</code>).</p></div>
+      <b>psycopg 3 synchrone + <code>ConnectionPool</code></b> ; 5 migrations SQL versionnées (<code>001</code> → <code>005</code>).</p></div>
   </div>
 
 <pre class="code"><span class="c">-- ① 1 appel partenaire par dossier (contrat §6) : la réservation PRÉCÈDE l'envoi</span>
