@@ -34,7 +34,7 @@ def base() -> Iterator[Any]:
     connexions = pool(url)
     with connexions.connection() as conn:
         conn.execute(
-            "TRUNCATE evenements_assure, demandes_assure, utilisateurs, appels_partenaire, "
-            "pieces, file_ingestion, analyses, demandes, contrats, blobs"
+            "TRUNCATE appels_partenaire, pieces, file_ingestion, analyses, demandes, contrats, "
+            "blobs"
         )
     yield connexions

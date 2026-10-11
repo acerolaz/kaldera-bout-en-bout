@@ -84,3 +84,18 @@ def test_demande_sans_contrat_acceptee(base: Any) -> None:  # numero_contrat nul
             "SELECT numero_contrat FROM demandes WHERE reference = 'KAL-26-9001'"
         ).fetchone()
     assert numero is None
+
+
+def test_tables_de_l_espace_assure_retirees_colonnes_gardees(base: Any) -> None:
+    with base.connection() as conn:
+        tables = conn.execute(
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
+            "AND tablename IN ('utilisateurs', 'demandes_assure', 'evenements_assure')"
+        ).fetchall()
+        colonnes = conn.execute(
+            "SELECT table_name, column_name FROM information_schema.columns "
+            "WHERE (table_name, column_name) IN (('demandes', 'cree_le'), ('pieces', 'depose_le'))"
+        ).fetchall()
+        assert appliquer_migrations(conn) == []  # rejouable : rien de plus à appliquer
+    assert tables == []
+    assert sorted(colonnes) == [("demandes", "cree_le"), ("pieces", "depose_le")]
