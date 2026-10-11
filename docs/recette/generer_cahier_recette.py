@@ -60,10 +60,13 @@ def groupes(liste):
         for nom, lignes in liste]
 
 
-F = "fixtures/pieces/"
 
 # Statut relevé au dernier déroulé (vide : à dérouler) ; mis à jour à chaque recette.
-STATUTS: dict[str, str] = {}
+STATUTS: dict[str, str] = {
+    "S-01": "OK", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "OK",
+    "U-01": "OK",
+    "A-01": "OK", "A-02": "OK", "A-03": "OK", "A-04": "OK",
+}
 
 SETUP = [
     ("Démarrage (un terminal par commande longue)", [
