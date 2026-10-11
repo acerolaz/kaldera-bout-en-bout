@@ -62,7 +62,7 @@ def groupes(liste):
 
 # Statut relevé au dernier déroulé (vide : à dérouler) ; mis à jour à chaque recette.
 STATUTS: dict[str, str] = {
-    "S-01": "OK", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "OK",
+    "S-01": "NT", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "OK",
     "U-01": "OK", "U-02": "OK", "U-03": "OK", "U-04": "OK",
     "A-01": "OK", "A-02": "OK", "A-03": "OK", "A-04": "NT",
 }

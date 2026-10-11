@@ -14,8 +14,8 @@
 - Pas d'ombre portée sur les cartes de données ; séparation par bordure `--border`.
 
 ## États
-- Vide : phrase qui dit ce qui manque et ce qui le fera apparaître.
-- Chargement : squelettes de même hauteur que le contenu attendu ; `aria-busy="true"` sur la zone.
+- Vide : phrase qui dit ce qui manque et ce qui le fera apparaître ; annoncé par `role="status"`.
+- Chargement : squelettes de même hauteur que le contenu attendu ; `aria-busy="true"` sur la zone, annoncé par `role="status"`.
 - Erreur : message + action de récupération (« Réessayer ») ; `role="alert"`.
 
 ## Statuts
