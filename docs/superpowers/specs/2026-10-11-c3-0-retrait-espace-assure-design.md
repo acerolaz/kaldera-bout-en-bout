@@ -13,7 +13,8 @@ base propre au back-office gestionnaire. Aucune fonctionnalité du back-office n
 **Critère de sortie** : `make test`, `make test-integration`, `make lint`, `make typecheck` verts ;
 `npm run build`, `npm test`, `npm run lint`, `make front-e2e` verts ; plus aucune référence à
 `api_assure`, `auth`, `vue_assure`, `assure_postgres`, `evenements`, `demo_assure` ni à l'agent de
-relance dans `src/`, `tests/`, `tools/`, `front/src/`, `Makefile`.
+relance dans `src/`, `tests/`, `tools/`, `front/src/`, `Makefile`, `docs/recette/` ; cahier de
+recette régénéré, déroulé de S-01 à A-04 sur la branche.
 
 ### Décisions prises
 
@@ -26,6 +27,8 @@ relance dans `src/`, `tests/`, `tools/`, `front/src/`, `Makefile`.
 | `espace_assure.py` | Renommé `depots_assure.py` (même fonction `depot_pour`, nom neutre) : c'est un utilitaire métier, pas de l'UI. |
 | Points d'accroche | Les appels de publication dans `worker.py` et `reaper.py` sont **supprimés**, pas remplacés : les événements gestionnaire arrivent en C3-3. |
 | Harnais e2e | Conservé (`tests/e2e/serveur.py`, Playwright) ; un test de fumée remplace le parcours assuré pour que `make front-e2e` reste vert. |
+| Dossier de démo | `tools/demo_assure.py` → `tools/demo.py` : crée toujours KAL-26-0101 et dépose son contrat, **sans compte** ; `make recette` l'appelle encore (le back-office en aura besoin). |
+| Cahier de recette | Mis à jour **dans cette PR** (générateur + PDF régénéré) : il doit décrire le système livré. Les cas assuré U-01 → U-17 sont retirés ; chaque sous-projet C3-1 → C3-4 ajoute ses cas IHM, C3-5 les déroule tous. |
 
 ### Hors périmètre
 
@@ -44,7 +47,6 @@ des sections du dossier de conception qui citent l'espace assuré (C3-5).
 | `src/kaldera/vue_assure.py` | projection de confidentialité vers l'assuré |
 | `src/kaldera/assure_postgres.py` | `DepotAssure` (comptes, événements) |
 | `src/kaldera/evenements.py` | publication dans `evenements_assure` |
-| `tools/demo_assure.py` | comptes et dossiers de démo |
 
 ### 2.2 Modules modifiés
 
@@ -55,7 +57,8 @@ des sections du dossier de conception qui citent l'espace assuré (C3-5).
 | `src/kaldera/reaper.py` | retire la publication du verdict ; l'escalade reste. |
 | `src/kaldera/llm.py` | retire le rôle `relance` de `ConfigAgents` (`KALDERA_RELANCE__*`). |
 | `src/kaldera/espace_assure.py` → `depots_assure.py` | renommage ; imports adaptés dans `agents.py`, `agents_llm.py`, `tests/unit/test_ports.py`, `tests/unit/test_agents_llm.py`. |
-| `.env.example` | retire `KALDERA_SESSION_SECRET`, `KALDERA_RELANCE__*`. |
+| `.env.example` | retire `KALDERA_SESSION_SECRET`, `KALDERA_COOKIE_SECURE`, `KALDERA_RELANCE__*`. |
+| `tools/demo_assure.py` → `tools/demo.py` | `preparer(connexions, reference="KAL-26-0101")` crée la demande et dépose le contrat ; plus d'identifiant ni de mot de passe (`KALDERA_DEMO_MOT_DE_PASSE` retiré). Message : « Demande KAL-26-0101 prête ». |
 
 ### 2.3 Migration `005_retrait_assure.sql`
 
@@ -69,8 +72,8 @@ DROP TABLE IF EXISTS evenements_assure, demandes_assure, utilisateurs;
 
 | Action | Fichiers |
 |---|---|
-| Supprimés | `tests/unit/test_auth.py`, `test_relance.py`, `test_vue_assure.py`, `test_confidentialite_assure.py` ; `tests/integration/test_api_assure.py`, `test_assure_postgres.py`, `test_demo_assure.py`, `test_evenements.py` |
-| Adaptés | `tests/conftest.py` et `tests/e2e/serveur.py` : tables supprimées retirées des `TRUNCATE` ; `serveur.py` ne prépare plus de comptes (base vide migrée). |
+| Supprimés | `tests/unit/test_auth.py`, `test_relance.py`, `test_vue_assure.py`, `test_confidentialite_assure.py` ; `tests/integration/test_api_assure.py`, `test_assure_postgres.py`, `test_evenements.py` |
+| Adaptés | `tests/conftest.py` et `tests/e2e/serveur.py` : tables supprimées retirées des `TRUNCATE` ; `serveur.py` prépare le dossier de démo via `tools.demo`, sans compte. `test_demo_assure.py` → `test_demo.py` : mêmes deux cas (préparer puis refuser ; contrat illisible n'écrit rien), sans l'assertion de compte. |
 | Ajouté | aucun test Python : le retrait est couvert par la suite existante et par le contrôle `grep` du critère de sortie. |
 
 ## 4. Front
@@ -85,7 +88,20 @@ DROP TABLE IF EXISTS evenements_assure, demandes_assure, utilisateurs;
 
 ## 5. Makefile et documents
 
-- `Makefile` : retire `demo-assure` (cible et `.PHONY`) ; `recette` ne lance plus `tools.demo_assure`.
+- `Makefile` : `demo-assure` → `demo` (cible et `.PHONY`) ; `recette` lance `tools.demo`.
+- **Cahier de recette** (`docs/recette/generer_cahier_recette.py`, puis `cahier-recette.pdf` régénéré) :
+
+  | Partie | Changement |
+  |---|---|
+  | Page de garde | objet : « setup par commandes make (administrateur), interface gestionnaire en construction, contrôles d'exploitation » |
+  | Variables `.env` | retire `KALDERA_SESSION_SECRET`, `KALDERA_COOKIE_SECURE`, `KALDERA_RELANCE__MODELE` |
+  | S-01 | résultat attendu : « Demande KAL-26-0101 prête » (plus de connexion) |
+  | S-02 | `/docs` liste les routes `/demandes` ; **aucune** route `/assure/*` |
+  | S-04 | Vite sert la page d'attente du back-office sur http://localhost:5173 |
+  | Données de démo | retire le compte assuré et les pièces à déposer à la main ; garde le dossier KAL-26-0101 et son verdict attendu |
+  | Section 2 | « Parcours dans l'interface (utilisateur assuré) » U-01 → U-17 **remplacée** par « Interface gestionnaire » : U-01 « ouvrir http://localhost:5173 » ⇒ page d'attente « back-office gestionnaire, en construction » ; note : cas EX-D44 → EX-D51 ajoutés par C3-1 → C3-4 |
+  | A-01 → A-04 | inchangés (A-03 `make scenarios` traite toujours KAL-26-0101) ; A-01 vérifié contre le nouveau déroulé |
+  | Statut | chaque cas déroulé une fois sur la branche ; statut renseigné dans le PDF |
 - `README.md` : retire la section espace assuré, les identifiants de démo et `KALDERA_SESSION_SECRET` ;
   une ligne « IHM : back-office gestionnaire en cours (chantier 3) ».
 - `docs/journal_ajustements.md` : entrée « v5 · espace assuré retiré (front, API `/assure`, agent de
