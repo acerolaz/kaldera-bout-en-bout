@@ -2,10 +2,11 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
+/* design-system/kaldera/MASTER.md — contrastes vérifiés par src/test/contraste.test.ts, dans les deux thèmes */
 :root {
-  /* design-system/kaldera/MASTER.md — contrastes vérifiés par src/test/contraste.test.ts */
+  color-scheme: light;
   --background: #F8FAFC;
   --foreground: #0F172A;
   --card: #FFFFFF;
@@ -27,8 +28,40 @@
   --radius: 0.5rem;
   --or: #A16207;
   --or-sur-primaire: #FACC15;
-  --succes: #166534;
-  --a-refaire: #854D0E;
+  --ton-neutre: #475569;
+  --ton-info: #1D4ED8;
+  --ton-succes: #166534;
+  --ton-attention: #854D0E;
+  --ton-danger: #B91C1C;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0B1410;
+  --foreground: #E6EEE9;
+  --card: #111D17;
+  --card-foreground: #E6EEE9;
+  --popover: #111D17;
+  --popover-foreground: #E6EEE9;
+  --primary: #4ADE80;
+  --primary-foreground: #052E16;
+  --secondary: #1A2A21;
+  --secondary-foreground: #E6EEE9;
+  --muted: #1A2A21;
+  --muted-foreground: #9AAFA3;
+  --accent: #1A2A21;
+  --accent-foreground: #E6EEE9;
+  --destructive: #F87171;
+  --border: #2A3B32;
+  --input: #2A3B32;
+  --ring: #FACC15;
+  --or: #FACC15;
+  --or-sur-primaire: #FACC15;
+  --ton-neutre: #9AAFA3;
+  --ton-info: #60A5FA;
+  --ton-succes: #4ADE80;
+  --ton-attention: #FBBF24;
+  --ton-danger: #F87171;
 }
 
 @theme inline {
@@ -52,8 +85,11 @@
   --color-ring: var(--ring);
   --color-or: var(--or);
   --color-or-sur-primaire: var(--or-sur-primaire);
-  --color-succes: var(--succes);
-  --color-a-refaire: var(--a-refaire);
+  --color-ton-neutre: var(--ton-neutre);
+  --color-ton-info: var(--ton-info);
+  --color-ton-succes: var(--ton-succes);
+  --color-ton-attention: var(--ton-attention);
+  --color-ton-danger: var(--ton-danger);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -63,6 +99,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
   --font-heading: var(--font-sans);
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @layer base {
