@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from . import espace_assure, regles
+from . import depots_assure, regles
 from .partenaire import Indisponible
 
 # client A2A injecté : (demande filtrée, timeout en s) → avis ou None si indisponible
@@ -60,13 +60,13 @@ class AgentPieces:
         recues = list(vue["initiales"])
         for tentative in range(relances):
             for type_piece in _manquantes(demande, recues):
-                depot = espace_assure.depot_pour(depots, type_piece, tentative)
+                depot = depots_assure.depot_pour(depots, type_piece, tentative)
                 if depot is not None:
                     recues.append(depot)
         manquantes = _manquantes(demande, recues)
         if not manquantes:
             statut = "complet"
-        elif any(espace_assure.depot_pour(depots, t, relances) for t in manquantes):
+        elif any(depots_assure.depot_pour(depots, t, relances) for t in manquantes):
             # l'assuré a déjà déposé ce type : une relance peut aboutir (ou re-soumettre
             # le même dépôt illisible — c'est la borne de relances qui tranche)
             statut = "incomplet"

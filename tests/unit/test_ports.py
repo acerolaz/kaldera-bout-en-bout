@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from kaldera.espace_assure import depot_pour
+from kaldera.depots_assure import depot_pour
 from kaldera.memoire import DepotDepuisDemande
 from kaldera.ports import PieceRef
 

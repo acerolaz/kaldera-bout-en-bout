@@ -20,7 +20,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from . import espace_assure, regles
+from . import depots_assure, regles
 from .agents import AgentAntifraude, AgentDecision, AgentEstimation, AgentPieces, Evaluateur
 from .disjoncteur import Disjoncteur
 from .etat import AvisFraude, Bornes, Estimation, Issue, Pieces
@@ -102,7 +102,7 @@ def _outils_pieces(vue: Vue, ref: dict[str, Any]) -> list[Outil]:
         k = args.get("k")
         if not isinstance(k, int) or isinstance(k, bool) or k != relances or relances < 1:
             return {"refus": f"seul le dépôt n°{relances} est lisible"}
-        return [d for t in requises if (d := espace_assure.depot_pour(depots, t, k - 1))]
+        return [d for t in requises if (d := depots_assure.depot_pour(depots, t, k - 1))]
 
     entier = {"type": "object", "properties": {"k": {"type": "integer"}}, "required": ["k"]}
     return [

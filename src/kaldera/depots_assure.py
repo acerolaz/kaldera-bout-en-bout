@@ -1,8 +1,9 @@
-"""Espace assuré en ligne (simulation).
+"""Dépôts de complément de l'assuré (relance métier, simulation).
 
 Les dépôts qu'un assuré effectue en réponse aux demandes de complément sont lus par le port
-``DepotPieces``, dans l'ordre où il les effectue. Comme sur le portail réel, un assuré qui n'a
-rien de nouveau à transmettre re-soumet son dernier dépôt pour le type de pièce demandé.
+``DepotPieces``, dans l'ordre où il les effectue. Un assuré qui n'a rien de nouveau à transmettre
+re-soumet son dernier dépôt pour le type de pièce demandé. La clé de données reste
+``espace_assure`` (format des scénarios fournis).
 """
 
 from __future__ import annotations
