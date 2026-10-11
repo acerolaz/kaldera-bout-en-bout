@@ -171,6 +171,9 @@ make worker
 make front   # http://localhost:5173 : page d'attente
 ```
 
+`make demo` et `make seed` créent tous deux `KAL-26-0101` : on n'en lance qu'un par base (sinon
+« base déjà préparée » ou « base déjà semée »).
+
 Recette manuelle (`docs/recette/cahier-recette.pdf`, régénéré par
 `uv run python docs/recette/generer_cahier_recette.py`) :
 
