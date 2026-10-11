@@ -32,7 +32,7 @@
         <p class="petit">Facture illisible → nouveau dépôt → facture <b>toujours illisible</b>. Sans garde, T4 bouclerait. Avec garde :
           <code>arret = {borne: "relances_pieces_max", …}</code>, T5 vers decision, escalade gestionnaire.</p>
       </div>
-      <div class="note alerte petit">⚠️ <b>Vigilance</b> : T4 <b>relit</b> les dépôts de l'espace assuré (port
+      <div class="note alerte petit">⚠️ <b>Vigilance</b> : T4 <b>relit</b> les dépôts de complément (port
         <code>DepotPieces</code>, outil <code>lire_depot</code>), elle n'<b>attend</b> pas un dépôt. Une vraie attente violerait les
         10 s du §12 (pattern interrupt / resume, 2.1 bis).</div>
     </div>

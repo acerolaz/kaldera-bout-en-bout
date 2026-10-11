@@ -18,13 +18,13 @@
       <b>un LLM par agent, borné par une référence déterministe</b> (1.4 → 1.4 ter) · <span class="neuf">VLM d'ingestion hors équipe</span></p></div></div>
     <div class="entree"><span class="puce">2</span><div><h3>Orchestration &amp; mémoire partagée</h3><p>Pattern, machine à états, code, bornes,
       budget LLM et disjoncteur (2.3 bis), état commun, pièces · <span class="neuf">ingestion (2.4 ter), contrat PDF (2.4 quater), PostgreSQL et
-      schéma (2.6, 2.6 bis), générateur de pièces (2.7), espace assuré et agent de relance (2.8)</span></p></div></div>
+      schéma (2.6, 2.6 bis), générateur de pièces (2.7)</span></p></div></div>
     <div class="entree"><span class="puce">3</span><div><h3>A2A &amp; mode dégradé</h3><p>Contrat, filtre, validation, plan B métier</p></div></div>
     <div class="entree"><span class="puce">4</span><div><h3>Plan d'épreuve</h3><p>Scénarios × signaux × ajustements · <b>éprouver des agents LLM</b> (4.3) ·
       <span class="neuf"><code>make epreuve</code> et <code>make eval</code> (4.4)</span></p></div></div>
     <div class="entree"><span class="puce">5</span><div><h3>Synthèse</h3><p>Choix tranchés, points ouverts, questions métier, évolutions depuis la version du 8 octobre</p></div></div>
     <div class="entree"><span class="puce">6</span><div><h3>À retenir</h3><p>Les idées clés du dossier en une page</p></div></div>
-    <div class="entree"><span class="puce">A</span><div><h3>Glossaire</h3><p>Le vocabulaire technique utilisé, du LLM à l'espace assuré</p></div></div>
+    <div class="entree"><span class="puce">A</span><div><h3>Glossaire</h3><p>Le vocabulaire technique utilisé, du LLM à la liaison A2A</p></div></div>
   </div>
 
   <div class="grille-2" style="gap:16px">
@@ -41,8 +41,7 @@
       <p class="petit">Une demande traverse <b>trois temps</b> : les fichiers sont lus <b>au dépôt</b> par un VLM utilisé comme outil (2.4 ter) ;
         après <b>soumission</b>, le contrôle d'admission la fait entrer dans la machine à états (2.2) ; <b>quatre agents LLM</b> rédigent sur des
         données validées, chacun borné par sa référence déterministe, l'orchestrateur décide du chemin et ⚖️ decision conclut. Le contrat PDF
-        fait foi sous trois verrous (2.4 quater) ; l'état est persisté dans PostgreSQL dès qu'une base est configurée (2.6). L'assuré suit
-        son dossier dans son espace (2.8).</p>
+        fait foi sous trois verrous (2.4 quater) ; l'état est persisté dans PostgreSQL dès qu'une base est configurée (2.6).</p>
     </div>
   </div>
 

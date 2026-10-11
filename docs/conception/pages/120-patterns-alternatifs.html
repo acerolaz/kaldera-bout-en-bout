@@ -18,7 +18,7 @@
   <table class="tableau">
     <tr><th style="width:23%">Pattern</th><th style="width:11%">Statut</th><th>Décision</th><th>Où</th></tr>
     <tr><td>🔀 Machine à états finis</td><td>✅ Adopté</td><td>✅ <b>Retenu</b> : orchestration en code, table de transitions gardée, garde d'entrée T0</td><td>2.1 · 2.2</td></tr>
-    <tr><td>🤖 <b>Agent LLM</b> (tool calling, boucle bornée)</td><td>✅ Adopté</td><td>✅ <b>Retenu</b> : les 4 agents métier : un LLM, des outils exclusifs, une boucle bornée ; + agent de <b>relance</b> hors machine</td><td>1.4 · 1.4 bis · 2.8</td></tr>
+    <tr><td>🤖 <b>Agent LLM</b> (tool calling, boucle bornée)</td><td>✅ Adopté</td><td>✅ <b>Retenu</b> : les 4 agents métier : un LLM, des outils exclusifs, une boucle bornée</td><td>1.4 · 1.4 bis</td></tr>
     <tr><td>✍️ Générateur + validateur à 1 tour</td><td>✅ Adopté</td><td>✅ <b>Généralisé</b> : toute sortie LLM passe le garde-fou : champs décisifs = référence, sinon repli</td><td>1.4 · 1.4 bis</td></tr>
     <tr><td>🛟 Repli déterministe (fallback)</td><td>✅ Adopté</td><td>✅ <b>Généralisé</b> : chaque agent calcule d'abord sa <b>référence déterministe</b>, qui sert de repli (<code>mode=repli</code>)</td><td>1.4 bis</td></tr>
     <tr><td>💾 Exécution durable (checkpointing)</td><td>✅ Adopté</td><td>✅ Retenu : snapshot PostgreSQL à chaque transition, avec le <code>mode</code> de chaque agent (si base configurée)</td><td>2.5 · 2.6</td></tr>

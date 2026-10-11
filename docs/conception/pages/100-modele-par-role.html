@@ -29,7 +29,6 @@
     <tr><td><b>💶 estimation</b></td><td>léger, le plus rapide</td><td>1 appel d'outil + 2 phrases d'explication : pas besoin de plus</td><td>0,8</td><td>1 500</td><td>2</td><td>repli calcul</td></tr>
     <tr><td><b>🕵️ antifraude</b></td><td>raisonnement</td><td>croiser F1–F4 et l'avis du partenaire, note utile pour la cellule fraude</td><td>1,5</td><td>4 000</td><td>3</td><td>repli calcul + appel</td></tr>
     <tr><td><b>⚖️ decision</b></td><td>rédaction soignée</td><td>le motif est lu par un gestionnaire ou l'assuré : clarté, ton, règle citée</td><td>1,2</td><td>3 000</td><td>2</td><td>gabarit de motif</td></tr>
-    <tr><td><b>💬 relance</b> <span class="discret">(2.8)</span></td><td>rédaction courte</td><td>expliquer à l'assuré les pièces à fournir, 600 caractères au plus</td><td>2,0</td><td>600</td><td>2</td><td>gabarits</td></tr>
     <tr><td><b>🔍 ingestion</b> <span class="discret">(outil)</span></td><td>multimodal précis</td><td>lire un contrat sans erreur prime sur la vitesse ; un appel, sortie structurée</td><td>60 · hors 10 s</td><td>800</td><td>1</td><td><b>le worker refuse de démarrer</b></td></tr>
   </table>
 
@@ -41,7 +40,7 @@
     temperature: float = 0.0;    vision: bool = False
 
 class ConfigAgents(BaseSettings):   <span class="c"># env_prefix="KALDERA_", délimiteur "__"</span>
-    pieces / estimation / antifraude / decision / relance: ConfigLLM | None
+    pieces / estimation / antifraude / decision: ConfigLLM | None
     azure_ai_chat_endpoint: str | None   <span class="c"># AZURE_AI_CHAT_ENDPOINT</span>
     azure_ai_chat_key: SecretStr | None  <span class="c"># AZURE_AI_CHAT_KEY</span>
 class ConfigIngestion(BaseSettings): <span class="c"># env_prefix="KALDERA_INGESTION__"</span>

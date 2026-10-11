@@ -36,7 +36,7 @@
       <div class="carte" style="border:1.5px solid var(--ext-bord)"><h3>📡 Pourquoi pas de streaming SSE ici ?</h3><p class="petit">Le contrat impose
         <code>message/send</code> : la réponse arrive <b>en une fois</b>, tâche déjà <code>completed</code> avec son artefact. C'est le bon choix : l'avis
         arrive en <b>2 s</b> et le client coupe à <b>3 s</b>, un flux n'apporterait rien et ajouterait le risque de <b>coupure en cours de route</b>.
-        Le SSE sert aux tâches <b>longues</b> dont on suit la progression — c'est d'ailleurs ce que fait l'espace assuré pour suivre son dossier (2.8).</p></div>
+        Le SSE sert aux tâches <b>longues</b> dont on suit la progression — c'est ce que fera le back-office gestionnaire pour suivre l'avancement (chantier 3).</p></div>
     </div>
   </div>
 </section>

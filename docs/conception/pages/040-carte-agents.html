@@ -21,7 +21,7 @@
   <h2 class="titre"><span class="num">1.1</span>🗺️ Un tool, quatre agents, cinq frontières</h2>
   <p class="chapo">L'éligibilité est un tool déterministe, <code>is_eligible()</code> (≈ <code>IsEligible()</code> en C#), appelé par
     l'orchestrateur. Restent quatre agents spécialistes, chacun unique écrivain de sa section. Les fichiers sont lus <b>avant</b>
-    l'équipe, par un outil VLM ; côté espace assuré, un agent de relance répond hors de la machine (2.8).</p>
+    l'équipe, par un outil VLM.</p>
 
   <div class="schema">
     <svg width="1032" height="378">
@@ -78,8 +78,6 @@
       <span class="fait">✅ FAIT</span><br>règle 0 puis §10<br>fiche de décision + motif<br>
       <span class="pas">⛔ NE FAIT PAS</span><br>ne recalcule aucun montant<br>n'appelle pas le partenaire</div>
     <div class="boite llm" style="left:894px; top:112px; width:138px; height:152px; border-style:dashed; padding:8px 8px; font-size:10.5px">
-      <b>💬 relance</b><span class="etiq">espace assuré · hors machine (2.8)</span><br>
-      répond à l'assuré sur <b>ses pièces</b> seulement<br>n'écrit aucune section<br>ne voit ni avis, ni score</div>
 
     <div class="etat"><b>🧠 État partagé de la demande — 1 section = 1 seul écrivain</b><br>
       <span class="sec">eligibilite ← 🔧</span><span class="sec">pieces ← 📄</span><span class="sec">estimation ← 💶</span>
@@ -98,6 +96,6 @@
     <div class="note petit"><h3>Pourquoi un tool ?</h3>E1 → E5 = 5 règles binaires sur des données structurées : une fonction pure suffit. Un nœud agentique de moins, 0 appel LLM.</div>
     <div class="note petit"><h3>Contrat respecté</h3>L'orchestrateur n'écrit qu'<b>une</b> section métier, <code>eligibilite</code> : « 1 section = 1 écrivain » reste vrai (interface.md).</div>
     <div class="note petit"><h3>Agents-outils</h3>Les 4 agents ne s'appellent jamais entre eux : le ping-pong est impossible par construction.</div>
-    <div class="note petit"><h3>Ni le VLM ni la relance ne sont dans l'équipe</h3>Le VLM : 1 fichier, 1 tâche, 1 sortie structurée. La relance parle à l'assuré, hors machine. Aucun n'écrit de section.</div>
+    <div class="note petit"><h3>Le VLM n'est pas dans l'équipe</h3>Le VLM : 1 fichier, 1 tâche, 1 sortie structurée. Il n'écrit aucune section.</div>
   </div>
 </section>

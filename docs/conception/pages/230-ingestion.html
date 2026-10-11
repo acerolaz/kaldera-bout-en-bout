@@ -9,18 +9,18 @@
   </style>
   <div class="surtitre">Livrable 2 · Ingestion des pièces</div>
   <h2 class="titre"><span class="num">2.4 ter</span>📥 Le pipeline d'ingestion</h2>
-  <p class="chapo">Chaque fichier passe une seule fois par le même pipeline, quelle que soit son entrée (API, espace assuré, <code>make seed</code>).
+  <p class="chapo">Chaque fichier passe une seule fois par le même pipeline, quelle que soit son entrée (API, <code>make seed</code>, <code>make demo</code>).
     Le VLM analyse, le code vérifie, PostgreSQL conserve. Avant l'admission, donc hors des 10 s.</p>
 
   <div class="pipe">
-    <div class="boite ext"><b><span class="n">1</span>Dépôt</b><code>POST …/pieces</code> · API ou espace assuré</div>
+    <div class="boite ext"><b><span class="n">1</span>Dépôt</b><code>POST …/pieces</code> · API</div>
     <div class="boite tool"><b><span class="n">2</span>Contrôles</b>MIME lu sur les octets · ≤ 10 Mo · sha256 · contrat : PDF seul</div>
     <div class="boite"><b><span class="n">3</span>blob</b><code>ON CONFLICT (sha256)</code> : déduplication</div>
     <div class="boite"><b><span class="n">4</span>file_ingestion</b>tâche en attente · <b>202</b></div>
     <div class="boite orch"><b><span class="n">5</span>Worker</b><code style="background:#2d5a44;color:#fff">FOR UPDATE SKIP LOCKED</code> · 3 essais</div>
     <div class="boite tool"><b><span class="n">6</span>Cache ?</b>(sha256, modèle, version_prompt)</div>
     <div class="boite llm"><b><span class="n">7</span>VLM · 1 appel</b>image de la page 1 · sortie Pydantic <code>extra="forbid"</code></div>
-    <div class="boite ok"><b><span class="n">8</span>Invariants → descripteur</b><code>pieces</code> / <code>contrats</code> · événement assuré</div>
+    <div class="boite ok"><b><span class="n">8</span>Invariants → descripteur</b><code>pieces</code> / <code>contrats</code></div>
   </div>
   <div class="ligne" style="justify-content:space-between; font-size:10.5px">
     <span style="color:var(--risque-bord); font-weight:650">⛔ refus immédiat aux contrôles : 415 · 413 · aucune analyse</span>
