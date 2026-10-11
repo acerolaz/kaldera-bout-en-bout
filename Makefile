@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve eval fumee-vlm demo-assure front front-test front-e2e recette recette-reset dossier
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve eval fumee-vlm demo front front-test front-e2e recette recette-reset dossier
 
 install:
 	uv sync
@@ -70,8 +70,8 @@ eval:
 fumee-vlm:
 	uv run python scripts/fumee_vlm.py
 
-demo-assure:
-	uv run python -m tools.demo_assure
+demo:
+	uv run python -m tools.demo
 
 front:
 	cd front && npm run dev
@@ -86,7 +86,7 @@ front-e2e:
 # Recette (docs/recette/cahier-recette.pdf) : repart d'une base vide, puis make api, make worker, make front
 recette: recette-reset
 	docker compose --profile integration up -d --build --wait
-	uv run python -m tools.demo_assure
+	uv run python -m tools.demo
 
 recette-reset:
 	docker compose --profile integration down -v

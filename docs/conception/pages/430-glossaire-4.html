@@ -18,7 +18,7 @@
     <tr><td>Règle 0</td><td>Première règle de decision, hors §10 : contrat non exploitable ⇒ escalade gestionnaire motivée (P‑Q8).</td></tr>
     <tr><td>Trois verrous</td><td>Contrôles d'une extraction de contrat : ① schéma et numéro, ② barème, ③ couche texte (numéro, franchise, plafond, date) ; un échec ⇒ <code>non_exploitable</code>.</td></tr>
     <tr><td>Couche texte</td><td>Texte sélectionnable d'un PDF natif ; absente d'un PDF scanné. Sert au contrôle croisé du VLM.</td></tr>
-    <tr><td>PostgreSQL (facultatif)</td><td>Base unique quand <code>KALDERA_DATABASE_URL</code> est défini : dix tables, psycopg et <code>ConnectionPool</code> synchrones. Sans elle, ni snapshot ni reaper, registre A2A en mémoire.</td></tr>
+    <tr><td>PostgreSQL (facultatif)</td><td>Base unique quand <code>KALDERA_DATABASE_URL</code> est défini : sept tables, psycopg et <code>ConnectionPool</code> synchrones. Sans elle, ni snapshot ni reaper, registre A2A en mémoire.</td></tr>
     <tr><td>bytea</td><td>Type PostgreSQL pour stocker des octets bruts (≈ <code>varbinary(max)</code>).</td></tr>
     <tr><td>SKIP LOCKED</td><td>Option de <code>SELECT … FOR UPDATE</code> qui saute les lignes verrouillées : file de tâches sans doublon (≈ <code>READPAST</code>).</td></tr>
     <tr><td>Index partiel</td><td>Index limité aux lignes d'une condition (<code>WHERE statut = 'en_cours'</code>) : petit et rapide.</td></tr>

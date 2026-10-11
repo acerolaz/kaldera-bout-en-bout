@@ -42,22 +42,21 @@
       <tr><td>22</td><td>🏭 <b>Générateur déterministe</b> (<code>--seed 42</code>) + manifeste = vérité terrain de l'éval du VLM</td></tr>
       <tr class="nouveau"><td>23</td><td>🧵 <b>Exécution synchrone</b> : LLM, VLM et A2A sous délai par thread ; <code>traiter_lot</code> en threads</td></tr>
       <tr class="nouveau"><td>24</td><td>🔁 <b>Disjoncteur LLM</b> : &gt; 50 % de replis sur 60 s (≥ 10 tentatives) ⇒ repli des 4 agents, sans appel</td></tr>
-      <tr class="nouveau"><td>25</td><td>🧑 <b>Espace assuré</b> : vue projetée en liste blanche ; agent de relance borné aux pièces, hors machine</td></tr>
-      <tr class="nouveau"><td>26</td><td>📏 <b>Mesurer pour de vrai</b> : <code>make epreuve</code> (EX-01 → EX-06, T1–T11) et <code>make eval</code> (agent × modèle)</td></tr>
+      <tr class="nouveau"><td>25</td><td>📏 <b>Mesurer pour de vrai</b> : <code>make epreuve</code> (EX-01 → EX-06, T1–T11) et <code>make eval</code> (agent × modèle)</td></tr>
     </table>
 
     <div style="display:flex; flex-direction:column; gap:9px">
       <div class="note violet">
         <h3>🔄 Évolutions depuis la version du 8 octobre</h3>
-        <p class="petit discret" style="margin-bottom:6px">Chantier 2 : liaison A2A, monitorage, LLM réel, espace assuré.
-          Lignes 23 à 26 du tableau (fond vert) ajoutées.</p>
+        <p class="petit discret" style="margin-bottom:6px">Chantier 2 : liaison A2A, monitorage, LLM réel. Chantier 3 (v5) : back-office gestionnaire.
+          Lignes 23 à 25 du tableau (fond vert) ajoutées.</p>
         <div class="evol">
           <div class="item"><span class="puce">1</span><span><b>Un seul fournisseur</b> : Azure AI Foundry via <code>azure-ai-inference</code>, pour les agents et le VLM ; plus d'adaptateur par fournisseur.</span></div>
           <div class="item"><span class="puce">2</span><span><b>Rôle du LLM borné</b> : chaque agent calcule d'abord sa référence déterministe ; le LLM rédige le texte de sa section, sans changer l'issue ni l'appel au partenaire.</span></div>
-          <div class="item"><span class="puce">3</span><span><b>Exécution synchrone</b> sous délai par thread ; seuls le cycle de vie de l'API et le flux SSE sont <code>async</code>.</span></div>
+          <div class="item"><span class="puce">3</span><span><b>Exécution synchrone</b> sous délai par thread ; seul le cycle de vie de l'API est <code>async</code>.</span></div>
           <div class="item"><span class="puce">4</span><span><b>Persistance facultative</b> : sans <code>KALDERA_DATABASE_URL</code>, ni snapshot ni reaper, registre A2A en mémoire.</span></div>
           <div class="item"><span class="puce">5</span><span><b>Disjoncteur LLM</b> (EX-D33), un par orchestrateur ; nouvelle cause de repli <code>disjoncteur</code>.</span></div>
-          <div class="item"><span class="puce">6</span><span><b>Espace assuré</b> (UI1) : front React, API <code>/assure/*</code>, flux SSE, vue projetée ; un 5ᵉ agent LLM, la <b>relance</b>.</span></div>
+          <div class="item"><span class="puce">6</span><span><b>IHM gestionnaire</b> (v5, chantier 3) : back-office local non sécurisé, en cours.</span></div>
           <div class="item"><span class="puce">7</span><span><b>A2A conforme au contrat v2.0</b> : Agent Card lue au démarrage, URL de même origine, nature de chaque appel tracée.</span></div>
           <div class="item"><span class="puce">8</span><span><b>Mesure réelle</b> : <code>make epreuve</code> (référence archivée, verte) et <code>make eval</code>, qui attend encore les clés Azure.</span></div>
         </div>

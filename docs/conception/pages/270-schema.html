@@ -10,7 +10,7 @@
   </style>
   <div class="surtitre">Livrable 2 · Persistance</div>
   <h2 class="titre"><span class="num">2.6 bis</span>🗄️ Le schéma de la base</h2>
-  <p class="chapo">Les dix tables, leurs contraintes et leurs index (<code>src/kaldera/migrations/001</code> → <code>004</code>). Chaque règle de conception qui
+  <p class="chapo">Les sept tables, leurs contraintes et leurs index (<code>src/kaldera/migrations/001</code> → <code>005</code>). Chaque règle de conception qui
     peut l'être est tenue par la base, pas seulement par le code. 🔑 clé · → référence.</p>
 
   <div class="grille-5" style="gap:8px; align-items:start">
@@ -42,25 +42,14 @@
     <div class="table-carte"><h4>🤝 appels_partenaire</h4>
       <div><span class="k">🔑 reference → demandes</span><span>text</span></div><div><span>reserve_le</span><span>timestamptz</span></div>
       <div><span>evaluation_id</span><span>text</span></div></div>
-    <div class="table-carte assure"><h4>👤 utilisateurs</h4>
-      <div><span class="k">🔑 id</span><span>uuid</span></div><div><span>identifiant</span><span>UNIQUE · 3–64</span></div>
-      <div><span>hash</span><span>argon2</span></div><div><span>role</span><span>assure · admin</span></div><div><span>echecs · bloque_jusqu</span><span>blocage</span></div></div>
-    <div class="table-carte assure"><h4>🔗 demandes_assure</h4>
-      <div><span class="k">🔑 utilisateur → utilisateurs</span><span>uuid</span></div><div><span class="k">🔑 reference → demandes</span><span>text</span></div></div>
-    <div class="table-carte assure"><h4>📣 evenements_assure</h4>
-      <div><span class="k">🔑 id</span><span>bigserial</span></div><div><span>reference → demandes</span><span>text</span></div>
-      <div><span>type</span><span>4 types</span></div><div><span>etape</span><span>1 … 5</span></div>
-      <div><span>contenu · cree_le</span><span>jsonb · horodatage</span></div></div>
   </div>
 
-  <div class="legende"><span class="l-ext">Moteur, ingestion, A2A (001 → 003)</span><span class="l-llm">Espace assuré (004, 2.8)</span></div>
+  <div class="legende"><span class="l-ext">Moteur, ingestion, A2A (001 → 003) · colonnes <code>cree_le</code>, <code>depose_le</code> (004) · migration 005</span></div>
 
   <div class="grille-4 pousse">
     <div class="note petit"><h3>Index partiels</h3><code>demandes (maj) WHERE en_cours</code> pour le reaper ; <code>file_ingestion (id) WHERE en_attente</code> pour le worker ;
       <code>(pris_le) WHERE en_cours</code> pour la reprise.</div>
-    <div class="note petit"><h3>CHECK = règles tenues par la base</h3>MIME et taille des blobs, enums de type et de statut, montant &gt; 0, franchise ≥ 0, plafond &gt; 0,
-      étape 1 → 5.</div>
-    <div class="note petit"><h3>Unicités</h3>Un blob par sha256, une pièce par (demande, fichier), un appel partenaire par demande, un identifiant par compte.</div>
-    <div class="note petit"><h3>Flux de l'assuré</h3><code>evenements_assure (reference, id)</code> : le flux SSE relit les événements après le dernier <code>Last-Event-ID</code> (2.8).</div>
+    <div class="note petit"><h3>CHECK = règles tenues par la base</h3>MIME et taille des blobs, enums de type et de statut, montant &gt; 0, franchise ≥ 0, plafond &gt; 0.</div>
+    <div class="note petit"><h3>Unicités</h3>Un blob par sha256, une pièce par (demande, fichier), un appel partenaire par demande.</div>
   </div>
 </section>

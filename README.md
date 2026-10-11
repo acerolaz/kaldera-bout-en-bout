@@ -42,11 +42,7 @@ sont lues par un VLM, utilisé comme outil, puis vérifiées par le code.
     l'invariance niveau 1 / niveau 0 ;
   - des scénarios de recette, des métriques par agent et un journal des
     ajustements.
-- **Espace sinistre de l'assuré** (`front/`, `docs/interface_web.md`) :
-  - suivi du dossier en 5 étapes, avec le temps écoulé et le temps restant estimé ;
-  - dépôt des pièces (glisser-déposer, photo mobile) ;
-  - assistant pièces : un agent de relance, borné aux pièces, qui explique ce qui manque ;
-  - verdict expliqué, sans aucune trace de l'anti-fraude.
+- **IHM gestionnaire** (`front/`) : back-office en cours (chantier 3) ; aujourd'hui une page d'attente.
 
 ## Stack
 
@@ -58,8 +54,7 @@ sont lues par un VLM, utilisé comme outil, puis vérifiées par le code.
 - httpx (client A2A, seed)
 - PostgreSQL 16, psycopg 3 + psycopg_pool
 - pypdf, pypdfium2, Pillow ; reportlab (générateur, en dépendance de développement)
-- React, Vite, TypeScript, Tailwind, shadcn/ui (espace assuré, `front/`)
-- argon2-cffi, itsdangerous (comptes et sessions de l'espace assuré)
+- React, Vite, TypeScript, Tailwind, shadcn/ui (back-office gestionnaire, `front/`)
 - pytest, ruff, mypy ; Vitest, Playwright (front)
 - Docker Compose (service partenaire ; PostgreSQL sous le profil `integration`)
 
@@ -69,7 +64,7 @@ sont lues par un VLM, utilisé comme outil, puis vérifiées par le code.
 make install              # uv sync : installe les dépendances
 cp .env.example .env      # puis renseigner les valeurs (voir ci-dessous)
 make up                   # docker compose up -d : service partenaire sur :8100
-cd front && npm install   # dépendances du front (espace assuré)
+cd front && npm install   # dépendances du front
 make test                 # tests unitaires et d'acceptance
 make test-integration     # démarre PostgreSQL (port 5433) puis lance les tests d'intégration
 ```
@@ -93,13 +88,7 @@ Configuration (`.env`) :
   `KALDERA_INGESTION__DELAI_ANALYSE_S` (défaut 60) et `KALDERA_INGESTION__TAILLE_MAX_MO`
   (défaut 10, au-delà : 413).
 - `PARTENAIRE_URL`, `PARTENAIRE_JETON` : service anti-fraude.
-- `KALDERA_SESSION_SECRET` : secret de signature des sessions de l'espace assuré. Sans lui
-  (ou s'il est vide), les routes `/assure/*` répondent 503. `KALDERA_FRONT_ORIGIN` (défaut
-  `http://localhost:5173`), `KALDERA_DUREE_SESSION_H` (défaut 8) et `KALDERA_COOKIE_SECURE`
-  (défaut `true` : cookie envoyé en https seulement ; `false` en local, en http).
 - `KALDERA_API_URL` (défaut `http://localhost:8000`) : API visée par `make seed`.
-- `KALDERA_RELANCE__MODELE` (et `DELAI_AGENT_S`, `JETONS_MAX`, `TOURS_MAX`) : agent de relance.
-  Sans profil, il répond par gabarits.
 
 ## Utilisation
 
@@ -171,22 +160,19 @@ donne la matrice agent × modèle (replis, sorties rejetées, latence LLM p95, t
 modèle recommandé par rôle, l'invariance des issues et les bornes remesurées. Code de sortie : 0
 tout vert, 1 alerte, 2 non mesuré (aucune clé ou aucun modèle).
 
-Espace sinistre de l'assuré (`KALDERA_DATABASE_URL`, `KALDERA_SESSION_SECRET` et
-`KALDERA_COOKIE_SECURE=false` requis ; détails dans `docs/interface_web.md`) :
+IHM (back-office gestionnaire, chantier 3 en cours) :
 
 ```bash
 make up
 docker compose --profile integration up -d --wait postgres
-make demo-assure   # demande KAL-26-0101, son contrat et le compte « claire »
-make api
+make demo    # demande KAL-26-0101 et son contrat
+make api     # http://127.0.0.1:8000/docs
 make worker
-make front         # http://localhost:5173
+make front   # http://localhost:5173 : page d'attente
 ```
 
-Connexion : `claire` / `kaldera-demo`. Ce mot de passe peut être changé par
-`KALDERA_DEMO_MOT_DE_PASSE`, et ne sert jamais pour un vrai compte. `make demo-assure` et
-`make seed` créent tous deux `KAL-26-0101` : on n'en lance qu'un par base (sinon « base déjà
-préparée » ou « base déjà semée »).
+`make demo` et `make seed` créent tous deux `KAL-26-0101` : on n'en lance qu'un par base (sinon
+« base déjà préparée » ou « base déjà semée »).
 
 Recette manuelle (`docs/recette/cahier-recette.pdf`, régénéré par
 `uv run python docs/recette/generer_cahier_recette.py`) :
@@ -204,8 +190,7 @@ Les cibles `make` chargent `.env`. Hors `make` : `set -a; . ./.env; set +a`.
 ## Administration
 
 Il n'y a pas encore de console d'administration (specs 2 et 3, maquette dans
-`design-system/kaldera/pages/console-admin.md`), ni de commande pour créer un compte assuré
-en dehors de la démo. L'exploitation se fait avec ces commandes :
+`design-system/kaldera/pages/console-admin.md`). L'exploitation se fait avec ces commandes :
 
 ```bash
 # Partenaire anti-fraude simulé
@@ -232,17 +217,14 @@ docker compose --profile integration down -v        # vider la base (et tout arr
     agents déterministes (référence et repli), agents LLM, garde-fous, port LLM, disjoncteur
     LLM, consignes
   - `cli.py` : rejeu des scénarios (`make scenarios`)
-  - `partenaire.py`, `espace_assure.py`, `regles.py` : client A2A, espace assuré, référentiel métier
+  - `partenaire.py`, `depots_assure.py`, `regles.py` : client A2A, dépôts de complément, référentiel métier
   - `ports.py`, `memoire.py`, `postgres.py`, `reaper.py`, `migrations/` : persistance
   - `api.py`, `worker.py`, `ingestion.py`, `ingestion_postgres.py`, `vlm.py` : ingestion des pièces
-  - `auth.py`, `vue_assure.py`, `relance.py`, `evenements.py`, `api_assure.py`,
-    `assure_postgres.py` : espace assuré (sessions, projection, agent de relance, événements,
-    routes `/assure/*`, dépôt PostgreSQL)
-- `front/` : espace sinistre de l'assuré (React, Vite, Playwright dans `front/e2e/`)
+- `front/` : back-office gestionnaire (page d'attente, React, Vite, Playwright dans `front/e2e/`)
 - `design-system/` : design system de l'interface web
 - `tools/` : `generer_pieces.py` (générateur), `seed.py`, `eval_ingestion.py` (épreuve de
-  l'ingestion), `epreuve.py` (`make epreuve`), `eval_llm.py` (`make eval`), `demo_assure.py`
-  (`make demo-assure`, `make recette`)
+  l'ingestion), `epreuve.py` (`make epreuve`), `eval_llm.py` (`make eval`), `demo.py`
+  (`make demo`, `make recette`)
 - `fixtures/pieces/` : pièces factices générées et leur manifeste (versionnés)
 - `eval/scenarios.jsonl`, `eval/scenarios_ingestion.jsonl` : scénarios de recette et d'ingestion
 - `external_agent/` : service anti-fraude partenaire simulé et son contrat d'échange (`contrat.md`)
@@ -250,7 +232,7 @@ docker compose --profile integration down -v        # vider la base (et tout arr
 - `tests/unit/`, `tests/acceptance/`, `tests/integration/` : tests (l'intégration exige PostgreSQL)
 - `tests/e2e/` : serveur de bout en bout (API + worker sur FakeVLM) lancé par Playwright
 - `docs/specs_metier.md`, `docs/interface.md` : spécifications fonctionnelles, contrat d'intégration
-- `docs/interface_web.md` : espace sinistre de l'assuré (architecture, confidentialité, sécurité)
+- `docs/interface_web.md` : espace assuré (retiré en v5, archive)
 - `docs/journal_ajustements.md` : ajustements consignés et bornes en vigueur
 - `docs/addendum_conception.md` : écarts entre le dossier de conception et le code
 - `docs/recette/` : cahier de recette (PDF) et son générateur
@@ -264,7 +246,7 @@ make fmt        # ruff format + autofix
 make lint       # ruff check
 make typecheck  # mypy
 make front-test # Vitest (front)
-make front-e2e  # Playwright : parcours complet de l'assuré (démarre PostgreSQL de test)
+make front-e2e  # Playwright : test de fumée du back-office (démarre PostgreSQL de test)
 make down       # arrête les services docker
 ```
 

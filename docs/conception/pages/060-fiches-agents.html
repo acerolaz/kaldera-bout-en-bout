@@ -23,7 +23,7 @@
       <td>Fonction pure, testée E1 → E5 ; <b>jamais appelée</b> si contrat non exploitable (T0)</td><td>—</td></tr>
     <tr><td><span class="nom">📄 pieces</span></td>
       <td><i>rapide</i> — rapproche les descripteurs des pièces attendues, <b>rédige la relance</b></td>
-      <td>Type de sinistre, <b>descripteurs analysés au dépôt</b> <code>{type, lisible, montant?}</code>, dépôts de l'espace assuré</td>
+      <td>Type de sinistre, <b>descripteurs analysés au dépôt</b> <code>{type, lisible, montant?}</code>, dépôts de complément (API)</td>
       <td><code>{statut, manquantes[], retenues[], message_relance}</code><br><span class="discret">(le nombre de relances est dans <code>compteurs</code>)</span></td>
       <td>Statut = référence déterministe ; seul le dépôt de la relance en cours est lisible (<code>lire_depot(k)</code>) ; analyse en échec ⇒ <b>illisible</b></td>
       <td><code>verifier_completude</code>, <code>pieces_requises</code>, <code>lister_pieces</code>, <code>lire_depot(k)</code></td></tr>

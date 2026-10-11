@@ -69,14 +69,6 @@ def texte_pdf(octets: bytes) -> str:
         return ""
 
 
-def nombre_pages(contenu: bytes) -> int:
-    """Pages d'un PDF (0 s'il est illisible) : le VLM ne lit que la première (avertissement UI1)."""
-    try:
-        return len(PdfReader(io.BytesIO(contenu)).pages)
-    except _PDF_ABIME:
-        return 0
-
-
 class AnalysePiece(BaseModel):
     """Sortie de ``analyser_piece`` : rien d'autre (une consigne glissée est refusée)."""
 

@@ -1,37 +1,8 @@
-import { BrowserRouter, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { Toaster } from "sonner";
-import { Chat } from "./components/Chat";
-import { Connexion } from "./pages/Connexion";
-import { MesSinistres } from "./pages/MesSinistres";
-import { Sinistre } from "./pages/Sinistre";
-
-function PageSinistre() {
-  const { reference = "" } = useParams();
-  const naviguer = useNavigate();
-  return (
-    <Sinistre
-      reference={reference}
-      chat={({ messages, deposer }) => (
-        <Chat
-          reference={reference}
-          messages={messages}
-          onDeposer={deposer}
-          onExpire={() => naviguer("/connexion", { replace: true })}
-        />
-      )}
-    />
-  );
-}
-
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/connexion" element={<Connexion />} />
-        <Route path="/" element={<MesSinistres />} />
-        <Route path="/sinistres/:reference" element={<PageSinistre />} />
-      </Routes>
-      <Toaster richColors position="top-center" />
-    </BrowserRouter>
+    <main className="mx-auto flex min-h-svh max-w-3xl flex-col justify-center gap-3 px-4">
+      <h1 className="text-2xl font-semibold text-primary">Kaldera · back-office gestionnaire</h1>
+      <p className="text-muted-foreground">En construction (chantier 3).</p>
+    </main>
   );
 }

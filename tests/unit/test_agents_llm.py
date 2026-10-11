@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from kaldera import espace_assure
+from kaldera import depots_assure
 from kaldera.disjoncteur import Disjoncteur
 from kaldera.agents_llm import IDENTITE, SPECS, AgentLLM, creer_agent
 from kaldera.etat import Bornes, EtatDemande
@@ -250,7 +250,7 @@ def test_argument_d_outil_invalide_finit_en_repli(k: Any) -> None:
 def test_exception_d_outil_finit_en_outil_refuse(monkeypatch: pytest.MonkeyPatch) -> None:
     vue = _vue_pieces(_demande("NOM-07"), 1)
     repli, _ = _agent("pieces", None).executer(copy.deepcopy(vue), budget_s=5)
-    reel, appels = espace_assure.depot_pour, []
+    reel, appels = depots_assure.depot_pour, []
 
     def casse(*args: Any) -> Any:
         appels.append(args)
@@ -258,7 +258,7 @@ def test_exception_d_outil_finit_en_outil_refuse(monkeypatch: pytest.MonkeyPatch
             raise TypeError("liste indexée par un flottant")
         return reel(*args)
 
-    monkeypatch.setattr(espace_assure, "depot_pour", casse)
+    monkeypatch.setattr(depots_assure, "depot_pour", casse)
     llm = FakeLLM(lambda m, o: _appel_depot({"k": 1}))
     patch, mesure = _agent("pieces", llm).executer(vue, budget_s=5)
     assert (mesure.mode, mesure.cause) == ("repli", "outil_refuse") and patch == repli

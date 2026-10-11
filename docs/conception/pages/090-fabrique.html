@@ -55,8 +55,7 @@ SPECS = MappingProxyType({
 
   <div class="grille-3 pousse">
     <div class="carte"><h3>🏭 Fabrique d'agents</h3><p class="petit">Table <code>SPECS</code> + fonction <code>creer_agent()</code> : ajouter un agent = une
-      ligne (OCP). Pas d'Abstract Factory ni de sous-classe. En test, <code>FakeLLM</code> passe par la même fabrique (DIP). L'agent de relance
-      (2.8) réutilise le même <code>AgentLLM</code>.</p></div>
+      ligne (OCP). Pas d'Abstract Factory ni de sous-classe. En test, <code>FakeLLM</code> passe par la même fabrique (DIP).</p></div>
     <div class="carte"><h3>🛡️ Garde-fou de sortie</h3><p class="petit">Fonction pure <code>verifier_sortie(patch, ref, vue, …) → violations</code>, testée
       sans LLM : champs décisifs = référence, aucune donnée sensible, contrôle du texte propre à l'agent. Une violation ⇒ repli, tracé
       <code>mode = repli</code> + <code>cause</code>.</p></div>

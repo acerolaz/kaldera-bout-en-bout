@@ -1,6 +1,6 @@
 """Serveur de bout en bout (Playwright) : API réelle + worker sur FakeVLM, partenaire coupé.
 
-Base : TEST_DATABASE_URL, vidée puis préparée (tools.demo_assure). Aucun appel Azure : les
+Base : TEST_DATABASE_URL, vidée puis préparée (tools.demo). Aucun appel Azure : les
 profils LLM sont retirés de l'environnement et le .env n'est pas lu (agents en gabarit/repli).
 Usage : uv run python -m tests.e2e.serveur (lancé par front/playwright.config.ts).
 """
@@ -15,7 +15,7 @@ import time
 import uvicorn
 
 ENV_LLM = re.compile(
-    r"^(AZURE_AI_|KALDERA_(PIECES|ESTIMATION|ANTIFRAUDE|DECISION|RELANCE|INGESTION)__)"
+    r"^(AZURE_AI_|KALDERA_(PIECES|ESTIMATION|ANTIFRAUDE|DECISION|INGESTION)__)"
 )
 
 
@@ -27,9 +27,6 @@ def main() -> None:
         del os.environ[variable]
     os.environ.update(
         KALDERA_DATABASE_URL=url,
-        KALDERA_SESSION_SECRET=os.environ.get("KALDERA_SESSION_SECRET", "secret-e2e"),
-        KALDERA_COOKIE_SECURE="false",
-        KALDERA_FRONT_ORIGIN="http://localhost:5173",
         PARTENAIRE_URL="http://127.0.0.1:9",
         KALDERA_INGESTION__DELAI_ANALYSE_S="5",  # même valeur pour l'API (.env lu) et le worker
     )
@@ -41,15 +38,15 @@ def main() -> None:
     from kaldera.worker import travailler
     from kaldera.disjoncteur import Disjoncteur
     from kaldera.etat import BORNES
-    from tools.demo_assure import preparer
+    from tools.demo import preparer
     from tools.seed import lire_manifeste, verites_fake
 
     llm.charger_config = lambda: llm.ConfigAgents(_env_file=None)  # le .env n'est jamais lu
     connexions = pool(url)
     with connexions.connection() as conn:
         conn.execute(
-            "TRUNCATE evenements_assure, demandes_assure, utilisateurs, appels_partenaire, "
-            "pieces, file_ingestion, analyses, demandes, contrats, blobs"
+            "TRUNCATE appels_partenaire, pieces, file_ingestion, analyses, demandes, contrats, "
+            "blobs"
         )
     preparer(connexions)
     ingestion = IngestionPostgres(connexions)

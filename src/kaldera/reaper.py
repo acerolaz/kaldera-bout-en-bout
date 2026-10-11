@@ -10,11 +10,8 @@ import logging
 import time
 from typing import Any
 
-from psycopg_pool import ConnectionPool
 from pydantic import ValidationError
 
-from . import evenements
-from .assure_postgres import DepotAssure
 from .etat import EtatDemande
 from .machine import Etat
 from .orchestrateur import _etape_sans_action, construire_fiche
@@ -69,13 +66,6 @@ def fiche_de_secours(reference: str, brut: dict[str, Any]) -> dict[str, Any]:
     return construire_fiche(etat)
 
 
-def publier(connexions: ConnectionPool, fiches: list[dict[str, Any]]) -> None:
-    """L'assuré voit « Transmise à un gestionnaire » (vue projetée : aucune file exposée)."""
-    depot = DepotAssure(connexions)
-    for fiche in fiches:
-        evenements.publier_vue(depot, fiche["reference"], "verdict", 0.0)
-
-
 PERIODE_S = 10.0
 
 
@@ -95,7 +85,6 @@ def main() -> None:
                     fiche["reference"],
                     fiche["file"],
                 )
-            publier(snapshots.connexions, fiches)
         except ErreurPersistance as exc:
             LOGGER.error("reaper : %s ; nouvel essai dans %s s", exc, PERIODE_S)
         time.sleep(PERIODE_S)

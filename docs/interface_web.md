@@ -1,5 +1,8 @@
 # Interface web : espace sinistre de l'assuré
 
+> ⚠️ **Retiré en v5 (11/10/2026)** : l'espace assuré est remplacé par l'IHM gestionnaire
+> (chantier 3, `prompt_ui.md`). Ce document est conservé comme archive de l'UI1.
+
 Spec 1 sur 3 de l'interface web (UI1). Ce document décrit ce qui est **livré** ; la spec de
 conception est `docs/superpowers/specs/2026-10-09-ui1-espace-sinistre-design.md`. Les écarts à
 cette spec sont consignés dans `docs/journal_ajustements.md`.
