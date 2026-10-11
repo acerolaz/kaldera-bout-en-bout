@@ -112,7 +112,7 @@ def _outils_pieces(vue: Vue, ref: dict[str, Any]) -> list[Outil]:
         ),
         Outil("lister_pieces", "Pièces jointes à la demande.", lambda a: vue["initiales"]),
         Outil(
-            "lire_depot", "Dépôt n°k de l'espace assuré (k = relance en cours).", lire_depot, entier
+            "lire_depot", "Dépôt de complément n°k (k = relance en cours).", lire_depot, entier
         ),
     ]
 
@@ -159,7 +159,7 @@ def _gabarit_pieces(ref: dict[str, Any]) -> str | None:
         return None
     return (
         f"Bonjour, il nous manque encore : {', '.join(ref['manquantes'])}. "
-        "Merci de les déposer dans votre espace assuré."
+        "Merci de déposer les pièces manquantes."
     )
 
 

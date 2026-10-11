@@ -93,7 +93,7 @@ UI = [
 ]
 
 ADMIN = [
-    ("Après le parcours", [
+    ("Contrôles par make", [
         ("A-01", f"{m('make ctl ARGS=journal')}",
          "Journal vide : aucun dossier n'a encore été traité, le partenaire n'a reçu aucun appel."),
         ("A-02", f"{m('make reaper')}, observer 20 s puis Ctrl+C.",
@@ -128,8 +128,8 @@ def construire():
         tableau(["Rubrique", "Valeur"], [
             ["Objet", "Recette de démonstration : setup par commandes make (administrateur), "
                       "interface gestionnaire en construction, contrôles d'exploitation."],
-            ["Version testée", "<i>kaldera-bout-en-bout</i>, branche principale"],
-            ["Date", "11 octobre 2026"],
+            ["Version testée", "<i>kaldera-bout-en-bout</i>, branche <i>feature/chantier3-c3-0-retrait</i>"],
+            ["Date", "12 octobre 2026"],
             ["Durée estimée", "15 minutes environ"],
             ["Testeur", ""],
         ], [4, 14]),
@@ -167,7 +167,6 @@ def construire():
         tableau(["Élément", "Valeur"], [
             ["Dossier", "KAL-26-0101 — Claire Martin, dégât des eaux, formule confort, "
                         "1 850 € déclarés (scénario NOM-01)"],
-            ["Verdict attendu", "Remboursement accordé, 1 700 €"],
         ], [4, 14]),
         PageBreak(),
 
