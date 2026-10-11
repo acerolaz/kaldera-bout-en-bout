@@ -14,7 +14,8 @@ base propre au back-office gestionnaire. Aucune fonctionnalité du back-office n
 `npm run build`, `npm test`, `npm run lint`, `make front-e2e` verts ; plus aucune référence à
 `api_assure`, `auth`, `vue_assure`, `assure_postgres`, `evenements`, `demo_assure` ni à l'agent de
 relance dans `src/`, `tests/`, `tools/`, `front/src/`, `Makefile`, `docs/recette/` ; cahier de
-recette régénéré, déroulé de S-01 à A-04 sur la branche.
+recette régénéré, déroulé de S-01 à A-04 sur la branche. Dossier de conception régénéré et copié à la racine du
+brief, sans aucune mention de l'espace assuré.
 
 ### Décisions prises
 
@@ -29,11 +30,13 @@ recette régénéré, déroulé de S-01 à A-04 sur la branche.
 | Harnais e2e | Conservé (`tests/e2e/serveur.py`, Playwright) ; un test de fumée remplace le parcours assuré pour que `make front-e2e` reste vert. |
 | Dossier de démo | `tools/demo_assure.py` → `tools/demo.py` : crée toujours KAL-26-0101 et dépose son contrat, **sans compte** ; `make recette` l'appelle encore (le back-office en aura besoin). |
 | Cahier de recette | Mis à jour **dans cette PR** (générateur + PDF régénéré) : il doit décrire le système livré. Les cas assuré U-01 → U-17 sont retirés ; chaque sous-projet C3-1 → C3-4 ajoute ses cas IHM, C3-5 les déroule tous. |
+| Dossier de conception | Mis à jour **dans cette PR** : les 16 pages HTML qui citent l'espace assuré sont corrigées, le PDF est régénéré (`make dossier`) puis copié à la racine du brief (`kaldera-agents/dossier-conception.pdf`). Le dossier décrit le système **sans** espace assuré ; les sections IHM gestionnaire arrivent avec C3-1 → C3-4. |
 
 ### Hors périmètre
 
-Tout le back-office (design system, écrans, API gestionnaire, SSE, reprise, notes) ; la réécriture
-des sections du dossier de conception qui citent l'espace assuré (C3-5).
+Tout le back-office (design system, écrans, API gestionnaire, SSE, reprise, notes), y compris ses
+sections dans le dossier de conception ; la version texte `dossier-conception-v2.md` citée par le
+brief (elle n'existe pas encore : C3-5).
 
 ## 2. Back-end
 
@@ -106,9 +109,25 @@ DROP TABLE IF EXISTS evenements_assure, demandes_assure, utilisateurs;
   une ligne « IHM : back-office gestionnaire en cours (chantier 3) ».
 - `docs/journal_ajustements.md` : entrée « v5 · espace assuré retiré (front, API `/assure`, agent de
   relance, tables) ; remplacé par le back-office gestionnaire ».
-- `docs/conception/pages/295-espace-assure.html` et `020-sommaire.html` : bandeau « retiré en v5,
-  remplacé par l'IHM gestionnaire (chantier 3) ». Les autres mentions sont réécrites en C3-5.
-- `docs/interface_web.md` : bandeau identique en tête.
+- `docs/interface_web.md` : bandeau en tête « retiré en v5, remplacé par l'IHM gestionnaire (chantier 3) ».
+- **Dossier de conception** (`docs/conception/pages/*.html` → `make dossier` → copie vers
+  `kaldera-agents/dossier-conception.pdf`, 48 pages aujourd'hui, 19 concernées) :
+
+  | Page HTML (page PDF) | Changement |
+  |---|---|
+  | `295-espace-assure.html` (p30), `296-parcours-relance.html` (p31) | **supprimées** : l'espace assuré et le parcours de relance n'existent plus |
+  | `020-sommaire.html` (p2) | entrées 2.8 et agent de relance retirées ; numérotation recalculée |
+  | `040-carte-agents.html` (p4), `060-fiches-agents.html` (p6) | agent de relance retiré de la carte et des fiches ; les 4 agents métier inchangés |
+  | `090-fabrique.html` (p9-10), `200-bornes-llm.html` (p20) | rôle LLM `relance` retiré (modèle, bornes, chat) |
+  | `180-bornes.html` (p18) | bornes de l'espace assuré retirées |
+  | `230-ingestion.html` (p23), `280-generateur.html` (p28), `310-contrat-champs.html` (p33) | « déposé par l'espace assuré » ⇒ « déposé par l'API (`POST /demandes/{ref}/pieces`) » |
+  | `260-persistance.html` (p26), `270-schema.html` (p27) | tables `utilisateurs`, `demandes_assure`, `evenements_assure` retirées du schéma ; migration `005` mentionnée |
+  | `380-synthese.html` (p41-42) | choix tranchés et points ouverts liés à UI1 retirés ; ligne « v5 : espace assuré retiré, back-office gestionnaire (chantier 3) » |
+  | `410-glossaire-2.html` (p45), `440-glossaire-5.html` (p48) | entrées espace assuré, agent de relance, session, `evenements_assure`, `vue_assure` retirées |
+
+  Contrôles : `make dossier` ne signale aucun débordement de pied de page ; une extraction texte du
+  PDF (`pypdf`) ne trouve plus « espace assuré », « agent de relance », `/assure`, `vue_assure`,
+  `evenements_assure`, `utilisateurs`, `SESSION_SECRET`.
 
 ## 6. Risques
 
