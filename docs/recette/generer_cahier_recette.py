@@ -56,7 +56,7 @@ def groupes(liste):
     """Une fiche par groupe : ID, action, résultat attendu, OK/KO, remarques."""
     return [KeepTogether([Paragraph(nom, H2), tableau(
         ["ID", "Action", "Résultat attendu", "OK / KO", "Remarques"],
-        [[i, a, r, STATUTS.get(i, ""), ""] for i, a, r in lignes], [1.3, 6.2, 6.6, 1.4, 2.5])])
+        [[i, a, r, STATUTS.get(i, ""), REMARQUES.get(i, "")] for i, a, r in lignes], [1.3, 6.2, 6.6, 1.4, 2.5])])
         for nom, lignes in liste]
 
 
@@ -64,7 +64,16 @@ def groupes(liste):
 STATUTS: dict[str, str] = {
     "S-01": "OK", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "OK",
     "U-01": "OK", "U-02": "OK", "U-03": "OK", "U-04": "OK",
-    "A-01": "OK", "A-02": "OK", "A-03": "OK", "A-04": "OK",
+    "A-01": "OK", "A-02": "OK", "A-03": "OK", "A-04": "NT",
+}
+
+# Remarque relevée au dernier déroulé (vide : aucune) ; mise à jour à chaque recette.
+REMARQUES: dict[str, str] = {
+    "S-01": "Adapté : base vidée (TRUNCATE des tests) au lieu de make recette ; "
+            "PostgreSQL du checkout principal conservé.",
+    "S-03": "Pas de profil VLM Azure sur ce poste.",
+    "A-03": "Anti-fraude en mode dégradé (PARTENAIRE_URL absent).",
+    "A-04": "make recette-reset non lancé : PostgreSQL du checkout principal conservé.",
 }
 
 SETUP = [
