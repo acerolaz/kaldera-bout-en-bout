@@ -1,8 +1,24 @@
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Coquille } from "./components/Coquille";
+import { Dossier, Introuvable, ListeDemandes, Lot } from "./pages";
+
+export function Routage() {
+  return (
+    <Routes>
+      <Route element={<Coquille />}>
+        <Route path="/" element={<ListeDemandes />} />
+        <Route path="/demandes/:reference" element={<Dossier />} />
+        <Route path="/lots/:id" element={<Lot />} />
+        <Route path="*" element={<Introuvable />} />
+      </Route>
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
-    <main className="mx-auto flex min-h-svh max-w-3xl flex-col justify-center gap-3 px-4">
-      <h1 className="text-2xl font-semibold text-primary">Kaldera · back-office gestionnaire</h1>
-      <p className="text-muted-foreground">En construction (chantier 3).</p>
-    </main>
+    <BrowserRouter>
+      <Routage />
+    </BrowserRouter>
   );
 }
