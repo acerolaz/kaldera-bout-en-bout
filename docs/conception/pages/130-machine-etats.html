@@ -1,0 +1,124 @@
+<section class="page" id="machine-etats">
+  <style>
+    #machine-etats .bandeau { background: var(--vert); color: #fff; border-radius: 8px; padding: 7px 12px; text-align: center; border: 1.5px solid var(--or); }
+    #machine-etats .bandeau b { font-size: 13px; }
+    #machine-etats .bandeau div { font-size: 11px; color: #f2d77c; }
+    #machine-etats .schema { position: relative; width: 1030px; height: 252px; margin-top: 2px; }
+    #machine-etats .schema svg { position: absolute; left: 0; top: 0; }
+    #machine-etats .schema .boite { position: absolute; display: flex; flex-direction: column; justify-content: center; font-size: 10.5px; line-height: 1.35; padding: 5px 6px; }
+    #machine-etats .schema .boite b { font-size: 12.5px; margin-bottom: 1px; }
+    #machine-etats .schema .boite.tool { border-color: #8a939d; }
+    #machine-etats .adm { color: var(--llm-bord); }
+    #machine-etats .adm b { color: #5b3fb3; }
+    #machine-etats .term b { font-size: 12px; }
+    #machine-etats .acc b { color: #2b8a3e; } #machine-etats .ref b { color: #c92a2a; } #machine-etats .esc b { color: #d9480f; }
+    #machine-etats .t { position: absolute; font-size: 9.5px; font-weight: 700; white-space: nowrap; }
+    #machine-etats .lg { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 22px; font-size: 10.5px; color: var(--gris-texte); }
+    #machine-etats .lg span { display: inline-flex; align-items: center; gap: 6px; }
+    #machine-etats .court { text-align: center; font-size: 11.5px; }
+    #machine-etats .note h3 { font-size: 12.5px; }
+  </style>
+
+  <div class="surtitre">Livrable 2 · Orchestration</div>
+  <h2 class="titre"><span class="num">2.2</span>🔀 La machine à états d'une demande</h2>
+  <p class="chapo">Chaque état a <b>une action</b> (le tool ou un agent). La <b>table de transitions</b> et ses <b>gardes</b>
+    décident de l'état suivant. Une demande n'entre qu'après le <b>contrôle d'admission</b> ; un contrat non exploitable
+    va droit à decision (T0).</p>
+
+  <div class="bandeau">
+    <b>🛡️ orchestrateur = moteur de la machine · garde globale (TG) évaluée avant chaque action</b>
+    <div><code style="background:none;color:inherit">etapes + 1 ≥ etapes_max</code> (12) ou durée ≥ <code style="background:none;color:inherit">duree_max_s</code> (8 s)
+      ⇒ transition forcée vers decision (escalade forcée) · garde d'entrée <b>T0</b> évaluée avant l'action d'eligibilite</div>
+  </div>
+
+  <div class="schema">
+    <svg width="1030" height="252" viewBox="0 0 1030 252" aria-hidden="true">
+      <defs>
+        <marker id="me-vert" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2f9e44"/></marker>
+        <marker id="me-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#e8590c"/></marker>
+        <marker id="me-gris" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5c6672"/></marker>
+        <marker id="me-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6f2dbd"/></marker>
+        <marker id="me-or" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d4a72c"/></marker>
+      </defs>
+      <g stroke="#2f9e44" stroke-width="2" marker-end="url(#me-vert)">
+        <line x1="64" y1="125" x2="82" y2="125"/>
+        <line x1="200" y1="125" x2="220" y2="125"/>
+        <line x1="340" y1="125" x2="366" y2="125"/>
+        <line x1="478" y1="125" x2="504" y2="125"/>
+        <line x1="622" y1="125" x2="648" y2="125"/>
+        <line x1="762" y1="125" x2="788" y2="125"/>
+      </g>
+      <!-- admission : analyses en cours -->
+      <path d="M128,78 C128,52 166,52 166,76" fill="none" stroke="#6f2dbd" stroke-width="1.5" marker-end="url(#me-violet)"/>
+      <!-- T4 : boucle gardée -->
+      <path d="M402,89 C402,50 448,50 448,87" fill="none" stroke="#e8590c" stroke-width="2.4" marker-end="url(#me-orange)"/>
+      <!-- court-circuits T1, T5, T6 -->
+      <g fill="none" stroke="#5c6672" stroke-width="1.8">
+        <path d="M300,161 V204 H868"/>
+        <path d="M440,161 V204"/>
+        <path d="M582,161 V204"/>
+        <path d="M868,204 V185" marker-end="url(#me-gris)"/>
+      </g>
+      <!-- T0 : garde d'entrée -->
+      <path d="M240,161 V226 H828 V185" fill="none" stroke="#6f2dbd" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#me-violet)"/>
+      <!-- issues -->
+      <g fill="none" stroke="#d4a72c" stroke-width="2">
+        <path d="M902,125 H914 V36 H928" marker-end="url(#me-or)"/>
+        <path d="M914,98 H928" marker-end="url(#me-or)"/>
+        <path d="M914,125 V160 H928" marker-end="url(#me-or)"/>
+      </g>
+    </svg>
+
+    <div class="boite" style="left:0; top:92px; width:64px; height:66px; padding:3px"><b>📥<br>Demande</b>JSON §3<br>+ fichiers</div>
+    <div class="t adm" style="left:104px; top:36px; font-weight:600">analyses en cours ⟲</div>
+    <div class="boite ingestion adm" style="left:84px; top:76px; width:116px; height:98px"><b>🚪 Admission</b><div>hors machine<br>analyses terminées<br>+ soumission<br><b style="display:inline;font-size:10.5px">t = 0</b> des 10 s</div></div>
+
+    <div class="boite tool" style="left:222px; top:89px; width:118px; height:72px"><b>🔧 eligibilite</b><div><code>is_eligible()</code><br>E1→E5<br><span class="violet-texte" style="font-weight:500">sur contrat validé</span></div></div>
+    <div class="t" style="left:343px; top:108px; color:#2f9e44">T2</div>
+    <div class="t" style="left:334px; top:30px; color:#e8590c">T4 · incomplètes, relances &lt; 1</div>
+    <div class="boite" style="left:368px; top:89px; width:110px; height:72px"><b>📄 pieces</b>descripteurs ·<br>relance</div>
+    <div class="t" style="left:481px; top:108px; color:#2f9e44">T3</div>
+    <div class="boite" style="left:506px; top:89px; width:116px; height:72px"><b>💶 estimation</b>franchise → plafond</div>
+    <div class="t" style="left:626px; top:108px; color:#2f9e44">T7</div>
+    <div class="boite" style="left:650px; top:89px; width:112px; height:72px"><b>🕵️ antifraude</b>F1–F4 · A2A 🌐</div>
+    <div class="t" style="left:766px; top:108px; color:#2f9e44">T8</div>
+    <div class="boite decision" style="left:790px; top:65px; width:112px; height:120px"><b>⚖️ decision</b><div>règle 0, puis §10<br>dans l'ordre<br>seul écrivain<br>de <code>issue</code></div></div>
+
+    <div class="boite ok term acc" style="left:930px; top:10px; width:100px; height:52px"><b>✅ acceptee</b>T9</div>
+    <div class="boite risque term ref" style="left:930px; top:72px; width:100px; height:52px"><b>❌ refusee</b>T10</div>
+    <div class="boite term esc" style="left:930px; top:134px; width:100px; height:52px; background:#fff4e6; border-color:#e8590c"><b>🧑‍💼 escalade</b>T11 · 2 files</div>
+    <div class="t" style="left:938px; top:194px; color:var(--gris-texte)">états terminaux</div>
+
+    <div class="t" style="left:305px; top:167px; color:#5c6672">T1 · non éligible</div>
+    <div class="t" style="left:445px; top:167px; color:#5c6672">T5 · manquantes ou borne</div>
+    <div class="t" style="left:587px; top:167px; color:#5c6672">T6 · estimé = 0</div>
+    <div class="t" style="left:250px; top:232px; color:#6f2dbd; font-weight:600">T0 · contrat non exploitable — garde d'entrée, évaluée <b>avant</b> l'action ⇒ <code>is_eligible()</code> non appelé</div>
+  </div>
+
+  <div class="court">⚡ <b>court-circuit</b> : T0, T1, T5, T6, TG et l'échec d'un agent mènent <b>toujours à decision</b>, jamais directement à un
+    terminal ; seule exception, hors table : <b>decision elle-même en échec ⇒ escalade</b> directe (fiche de secours).</div>
+
+  <div class="lg">
+    <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#2f9e44" stroke-width="2.5"/></svg>transition nominale</span>
+    <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#e8590c" stroke-width="2.5"/></svg>boucle gardée</span>
+    <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#5c6672" stroke-width="2.5"/></svg>court-circuit vers decision</span>
+    <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#6f2dbd" stroke-width="2.5" stroke-dasharray="5 3"/></svg>garde d'entrée T0</span>
+    <span><svg width="26" height="8"><line x1="0" y1="4" x2="26" y2="4" stroke="#d4a72c" stroke-width="2.5"/></svg>issue → état terminal</span>
+    <span><b>Tn</b> = ligne de la table (page suivante)</span>
+  </div>
+
+  <div class="grille-4 pousse petit">
+    <div class="note"><h3>Tous les chemins mènent à decision</h3>
+      <p>Tout état non terminal atteint ⚖️ decision : propriété <b>prouvée statiquement</b> sur la table (2.3), T0
+        compris. EX-01 est garanti par construction.</p></div>
+    <div class="note"><h3>Qui décide que c'est fini ?</h3>
+      <p>Le moteur <b>constate</b> qu'un état terminal est atteint ; un LLM ne décide jamais de la fin. Seul ⚖️ decision
+        écrit <code>issue</code> ; à défaut, le moteur produit une fiche de secours (escalade).</p></div>
+    <div class="note"><h3>Économie d'appels</h3>
+      <p>Non éligible, pièces manquantes ou 0 € ⇒ l'état antifraude n'est jamais atteint. Sans F1–F4 ⇒
+        <code>non_requis</code>, aucun appel au partenaire.</p></div>
+    <div class="note"><h3>Admission + T0</h3>
+      <p>La demande n'entre qu'une fois ses fichiers analysés <b>et</b> sa soumission reçue. Contrat non exploitable ⇒
+        T0 ⇒ decision, <b>sans</b> appeler <code>is_eligible()</code> (EX-D40).</p></div>
+  </div>
+</section>

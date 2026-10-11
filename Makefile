@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve eval fumee-vlm demo-assure front front-test front-e2e recette recette-reset
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve eval fumee-vlm demo-assure front front-test front-e2e recette recette-reset dossier
 
 install:
 	uv sync
@@ -90,3 +90,7 @@ recette: recette-reset
 
 recette-reset:
 	docker compose --profile integration down -v
+
+# Dossier de conception (docs/conception/) : pages HTML → PDF A4 paysage (Chromium du front)
+dossier:
+	node docs/conception/rendre.cjs

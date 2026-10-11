@@ -1,0 +1,98 @@
+<section class="page" id="code-moteur">
+  <style>
+    #code-moteur .rond { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 2px solid currentColor; border-radius: 50%; font-size: 17px; margin: 0 2px; }
+    #code-moteur pre.code { font-size: 9.5px; line-height: 1.33; padding: 9px 10px; }
+    #code-moteur .tableau td, #code-moteur .tableau th { padding: 4px 7px; font-size: 10.5px; }
+    #code-moteur ol { margin: 0; padding-left: 20px; } #code-moteur ol li { margin: 1px 0; }
+  </style>
+
+  <div class="surtitre">Livrable 2 · De la table au code</div>
+  <h2 class="titre"><span class="num">2.2 bis</span>🐍 De la table au code · <span class="rond">2</span> le moteur</h2>
+  <p class="chapo">Le moteur (<code>orchestrateur.py</code>) ne contient <b>aucune règle métier</b> : il lit les tables, évalue
+    les gardes et appelle l'action de l'état courant.</p>
+
+  <div class="colonnes" style="grid-template-columns: 1.46fr 1fr">
+<pre class="code"><span class="k">class</span> Orchestrateur:
+    <span class="k">def</span> _executer(self, etat: EtatDemande) -&gt; None:
+        <span class="c"># … provenance du contrat (ContratDemande), snapshot de début (si base)</span>
+        courant = Etat.ELIGIBILITE
+        <span class="k">while</span> courant <span class="k">not in</span> TERMINAUX:
+            <span class="k">if</span> courant <span class="k">is not</span> Etat.DECISION <span class="k">and</span> self._garde_globale(etat, courant):
+                courant = Etat.DECISION  <span class="c"># TG : escalade forcée, l'issue reste à decision</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> (entree := garde_entree(courant, etat, self.bornes)) <span class="k">is not</span> None:
+                courant = self._sauter(etat, courant, *entree)  <span class="c"># T0 : action non exécutée</span>
+                <span class="k">continue</span>
+            courant = self._etape(etat, courant)
+
+    <span class="k">def</span> _etape(self, etat: EtatDemande, courant: Etat) -&gt; Etat:
+        section = SECTION_DE[courant]
+        agent = PROPRIETAIRES[section]
+        <span class="k">try</span>:
+            action, vue = self.actions[courant], vue_filtree(etat, courant, self.bornes, self.depot)
+            <span class="k">if</span> isinstance(action, AgentLLM):            <span class="c"># l'agent PROPOSE un patch</span>
+                patch, mesure = action.executer(vue, self._budget(etat, courant))
+            <span class="k">else</span>:                                        <span class="c"># tool d'éligibilité</span>
+                patch = action(vue)
+            fusionner(etat, patch, section)              <span class="c"># l'orchestration IMPOSE</span>
+            suivant, garde = transition(courant, etat, self.bornes)
+        <span class="k">except</span> (KeyError, ValueError, TypeError, AttributeError,
+                ErreurEcriture, TransitionInconnue) <span class="k">as</span> exc:
+            statut, garde = "echec", "echec"
+            etat.escalade_forcee = f"échec de l'agent {agent} ({type(exc).__name__})"
+            <span class="c"># decision en échec : plus personne pour conclure → fiche de secours</span>
+            suivant = Etat.ESCALADE <span class="k">if</span> courant <span class="k">is</span> Etat.DECISION <span class="k">else</span> Etat.DECISION
+        <span class="c"># … compteurs, trace {agent, de, vers, garde, statut, mode, cause…}</span>
+        etat.etat_courant = suivant.value
+        self._persister(etat, <span class="k">lambda</span> s: s.enregistrer(etat))  <span class="c"># exécution durable (2.5)</span>
+        <span class="k">return</span> suivant
+    <span class="k">def</span> _garde_globale(self, etat: EtatDemande, courant: Etat) -&gt; bool:
+        ecoule = monotonic() - etat.debut
+        <span class="k">if</span> etat.compteurs.etapes + 1 &gt;= self.bornes.etapes_max:   <span class="c"># une étape réservée à decision</span>
+            borne, valeur = "etapes_max", float(etat.compteurs.etapes)
+        <span class="k">elif</span> ecoule &gt;= self.bornes.duree_max_s:
+            borne, valeur = "duree_max_s", round(ecoule, 3)
+        <span class="k">else</span>:
+            <span class="k">return</span> False
+        etat.arret = Arret(
+            borne=borne, valeur=valeur, etape=etat.compteurs.etapes, etat=courant.value
+        )
+        etat.escalade_forcee = f"borne {borne} atteinte (état {courant.value})"
+        <span class="k">return</span> True</pre>
+
+    <div style="display:flex; flex-direction:column; gap:9px">
+      <div class="carte" style="border-color:var(--ok-bord)">
+        <h3>✅ Décision d'implémentation : option A</h3>
+        <table class="tableau" style="margin:4px 0 5px">
+          <tr><th></th><th>A · classe ✅</th><th>B · LangGraph ❌</th></tr>
+          <tr><td>Routage</td><td><code>TRANSITIONS</code></td><td><code>add_conditional_edges</code></td></tr>
+          <tr><td>Patchs (EX-02)</td><td><code>fusionner()</code>, 1 point</td><td>reducers ou wrapper</td></tr>
+          <tr><td>Orchestrateur</td><td>visible : trace, métriques</td><td>caché dans le graphe</td></tr>
+          <tr><td>Garde globale</td><td>étapes <b>et</b> durée</td><td><code>recursion_limit</code> : étapes</td></tr>
+          <tr><td>Dépendance</td><td>Python + Pydantic</td><td>framework en plus</td></tr>
+        </table>
+        <p class="petit discret">Un <b>seul endroit</b> où l'orchestration impose, testable sans framework. LangGraph sera
+          réévalué si un besoin d'interrupt / resume apparaît.</p>
+      </div>
+      <div class="carte">
+        <h3>🔁 Le cycle d'un tour</h3>
+        <ol class="petit">
+          <li>garde globale (TG)</li>
+          <li><b>garde d'entrée</b> (T0) ⇒ saute l'action (<code>_sauter</code>, étape tracée)</li>
+          <li>vue filtrée → action → <b>patch</b></li>
+          <li>contrôle + fusion (<code>fusionner</code>)</li>
+          <li>transition (table) → <code>Tn</code> dans la trace</li>
+          <li>trace + snapshot (sans base : pas de snapshot)</li>
+        </ol>
+        <p class="petit discret" style="margin-top:4px">Exception attendue ⇒ étape <code>echec</code>, escalade forcée ;
+          toute autre ⇒ filet de <code>traiter()</code> (2.5).</p>
+      </div>
+      <div class="note alerte petit">
+        <h3>⚠️ Pourquoi pas une ligne de plus dans TRANSITIONS ?</h3>
+        <p><code>TRANSITIONS</code> est lue <b>après</b> l'action : une ligne T0 placée là laisserait
+          <code>is_eligible()</code> s'exécuter sur un contrat non validé, ce que EX-D40 interdit. D'où une garde d'entrée,
+          évaluée au même endroit que TG.</p>
+      </div>
+    </div>
+  </div>
+</section>

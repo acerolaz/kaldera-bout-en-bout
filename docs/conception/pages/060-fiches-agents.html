@@ -1,0 +1,68 @@
+<section class="page" id="fiches-agents">
+  <style>
+    #fiches-agents .tableau td, #fiches-agents .tableau th { font-size: 10.5px; padding: 5px 7px; }
+    #fiches-agents .tableau code { font-size: 9.5px; }
+    #fiches-agents .nom { font-weight: 700; white-space: nowrap; }
+  </style>
+  <div class="surtitre">Livrable 1 · Fiches agents</div>
+  <h2 class="titre"><span class="num">1.3</span>🪪 Contrat de chaque agent</h2>
+  <p class="chapo">Ce que chaque agent reçoit (vue filtrée), ce qu'il renvoie (patch de sa section), et le LLM qui le fait
+    raisonner. L'orchestrateur reste du code.</p>
+
+  <table class="tableau">
+    <tr><th style="width:118px">Agent</th><th style="width:150px">🤖 LLM</th><th style="width:150px">📥 Reçoit (vue)</th>
+      <th style="width:178px">📤 Renvoie (patch)</th><th>🛡️ Garde-fous</th><th style="width:170px">🧰 Outils exclusifs</th></tr>
+    <tr><td><span class="nom">🧭 orchestrateur</span><br><span class="discret">moteur de la machine à états</span></td>
+      <td><b>aucun</b> — code déterministe</td><td>État complet</td>
+      <td>section <code>eligibilite</code> (via le tool) + <code>etat_courant</code>, <code>arret</code>, <code>trace</code>, <code>compteurs</code>, <code>contrat</code> (provenance)</td>
+      <td>Garde globale (étapes, chrono), registre section → écrivain, <b>budget de temps</b> passé à chaque agent</td>
+      <td>🔧 <code>is_eligible()</code>, table de transitions, horloge</td></tr>
+    <tr><td><span class="nom">🔧 is_eligible()</span><br><span class="discret">tool, pas un agent</span></td>
+      <td><b>aucun</b></td><td><code>contrat</code> <b>validé</b>, type et dates du sinistre</td>
+      <td><code>{eligible, conditions_ko[]}</code></td>
+      <td>Fonction pure, testée E1 → E5 ; <b>jamais appelée</b> si contrat non exploitable (T0)</td><td>—</td></tr>
+    <tr><td><span class="nom">📄 pieces</span></td>
+      <td><i>rapide</i> — rapproche les descripteurs des pièces attendues, <b>rédige la relance</b></td>
+      <td>Type de sinistre, <b>descripteurs analysés au dépôt</b> <code>{type, lisible, montant?}</code>, dépôts de l'espace assuré</td>
+      <td><code>{statut, manquantes[], retenues[], message_relance}</code><br><span class="discret">(le nombre de relances est dans <code>compteurs</code>)</span></td>
+      <td>Statut = référence déterministe ; seul le dépôt de la relance en cours est lisible (<code>lire_depot(k)</code>) ; analyse en échec ⇒ <b>illisible</b></td>
+      <td><code>verifier_completude</code>, <code>pieces_requises</code>, <code>lister_pieces</code>, <code>lire_depot(k)</code></td></tr>
+    <tr><td><span class="nom">💶 estimation</span></td>
+      <td><i>léger, le plus rapide</i> — appelle le calcul, <b>explique</b> le montant</td>
+      <td>Formule, montant déclaré, <code>pieces.retenues</code></td>
+      <td><code>{justifie, retenu, franchise, plafond, estime, explication}</code></td>
+      <td><code>estime</code> = calcul déterministe ; 0 ≤ estimé ≤ plafond ; l'explication cite franchise et plafond</td>
+      <td><code>calculer_estimation</code>, <code>bareme</code></td></tr>
+    <tr><td><span class="nom">🕵️ antifraude</span></td>
+      <td><i>raisonnement</i> — lit les indicateurs et l'avis, <b>rédige la note</b></td>
+      <td>Vue filtrée (sans identité, ni description) + estimation</td>
+      <td><code>{requis, indicateurs[], statut, avis, note, cause}</code></td>
+      <td>Requis ⇔ F1–F4 ; l'appel A2A est fait par la référence, <b>une fois</b> ; <code>avis</code> et <code>cause</code> sont <b>privés</b> : jamais montrés au LLM, recopiés de la référence</td>
+      <td><code>calculer_indicateurs</code>, <code>consulter_partenaire</code> (avis mémorisé)</td></tr>
+    <tr><td><span class="nom">⚖️ decision</span></td>
+      <td><i>rédaction soignée</i> — applique §10 via l'outil, <b>rédige le motif</b></td>
+      <td>Toutes les sections (lecture)</td>
+      <td><code>issue</code> = fiche §11 + motif</td>
+      <td>Issue / file = référence (règle 0 puis §10) ; le motif cite la règle, sans donnée sensible</td>
+      <td><code>appliquer_regles_s10</code>, <code>gabarit_motif</code></td></tr>
+  </table>
+
+  <div class="grille-2 pousse" style="gap:14px">
+    <div class="carte">
+      <h3>🔗 Dépendances &amp; parallélisme</h3>
+      <ul class="liste petit">
+        <li><b>Dans une demande</b> : une action à la fois, dictée par la machine à états. <code>is_eligible()</code> s'exécute en premier : non éligible ⇒ aucun LLM n'est appelé.</li>
+        <li><b>Entre demandes</b> : en parallèle (<code>traiter_lot</code>, threads), §12. Chaque appel LLM ou A2A est borné par un délai : une demande lente ne retarde pas les autres.</li>
+        <li><b>Avant l'équipe</b> : fichiers analysés <b>au dépôt</b> par l'outil VLM (2.4 ter), hors des 10 s.</li>
+      </ul>
+    </div>
+    <div class="carte">
+      <h3>🧪 Garde-fous transversaux</h3>
+      <ul class="liste petit">
+        <li>La vue passe au LLM entre balises <code>&lt;donnees_non_fiables&gt;</code>, sans identité, sans numéro de contrat ni <code>sinistre.description</code> : une donnée, jamais une instruction.</li>
+        <li><b>Texte extrait d'un fichier</b> (facture, contrat) : même statut, donnée non fiable (scénario ING-03).</li>
+        <li>Les agents ne connaissent ni les états ni les transitions ; ils ne s'appellent jamais entre eux. Seul ⚖️ decision conclut.</li>
+      </ul>
+    </div>
+  </div>
+</section>

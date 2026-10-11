@@ -1,0 +1,29 @@
+<section class="page" id="glossaire-1">
+  <style>
+    #glossaire-1 .tableau td:first-child { font-weight: 700; width: 20%; }
+    #glossaire-1 .tableau td { padding: 6.5px 9px; }
+  </style>
+  <div class="surtitre">Annexe</div>
+  <h2 class="titre"><span class="num">A</span>📖 Glossaire 1/5</h2>
+  <p class="chapo">Les termes techniques utilisés dans ce dossier, dans l'ordre alphabétique (de A à F).</p>
+
+  <table class="tableau">
+    <tr><th>Terme</th><th>Définition</th></tr>
+    <tr><td>A2A</td><td>Agent-to-Agent : protocole pour qu'un agent délègue une tâche à un agent externe sans exposer sa logique.</td></tr>
+    <tr><td>Action d'état</td><td>Traitement exécuté quand la machine est dans un état : ici le tool ou un agent (≈ OnEntry de Stateless).</td></tr>
+    <tr><td>Agent Card</td><td>Fiche publiée par un agent A2A (<code>/.well-known/agent.json</code>) qui décrit ses compétences et son URL d'appel (≈ swagger.json) ; lue au démarrage, son URL n'est suivie que si elle a la <b>même origine</b> que la base, sinon <code>/a2a</code>.</td></tr>
+    <tr><td>Agent-as-tool</td><td>Sous-agent appelé comme un outil par l'orchestrateur ; il n'a pas de boîte de messages propre.</td></tr>
+    <tr><td>Borne</td><td>Limite d'exécution (étapes, durée, relances) qui garantit l'arrêt ; portée par une garde.</td></tr>
+    <tr><td>Circuit breaker</td><td>Disjoncteur qui cesse d'appeler un service en panne pendant un temps donné (≈ Polly CircuitBreaker) ; ici, le disjoncteur LLM (3/5).</td></tr>
+    <tr><td>Claim check</td><td>Pattern où l'on transmet une référence vers un contenu stocké ailleurs, pas le contenu (≈ ticket de vestiaire).</td></tr>
+    <tr><td>Court-circuit</td><td>Sortie anticipée vers la décision dès qu'une règle conclut.</td></tr>
+    <tr><td>Couverture des transitions</td><td>Part des transitions T1–T11 empruntées par au moins un scénario de test ; mesurée par <code>make epreuve</code>.</td></tr>
+    <tr><td>DepotPieces</td><td>Port synchrone d'accès aux pièces d'une demande (<code>initiales</code>, <code>depots</code>), aux implémentations interchangeables : lecture dans la demande ou dans PostgreSQL (≈ IRepository injecté par DI).</td></tr>
+    <tr><td>Empiètement</td><td>Un agent fait le travail d'un autre : violation de frontière.</td></tr>
+    <tr><td>Escalade forcée</td><td>Issue d'escalade produite quand une borne ou une erreur interrompt le flux.</td></tr>
+    <tr><td>État (machine)</td><td>Situation stable de la demande dans le flux : <code>eligibilite</code>, <code>pieces</code>… ; un seul état courant à la fois.</td></tr>
+    <tr><td>État terminal</td><td>État sans transition sortante : <code>acceptee</code>, <code>refusee</code>, <code>escalade</code>.</td></tr>
+    <tr><td>Exécution durable</td><td>Pattern qui persiste l'état après chaque pas pour reprendre ou escalader après un crash (Temporal, Durable Functions) ; ici snapshots + reaper, actifs dès qu'une base est configurée.</td></tr>
+    <tr><td>Filet de sécurité</td><td>Mécanisme hors équipe d'agents qui produit une escalade humaine depuis le dernier état connu quand le système plante.</td></tr>
+  </table>
+</section>

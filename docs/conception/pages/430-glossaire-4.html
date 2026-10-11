@@ -1,0 +1,33 @@
+<section class="page" id="glossaire-4">
+  <style>
+    #glossaire-4 .tableau { font-size: 11.2px; }
+    #glossaire-4 .tableau td:first-child { font-weight: 700; width: 20%; }
+    #glossaire-4 .tableau td { padding: 4.6px 9px; }
+  </style>
+  <div class="surtitre">Annexe</div>
+  <h2 class="titre"><span class="num">A</span>📖 Glossaire 4/5</h2>
+  <p class="chapo">Les termes liés à l'ingestion des pièces, au contrat PDF et à la persistance.</p>
+
+  <table class="tableau">
+    <tr><th>Terme</th><th>Définition</th></tr>
+    <tr><td>Ingestion</td><td>Étape qui reçoit un fichier, le contrôle, le stocke et l'analyse, avant tout traitement de la demande.</td></tr>
+    <tr><td>VLM</td><td>Vision-Language Model : LLM capable de lire des images. Ici un outil à 1 appel, pas un agent ; d'un PDF, il ne reçoit que l'image de la page 1.</td></tr>
+    <tr><td>Soumission</td><td>Geste explicite de l'assuré (<code>POST …/soumettre</code>) qui déclare le dossier complet ; sans elle, pas d'admission.</td></tr>
+    <tr><td>Contrôle d'admission</td><td>Vérification qui fait entrer une demande soumise dans la machine à états quand toutes ses analyses sont terminées ; fixe t = 0 des 10 s.</td></tr>
+    <tr><td>Garde d'entrée T0</td><td>Garde évaluée avant l'action d'un état ; T0 envoie à decision sans appeler <code>is_eligible()</code> si le contrat n'est pas exploitable.</td></tr>
+    <tr><td>Règle 0</td><td>Première règle de decision, hors §10 : contrat non exploitable ⇒ escalade gestionnaire motivée (P‑Q8).</td></tr>
+    <tr><td>Trois verrous</td><td>Contrôles d'une extraction de contrat : ① schéma et numéro, ② barème, ③ couche texte (numéro, franchise, plafond, date) ; un échec ⇒ <code>non_exploitable</code>.</td></tr>
+    <tr><td>Couche texte</td><td>Texte sélectionnable d'un PDF natif ; absente d'un PDF scanné. Sert au contrôle croisé du VLM.</td></tr>
+    <tr><td>PostgreSQL (facultatif)</td><td>Base unique quand <code>KALDERA_DATABASE_URL</code> est défini : dix tables, psycopg et <code>ConnectionPool</code> synchrones. Sans elle, ni snapshot ni reaper, registre A2A en mémoire.</td></tr>
+    <tr><td>bytea</td><td>Type PostgreSQL pour stocker des octets bruts (≈ <code>varbinary(max)</code>).</td></tr>
+    <tr><td>SKIP LOCKED</td><td>Option de <code>SELECT … FOR UPDATE</code> qui saute les lignes verrouillées : file de tâches sans doublon (≈ <code>READPAST</code>).</td></tr>
+    <tr><td>Index partiel</td><td>Index limité aux lignes d'une condition (<code>WHERE statut = 'en_cours'</code>) : petit et rapide.</td></tr>
+    <tr><td>Cache d'analyse</td><td>Résultat VLM mémorisé par <code>(sha256, modele, version_prompt)</code> : même entrée ⇒ même sortie, sans rappel.</td></tr>
+    <tr><td>Déduplication</td><td>Un même fichier déposé deux fois n'est stocké qu'une fois (clé <code>sha256</code>).</td></tr>
+    <tr><td>Génération déterministe</td><td>Mêmes entrées et même graine (<code>generer_pieces.py --seed 42</code>) ⇒ mêmes octets ⇒ même empreinte.</td></tr>
+    <tr><td>Manifeste</td><td>Fichier <code>manifeste.jsonl</code> listant chaque pièce générée, sa vérité terrain et son <code>sha256</code>.</td></tr>
+    <tr><td>Vérité terrain</td><td>Valeurs exactes connues d'avance (manifeste), comparées aux sorties du VLM.</td></tr>
+    <tr><td>FakeVLM</td><td>Faux VLM pour les tests : modes menteur, halluciné, cassé, lent ; prouve que les invariants et verrous rattrapent tout.</td></tr>
+    <tr><td>Invariance niveau 0 / 1</td><td>Même issue avec fichiers + VLM (niveau 1) qu'avec les descripteurs JSON (niveau 0) : l'ingestion ne change pas le métier (<code>make eval-ingestion</code>).</td></tr>
+  </table>
+</section>

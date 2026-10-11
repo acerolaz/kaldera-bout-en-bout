@@ -1,0 +1,67 @@
+<section class="page" id="eprouver-llm">
+  <style>
+    #eprouver-llm .tableau td, #eprouver-llm .tableau th { font-size:10.5px; padding:5px 7px; }
+    #eprouver-llm pre.code { font-size:9.5px; }
+  </style>
+  <div class="surtitre">Livrable 4 · Éprouver des agents LLM</div>
+  <h2 class="titre"><span class="num">4.3</span>🧪 Tester des agents LLM sans perdre la reproductibilité</h2>
+  <p class="chapo">Trois niveaux : la recette tourne avec un LLM factice (reproductible) ; un LLM factice « saboteur » prouve que le code rattrape
+    tout ; le vrai LLM est mesuré par <code>make eval</code> (4.4).</p>
+
+  <table class="tableau">
+    <tr><th>Niveau</th><th>Commande</th><th>LLM utilisé</th><th>Prouve</th><th>CI</th></tr>
+    <tr><td><b>① Acceptance</b></td><td><code>make test</code></td><td><code>FakeLLM</code> fidèle + mode repli</td>
+      <td>28 scénarios verts, EX-01 → EX-06, couverture des transitions — avec et sans LLM</td><td>✅ bloquant</td></tr>
+    <tr><td><b>② Robustesse</b></td><td><code>make test</code></td><td><code>FakeLLM</code> saboteur (7 modes)</td>
+      <td>chaque défaut du LLM ⇒ repli tracé, issue inchangée</td><td>✅ bloquant</td></tr>
+    <tr><td><b>③ Évals</b></td><td><code>make eval</code></td><td>modèles candidats (<code>KALDERA_EVAL__MODELES</code>), 28 scénarios × 5</td>
+      <td>matrice agent × modèle : replis, sorties rejetées, latence p95, tours, jetons, invariance ⇒ modèle par rôle</td><td>📊 rapport</td></tr>
+  </table>
+
+  <div class="grille-3" style="gap:12px; align-items:start">
+    <div class="carte" style="background:var(--risque-fond); border-color:var(--risque-bord)">
+      <h3>😈 Les 7 modes du FakeLLM saboteur</h3>
+      <ul class="liste petit">
+        <li><b>menteur</b> : champ décisif faux → garde-fou ✗</li>
+        <li><b>bavard</b> : appels d'outils sans fin → plafonné, repli</li>
+        <li><b>lent</b> : dépasse le budget → <code>erreur_llm</code></li>
+        <li><b>casse</b> : JSON invalide → <code>sortie_invalide</code></li>
+        <li><b>intrus</b> : outil hors allowlist → <code>outil_refuse</code></li>
+        <li><b>fuite</b> : IBAN / e-mail dans le texte → garde-fou ✗</li>
+        <li><b>injecte</b> : « ignore tes règles » dans la vue → issue inchangée</li>
+      </ul>
+    </div>
+    <div class="carte">
+      <h3>🎯 Critère d'invariance</h3>
+      <p class="petit">Pour chacune des 34 demandes : <code>issue</code>, <code>decision</code>, <code>montant_rembourse</code>, <code>file</code>,
+        <code>mode_degrade</code> identiques en mode fake et en repli — et chaque étape d'agent bien en mode <code>llm</code>. Le LLM améliore
+        les textes ; il ne décide rien.</p>
+<pre class="code" style="margin-top:6px">@pytest.mark.parametrize("demande", DEMANDES)
+<span class="k">def</span> test_meme_issue_en_fake_et_en_repli(demande):
+    repli = Orchestrateur(evaluer=_avis).traiter(demande)
+    fake = Orchestrateur(evaluer=_avis, llms=llms).traiter(demande)
+    <span class="k">assert</span> {k: fake[k] <span class="k">for</span> k <span class="k">in</span> DECISIFS} \
+        == {k: repli[k] <span class="k">for</span> k <span class="k">in</span> DECISIFS}</pre>
+      <p class="tres-petit discret" style="margin-top:4px"><code>tests/unit/test_invariance.py</code> (extrait condensé).</p>
+    </div>
+    <div class="carte">
+      <h3>📊 Seuils d'alerte par agent (<code>make eval</code>)</h3>
+      <table class="tableau" style="margin-top:4px">
+        <tr><th>Mesure</th><th>Alerte si</th></tr>
+        <tr><td><code>tours_moyen</code></td><td>&gt; 2,5</td></tr>
+        <tr><td><code>replis</code> / étapes</td><td>&gt; 20 %</td></tr>
+        <tr><td><code>sorties_rejetees</code></td><td>&gt; 5 %</td></tr>
+        <tr><td><code>latence_llm_p95_ms</code></td><td>&gt; <code>delai_agent_s</code></td></tr>
+        <tr><td><code>jetons_par_demande</code></td><td>affiché, sans seuil</td></tr>
+      </table>
+      <p class="tres-petit" style="margin-top:5px">Tout dépassement déclenche un ajustement (prompt, budget, modèle, ou retour au tool) consigné au journal avec la mesure avant / après.</p>
+    </div>
+  </div>
+
+  <div class="grille-2 pousse" style="gap:12px">
+    <div class="note violet petit"><b>😈 FakeVLM · 4 modes</b> — menteur : franchise × 10 → verrou ② · hallucine : montant absent du texte → verrou ③ ·
+      casse : sortie hors schéma → échec · lent : délai d'analyse dépassé → échec.</div>
+    <div class="note petit"><b>④ Éval ingestion · <code>make eval-ingestion</code></b> — VLM réel · précision par champ contre <code>manifeste.jsonl</code> · rapport.
+      Seuil : 100 % sur les contrats nets, sinon le PDF ne peut pas être une source de vérité.</div>
+  </div>
+</section>

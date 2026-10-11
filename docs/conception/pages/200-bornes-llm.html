@@ -1,0 +1,71 @@
+<section class="page" id="bornes-llm">
+  <style>
+    #bornes-llm .tableau td, #bornes-llm .tableau th { padding: 5px 8px; font-size: 11px; }
+    #bornes-llm pre.code { font-size: 9.5px; line-height: 1.45; }
+    #bornes-llm ol { margin: 0; padding-left: 18px; } #bornes-llm ol li { margin: 1px 0; }
+  </style>
+
+  <div class="surtitre">Livrable 2 · Bornes LLM</div>
+  <h2 class="titre"><span class="num">2.3 bis</span>⏱️ Budget de temps : quatre LLM dans 8 secondes · ② les bornes</h2>
+  <p class="chapo">Les bornes LLM s'ajoutent aux bornes de 2.3 ; l'orchestrateur calcule le budget de chaque agent avant de
+    l'appeler, l'agent le rogne encore du temps de sa référence.</p>
+
+  <div class="colonnes" style="grid-template-columns: 1.05fr 1fr">
+    <div style="display:flex; flex-direction:column; gap:9px">
+      <table class="tableau">
+        <tr><th>Borne (provisoire)</th><th>Valeur</th><th>Rôle</th></tr>
+        <tr><td><code>tours_max</code> par agent</td><td>3 · 2 · 3 · 2</td><td>tours LLM ⇄ outils (1.4 ter) ; au-delà <code>ToursEpuises</code> ⇒ repli</td></tr>
+        <tr><td><code>delai_agent_s</code> par agent</td><td style="white-space:nowrap">1,2 · 0,8 · 1,5 · 1,2</td><td>pieces · estimation · antifraude · decision : temps LLM de toute la boucle</td></tr>
+        <tr><td><code>delai_min_llm_s</code></td><td>0,3</td><td>en dessous : repli direct (cause <code>budget</code>), 0 appel LLM</td></tr>
+        <tr><td><code>reserve_decision_s</code></td><td>1,0</td><td>toujours gardé pour ⚖️ decision</td></tr>
+        <tr><td><code>appels_outil_max</code></td><td>4</td><td>appels d'outils par agent ; au-delà <code>OutilRefuse</code> ⇒ repli</td></tr>
+        <tr><td><code>jetons_max</code> par agent</td><td style="white-space:nowrap">3&nbsp;000 · 1&nbsp;500<br>4&nbsp;000 · 3&nbsp;000</td><td><code>max_tokens</code> de <b>chaque</b> appel (sortie), pas un cumul</td></tr>
+        <tr><td><code>taux_repli_disjoncteur</code></td><td>0,5</td><td>plus de 50 % de replis ⇒ repli pour tous</td></tr>
+        <tr><td><code>fenetre_disjoncteur_s</code></td><td>60</td><td>fenêtre glissante, au moins 10 tentatives</td></tr>
+      </table>
+      <p class="petit discret">Valeurs par agent : <code>.env.example</code> (<code>KALDERA_&lt;AGENT&gt;__DELAI_AGENT_S</code>,
+        <code>__JETONS_MAX</code>, <code>__TOURS_MAX</code>) ; les autres : <code>Bornes</code> (<code>etat.py</code>), exposées par
+        <code>bornes()</code>. L'agent de relance (2.8) a ses propres bornes (2,0 s, 600 jetons, 2 tours), hors des 8 s.</p>
+      <div class="carte">
+        <h3>🔌 Le disjoncteur LLM (<code>disjoncteur.py</code>)</h3>
+        <ul class="liste petit">
+          <li><b>Un par orchestrateur</b>, partagé par ses 4 agents ; <code>traiter_demande</code> en crée un à chaque appel :
+            il ne s'ouvre donc que dans <code>traiter_lot</code> et le worker (un pour toute sa vie).</li>
+          <li>Ouvert ⇒ cause <code>disjoncteur</code>, aucun appel, rien de noté ; il se <b>referme seul</b> quand les tentatives
+            sortent de la fenêtre.</li>
+          <li>Seules les tentatives LLM réelles sont notées. Panne : 10 appels, puis 0
+            (<code>test_llm_en_panne_ouvre_le_disjoncteur_pour_tous</code>).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:9px">
+      <div class="carte">
+        <h3>📐 Budget dégressif (calculé par l'orchestrateur)</h3>
+<pre class="code"><span class="c"># Orchestrateur._budget</span>
+budget_s = max(0, duree_max_s − écoulé − réserves)
+réserves = delai_partenaire_s   <span class="c"># 3 s : pieces, estimation (A2A pas encore passé)</span>
+         + reserve_decision_s   <span class="c"># 1 s : tout état sauf decision</span>
+
+<span class="c"># AgentLLM.executer, après la référence (dont l'A2A)</span>
+budget = min(delai_agent_s, budget_s − temps de la référence)
+<span class="k">if</span> budget &lt; delai_min_llm_s: repli   <span class="c"># cause budget</span></pre>
+        <p class="petit" style="margin-top:6px">⚖️ decision : <code>min(delai_agent_s, duree_max_s − écoulé)</code>, sans réserve.</p>
+      </div>
+      <div class="carte">
+        <h3>🧭 Ordre des contrôles dans <code>executer</code></h3>
+        <ol class="petit">
+          <li>référence déterministe (repli et étalon du garde-fou)</li>
+          <li>LLM absent ⇒ repli, cause <code>llm_non_configure</code></li>
+          <li>disjoncteur ouvert ⇒ repli, cause <code>disjoncteur</code></li>
+          <li>budget &lt; <code>delai_min_llm_s</code> ⇒ repli, cause <code>budget</code></li>
+          <li>tentative (boucle d'outils), puis <code>disjoncteur.noter(repli=…)</code></li>
+        </ol>
+      </div>
+      <div class="note alerte petit">Le temps des <b>outils</b> ne consomme pas <code>delai_agent_s</code> : la référence (A2A
+        compris, borné à 3&nbsp;s) passe avant, et seul le temps restant de la demande en est réduit. Chaque agent a <b>son modèle</b>
+        et donc <b>son délai</b> (1.4 ter) ; température 0 ; la sortie est un objet JSON validé par le modèle de la section,
+        puis par le garde-fou.</div>
+    </div>
+  </div>
+</section>

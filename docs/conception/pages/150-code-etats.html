@@ -1,0 +1,73 @@
+<section class="page" id="code-etats">
+  <style>
+    #code-etats .rond { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 2px solid currentColor; border-radius: 50%; font-size: 17px; margin: 0 2px; }
+    #code-etats pre.code { font-size: 10px; line-height: 1.42; }
+  </style>
+
+  <div class="surtitre">Livrable 2 · De la table au code</div>
+  <h2 class="titre"><span class="num">2.2 bis</span>🐍 De la table au code · <span class="rond">1</span> états et transitions</h2>
+  <p class="chapo">La table de 2.2 se traduit <b>ligne pour ligne</b> en Python (<code>machine.py</code>) :
+    <code>TRANSITIONS</code> et <code>GARDES_ENTREE</code> sont des <b>données</b>, pas du code de routage.</p>
+
+  <div class="colonnes" style="grid-template-columns: 1.45fr 1fr">
+<div style="display:flex; flex-direction:column; gap:8px">
+<pre class="code"><span class="k">class</span> Etat(str, Enum):
+    ELIGIBILITE = "eligibilite"
+    PIECES      = "pieces"
+    ESTIMATION  = "estimation"
+    ANTIFRAUDE  = "antifraude"
+    DECISION    = "decision"
+    ACCEPTEE    = "acceptee"    <span class="c"># terminal</span>
+    REFUSEE     = "refusee"     <span class="c"># terminal</span>
+    ESCALADE    = "escalade"    <span class="c"># terminal</span>
+
+TERMINAUX = frozenset({Etat.ACCEPTEE, Etat.REFUSEE, Etat.ESCALADE})
+
+<span class="c"># Une garde lit l'état de la demande (EtatDemande) et les bornes (Bornes) : oui / non</span>
+Garde = Callable[[Any, Any], bool]
+
+<span class="k">def</span> TOUJOURS(e: Any, b: Any) -&gt; bool:  <span class="c"># garde « sinon », lue comme une constante</span>
+    <span class="k">return</span> True</pre>
+<div class="note vert petit">✅ <b>Extrait fidèle</b> de <code>src/kaldera/machine.py</code>, réaligné pour la lecture. <code>Tn</code> = <b>position</b>
+      dans la table, renvoyée par <code>transition()</code> pour la trace ; <code>test_numeros_tn_figes_sur_le_dossier</code> casse si une ligne bouge.</div>
+</div>
+
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <div class="carte">
+        <h3>🎯 Ce qu'il faut voir</h3>
+        <ul class="liste petit">
+          <li>Chaque ligne porte son numéro <b>T0 → T11</b> : la relecture se fait avec la table 2.2 à côté.</li>
+          <li>Les gardes sont des <b>fonctions pures</b> : elles lisent l'état, ne le modifient jamais.</li>
+          <li><b>TG</b> (garde globale) n'est pas dans la table : le moteur l'évalue avant chaque action (page suivante).</li>
+          <li><b>T0</b> vit dans une liste à part, <code>GARDES_ENTREE</code> : elle doit être évaluée <b>avant</b> l'action, pas après.</li>
+        </ul>
+      </div>
+<pre class="code"><span class="c"># gardes d'ENTRÉE : évaluées AVANT l'action de l'état
+# (is_eligible() n'est pas appelé)</span>
+GARDES_ENTREE: tuple[tuple[Etat, Garde, Etat], ...] = (
+    (
+        Etat.ELIGIBILITE,
+        <span class="k">lambda</span> e, b: e.contrat.statut_extraction != "valide",
+        Etat.DECISION,
+    ),  <span class="c"># T0</span>
+)</pre>
+
+    </div>
+  </div>
+
+<pre class="code"><span class="c"># (état de départ, garde, état suivant) : évaluées DANS L'ORDRE, la première garde vraie gagne</span>
+TRANSITIONS: tuple[tuple[Etat, Garde, Etat], ...] = (
+    (Etat.ELIGIBILITE, <span class="k">lambda</span> e, b: <span class="k">not</span> e.eligibilite.eligible,                      Etat.DECISION),    <span class="c"># T1</span>
+    (Etat.ELIGIBILITE, TOUJOURS,                                                     Etat.PIECES),      <span class="c"># T2</span>
+    (Etat.PIECES,      <span class="k">lambda</span> e, b: e.pieces.statut == "complet",                    Etat.ESTIMATION),  <span class="c"># T3</span>
+    (Etat.PIECES,      <span class="k">lambda</span> e, b: e.pieces.statut == "incomplet"
+                                    <span class="k">and</span> e.compteurs.relances &lt; b.relances_pieces_max, Etat.PIECES),     <span class="c"># T4</span>
+    (Etat.PIECES,      TOUJOURS,                                                     Etat.DECISION),    <span class="c"># T5</span>
+    (Etat.ESTIMATION,  <span class="k">lambda</span> e, b: e.estimation.estime == 0,                        Etat.DECISION),    <span class="c"># T6</span>
+    (Etat.ESTIMATION,  TOUJOURS,                                                     Etat.ANTIFRAUDE),  <span class="c"># T7</span>
+    (Etat.ANTIFRAUDE,  TOUJOURS,                                                     Etat.DECISION),    <span class="c"># T8</span>
+    (Etat.DECISION,    <span class="k">lambda</span> e, b: e.issue.decision == "acceptee",                  Etat.ACCEPTEE),    <span class="c"># T9</span>
+    (Etat.DECISION,    <span class="k">lambda</span> e, b: e.issue.decision == "refusee",                   Etat.REFUSEE),     <span class="c"># T10</span>
+    (Etat.DECISION,    TOUJOURS,                                                     Etat.ESCALADE),    <span class="c"># T11</span>
+)</pre>
+</section>

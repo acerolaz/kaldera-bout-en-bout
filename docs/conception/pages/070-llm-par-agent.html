@@ -1,0 +1,96 @@
+<section class="page" id="llm-par-agent">
+  <style>
+    #llm-par-agent .schema { position:relative; height:318px; }
+    #llm-par-agent .schema > div { position:absolute; font-size:10px; line-height:1.3; padding:5px 7px; }
+    #llm-par-agent svg { position:absolute; left:0; top:0; overflow:visible; }
+    #llm-par-agent .schema .boite b { font-size:11.5px; }
+    #llm-par-agent .cadre { left:180px; top:0; width:600px; height:316px; border:2px dashed var(--ok-bord); border-radius:12px; }
+    #llm-par-agent .cadre-titre { left:192px; top:6px; font-weight:750; font-size:12px; }
+    #llm-par-agent .exemple { display:flex; align-items:center; gap:6px; font-size:10px; }
+    #llm-par-agent .exemple .boite { padding:4px 7px; font-size:9.5px; text-align:left; white-space:nowrap; }
+    #llm-par-agent .exemple .fleche { font-size:12px; }
+  </style>
+  <div class="surtitre">Livrable 1 · Agents LLM</div>
+  <h2 class="titre"><span class="num">1.4</span>🤖 Un LLM par agent</h2>
+  <p class="chapo">Chaque agent métier a son LLM : il lit sa vue, appelle ses outils et rédige le texte de sa section. Tout ce qui
+    décide (statut, montant, avis, issue) vient d'une <b>référence déterministe</b> calculée d'abord ; la sortie du LLM est vérifiée
+    contre elle avant d'entrer dans l'état. L'orchestrateur ne voit qu'une boîte : vue → patch.</p>
+
+  <div class="schema">
+    <svg width="1032" height="318">
+      <defs>
+        <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5c6672"/></marker>
+        <marker id="v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2f9e44"/></marker>
+        <marker id="r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#e03131"/></marker>
+      </defs>
+      <line x1="160" y1="150" x2="196" y2="150" stroke="#5c6672" stroke-width="1.6" marker-end="url(#g)"/>
+      <text x="164" y="142" font-size="9.5" fill="#5c6672">vue</text>
+      <!-- référence → LLM / outils -->
+      <line x1="356" y1="62" x2="392" y2="80" stroke="#5c6672" stroke-width="1.6" marker-end="url(#g)"/>
+      <line x1="356" y1="132" x2="392" y2="112" stroke="#5c6672" stroke-width="1.6" marker-end="url(#g)"/>
+      <line x1="356" y1="202" x2="392" y2="128" stroke="#5c6672" stroke-width="1.6" marker-end="url(#g)"/>
+      <line x1="548" y1="80" x2="590" y2="80" stroke="#6f2dbd" stroke-width="1.6" marker-end="url(#g)"/>
+      <text x="556" y="73" font-size="9.5" fill="#6f2dbd">appel</text>
+      <line x1="590" y1="112" x2="550" y2="112" stroke="#2f9e44" stroke-width="1.6" marker-end="url(#v)"/>
+      <text x="553" y="126" font-size="9.5" fill="#2f9e44">résultat</text>
+      <line x1="470" y1="158" x2="470" y2="184" stroke="#5c6672" stroke-width="1.6" marker-end="url(#g)"/>
+      <line x1="548" y1="208" x2="590" y2="208" stroke="#5c6672" stroke-width="1.6" marker-end="url(#g)"/>
+      <!-- validateur ok → orchestrateur -->
+      <path d="M760,196 L838,150" fill="none" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#v)"/>
+      <text x="770" y="166" font-size="9.5" fill="#2f9e44">✓ patch</text>
+      <!-- écart → repli -->
+      <line x1="680" y1="232" x2="680" y2="256" stroke="#e03131" stroke-width="1.6" marker-end="url(#r)"/>
+      <text x="686" y="248" font-size="9.5" fill="#e03131">× écart</text>
+      <path d="M470,232 L470,282 L586,282" fill="none" stroke="#e03131" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#r)"/>
+      <text x="346" y="262" font-size="9.5" fill="#e03131">× délai · JSON invalide</text>
+      <text x="346" y="274" font-size="9.5" fill="#e03131">· outil refusé · tours max</text>
+      <path d="M770,282 L850,186" fill="none" stroke="#e03131" stroke-width="1.6" marker-end="url(#r)"/>
+      <text x="790" y="246" font-size="9.5" fill="#e03131">patch (repli)</text>
+    </svg>
+
+    <div class="boite orch" style="left:0; top:100px; width:158px; height:100px; padding:10px"><b>🧭 orchestrateur</b>
+      machine à états<br><span style="color:var(--or)">code · 0 LLM</span><br>passe vue + budget</div>
+    <div class="cadre"></div>
+    <div class="cadre-titre">🤖 AGENT — même structure pour 📄 pieces · 💶 estimation · 🕵️ antifraude · ⚖️ decision</div>
+
+    <div class="boite tool" style="left:196px; top:28px; width:160px; height:68px; border-color:var(--ok-bord)"><b>⓪ 🧮 Référence</b>repli déterministe<br>calculé d'abord<br>(A2A compris)</div>
+    <div class="boite" style="left:196px; top:104px; width:160px; height:56px"><b>① 🎭 Prompt système</b>
+      <code>prompts/&lt;agent&gt;.md</code> · version = sha256</div>
+    <div class="boite" style="left:196px; top:172px; width:160px; height:56px"><b>② 👁️ Vue filtrée</b>
+      <code>&lt;donnees_non_fiables&gt;</code></div>
+    <div class="boite llm" style="left:394px; top:52px; width:154px; height:106px; border-width:2px"><b>③ 🤖 LLM</b><span class="violet-texte">modèle propre à l'agent</span><br>boucle d'outils<br>≤ tours_max · budget<br>température 0</div>
+    <div class="boite tool" style="left:592px; top:44px; width:174px; height:96px; border-width:2px"><b>④ 🧰 Outils</b>exclusifs · déterministes<br><span style="color:var(--ok-bord)">rendent la référence</span><br>≤ 4 appels / agent</div>
+    <div class="boite" style="left:394px; top:186px; width:154px; height:46px"><b>⑤ 📐 Sortie JSON</b>modèle Pydantic</div>
+    <div class="boite ok" style="left:592px; top:186px; width:174px; height:46px"><b>⑥ ✅ Garde-fou</b>décisifs = référence · texte vérifié</div>
+    <div class="boite risque" style="left:592px; top:258px; width:174px; height:48px"><b>⑦ 🛟 Repli</b>référence + gabarit, sans LLM</div>
+    <div class="boite" style="left:196px; top:240px; width:146px; height:66px"><b>📊 Mesures</b>mode · cause · tours<br>jetons · latence · rejets</div>
+
+    <div class="boite orch" style="left:840px; top:100px; width:192px; height:100px; padding:10px"><b>🧭 orchestrateur</b>
+      fusionne le patch<br>propriété de section<br><span style="color:var(--or)">mode = llm | repli</span></div>
+  </div>
+
+  <div class="legende">
+    <span class="l-orch">Orchestrateur (code)</span><span class="l-llm">LLM</span><span class="l-tool">Outils déterministes</span>
+    <span class="l-ok">Garde-fou</span><span class="l-risque">Rejet → repli</span>
+    </div>
+  <div class="discret petit" style="margin-top:-6px">Sans appel au LLM : LLM non configuré, disjoncteur ouvert ou budget &lt; 0,3 s ⇒ repli tracé (cause dans la mesure).</div>
+
+  <div>
+    <b class="petit">🔁 Exemple : 📄 pieces sur NOM-07 (photo manquante, déposée ensuite) — deux passages, la boucle reste dans la machine (T4)</b>
+    <div class="exemple" style="margin-top:5px">
+      <div class="boite llm"><b style="font-size:10px">Passage 1 · 🤖</b><code>pieces_requises()</code> <code>lister_pieces()</code></div><span class="fleche">→</span>
+      <div class="boite tool">🧰 facture ✓ · photo ✗</div><span class="fleche">→</span>
+      <div class="boite llm">🤖 statut <code>incomplet</code> (référence)<br>+ message de relance rédigé</div><span class="fleche">→</span>
+      <div class="boite ok">✅ garde-fou ✓<br>🧭 T4 · relances = 1</div><span class="fleche">→</span>
+      <div class="boite llm"><b style="font-size:10px">Passage 2 · 🤖</b><code>lire_depot(1)</code></div><span class="fleche">→</span>
+      <div class="boite tool">🧰 photo lisible ✓</div><span class="fleche">→</span>
+      <div class="boite ok">✅ <code>complet</code> (référence)<br>🧭 T3 → estimation</div>
+    </div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>Ce qui ne change pas</h3>Le contrat agent ↔ orchestrateur reste <code>executer(vue, budget) → (patch, mesure)</code> : machine à états, tests statiques, fusion et A2A sont intacts. Seul l'intérieur de la boîte change.</div>
+    <div class="note petit"><h3>Principe directeur</h3>« <b>L'outil calcule, le LLM rédige, le code vérifie.</b> » Une règle métier n'est jamais dans un prompt : elle est dans la référence déterministe, et le garde-fou refuse tout écart.</div>
+    <div class="note petit"><h3>Analogie .NET</h3><code>ClientLLM</code> ≈ <code>ILlmClient</code> injecté par DI (adaptateurs Azure AI Foundry / Fake) ; délai et repli ≈ politiques Polly (timeout, fallback).</div>
+  </div>
+</section>

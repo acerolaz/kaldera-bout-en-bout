@@ -1,0 +1,64 @@
+<section class="page" id="code-preuve">
+  <style>
+    #code-preuve .rond { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 2px solid currentColor; border-radius: 50%; font-size: 17px; margin: 0 2px; }
+    #code-preuve .tableau td, #code-preuve .tableau th { padding: 5px 8px; font-size: 11px; }
+    #code-preuve pre.code.cs { background: #f6f7f9; color: #2b3440; border-left-color: var(--vert); font-size: 9.5px; }
+    #code-preuve pre.code.cs .c { color: #2f9e44; }
+    #code-preuve pre.code.cs .k { color: #7c5cd6; }
+  </style>
+
+  <div class="surtitre">Livrable 2 · De la table au code</div>
+  <h2 class="titre"><span class="num">2.2 bis</span>🐍 De la table au code · <span class="rond">3</span> preuve et équivalent C#</h2>
+  <p class="chapo">Un parcours de graphe suffit à prouver la terminaison (tests en 2.3), garde d'entrée comprise ; le même
+    moteur s'écrirait en C# avec la bibliothèque Stateless.</p>
+
+  <div class="colonnes" style="grid-template-columns: 1fr 1.25fr">
+<pre class="code"><span class="k">def</span> peut_atteindre(
+    depart: Etat, cibles: set[Etat] | frozenset[Etat]
+) -&gt; bool:
+    <span class="c">"""Parcours en largeur de la table :
+    existe-t-il un chemin de depart vers une cible ?"""</span>
+    vus, file = {depart}, [depart]
+    <span class="k">while</span> file:
+        e = file.pop(0)
+        <span class="k">if</span> e <span class="k">in</span> cibles:
+            <span class="k">return</span> True
+        <span class="k">for</span> d, _, s <span class="k">in</span> TRANSITIONS + GARDES_ENTREE:  <span class="c"># T0 compris</span>
+            <span class="k">if</span> d == e <span class="k">and</span> s <span class="k">not in</span> vus:
+                vus.add(s)
+                file.append(s)
+    <span class="k">return</span> False</pre>
+
+    <table class="tableau">
+      <tr><th>Élément du code</th><th>Exigence garantie</th></tr>
+      <tr><td><code>TRANSITIONS</code> est une donnée</td><td>flux lisible et testable sans agent (EX-D26, EX-D27)</td></tr>
+      <tr><td><code>while courant not in TERMINAUX</code> + garde globale</td><td>aucune boucle infinie (EX-06)</td></tr>
+      <tr><td>toutes les sorties mènent à <code>DECISION</code></td><td>seul ⚖️ decision écrit <code>issue</code> (EX-01)</td></tr>
+      <tr><td><code>vue_filtree</code> + <code>fusionner</code></td><td>frontières codées, propriété par section (EX-02, EX-03)</td></tr>
+      <tr><td><code>TransitionInconnue</code></td><td>table incomplète ⇒ étape <code>echec</code>, bruyante, jamais un blocage silencieux</td></tr>
+      <tr><td><code>_persister</code> à chaque transition</td><td>processus mort ⇒ le reaper lit le dernier snapshot et escalade (2.5) ; sans base, aucun snapshot</td></tr>
+      <tr><td><code>GARDES_ENTREE</code> avant l'action</td><td><code>is_eligible()</code> jamais appelé sur des données non validées (EX-D40)</td></tr>
+      <tr><td>règle 0 en tête de <code>_issue</code> (référence de decision)</td><td>contrat non exploitable ⇒ escalade motivée, jamais de blocage (EX-01)</td></tr>
+    </table>
+  </div>
+
+  <div>
+    <div style="font-weight:750; font-size:13px; margin-bottom:5px">💡 Le même moteur en C# avec Stateless (≈ T0, T3, T4, T5)
+      <span class="discret petit" style="font-weight:500">— illustration pour un lecteur .NET : le dépôt ne contient aucun code C#</span></div>
+<pre class="code cs"><span class="k">var</span> machine = <span class="k">new</span> StateMachine&lt;Etat, Declencheur&gt;(() =&gt; demande.EtatCourant, s =&gt; demande.EtatCourant = s);
+
+machine.Configure(Etat.Admission)                                                          <span class="c">// T0 AVANT l'action</span>
+    .PermitIf(Declencheur.Suivant, Etat.Decision,    () =&gt; demande.Contrat.StatutExtraction != "valide")  <span class="c">// T0</span>
+    .PermitIf(Declencheur.Suivant, Etat.Eligibilite, () =&gt; demande.Contrat.StatutExtraction == "valide");
+machine.Configure(Etat.Pieces)
+    .PermitIf(Declencheur.Suivant, Etat.Estimation, () =&gt; demande.Pieces.Statut == "complet")             <span class="c">// T3</span>
+    .PermitReentryIf(Declencheur.Suivant,           () =&gt; demande.Pieces.Statut == "incomplet"
+                                                          &amp;&amp; demande.Compteurs.Relances &lt; bornes.RelancesPiecesMax)  <span class="c">// T4</span>
+    .PermitIf(Declencheur.Suivant, Etat.Decision,   () =&gt; !(demande.Pieces.Statut == "complet" || PeutRelancer()));    <span class="c">// T5</span></pre>
+  </div>
+
+  <div class="note alerte">⚖️ <b>Différence notable</b> : Stateless refuse deux gardes vraies en même temps, ce qui impose des
+    gardes <b>mutuellement exclusives</b>. La table Python, elle, s'appuie sur l'<b>ordre</b> (la première garde vraie gagne),
+    d'où <code>TOUJOURS</code> en dernière position. T0 y devient un état <code>Admission</code> intermédiaire, dont les deux
+    gardes sont exclusives ; <code>OnEntry(Eligibilite)</code> n'est jamais déclenché sur un contrat non validé.</div>
+</section>

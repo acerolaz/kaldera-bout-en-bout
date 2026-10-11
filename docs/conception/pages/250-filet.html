@@ -1,0 +1,50 @@
+<section class="page" id="filet">
+  <style>
+    #filet .colonne { display:flex; flex-direction:column; gap:4px; align-items:stretch; }
+    #filet .colonne .boite { font-size:10.5px; padding:5px 8px; }
+    #filet .colonne .fl { text-align:center; color:#6b7280; line-height:1; }
+    #filet .niveau { font-weight:750; font-size:12px; margin-bottom:2px; }
+    #filet pre.code { font-size:10px; }
+  </style>
+  <div class="surtitre">Livrable 2 · Filet de sécurité</div>
+  <h2 class="titre"><span class="num">2.5</span>🛟 Si le système plante : exécution durable</h2>
+  <p class="chapo">Quand l'équipe ne peut plus conclure, un mécanisme hors équipe reconstruit une escalade humaine depuis l'état partagé. C'est le
+    pattern exécution durable (checkpointing) ; son niveau 2 demande une base PostgreSQL (snapshots et verrou).</p>
+
+  <div class="grille-2" style="gap:16px; align-items:start">
+    <div class="colonne">
+      <div class="niveau">Niveau 1 · une exception dans le processus <span class="pastille">toujours actif</span></div>
+      <div class="boite risque"><b>💥 Exception non rattrapée</b>dans un agent, l'orchestrateur ou decision lui-même, ou demande malformée</div><div class="fl">↓</div>
+      <div class="boite orch"><b>🛟 Filet <code style="background:#2d5a44;color:#fff">try / except</code> (Orchestrateur.traiter)</b>seule capture large du paquet · ne relance rien</div><div class="fl">↓</div>
+      <div class="boite"><b>🧠 Lecture seule de l'état partagé</b>sections calculées · trace · etat_courant</div><div class="fl">↓</div>
+      <div class="boite decision"><b>📋 Fiche d'escalade de secours</b>issue = escalade · file prudente · « Escalade de secours : … (dernier état : X) »</div>
+    </div>
+    <div class="colonne">
+      <div class="niveau">Niveau 2 · le processus meurt <span class="pastille">si une base est configurée</span></div>
+      <div class="boite risque"><b>☠️ Le processus s'arrête net</b>mémoire saturée, arrêt forcé, redémarrage</div><div class="fl">↓</div>
+      <div class="boite ext"><b>💾 Snapshot après chaque transition</b>PostgreSQL · <code>demandes.etat</code> jsonb · clé = reference · statut = en_cours</div><div class="fl">↓</div>
+      <div class="boite orch"><b>⏱️ Reaper indépendant (<code style="background:#2d5a44;color:#fff">make reaper</code>, toutes les 10 s)</b>inactive depuis <code style="background:#2d5a44;color:#fff">KALDERA_REAPER_AGE_S</code> (30 s) ⇒ en_cours → secours (atomique)</div><div class="fl">↓</div>
+      <div class="boite decision"><b>📋 Fiche reconstruite depuis le snapshot</b>même format · trace jusqu'au dernier état + étape « reaper »</div>
+    </div>
+  </div>
+  <div class="boite" style="text-align:center; font-weight:650">🧑‍💼 File humaine : gestionnaire ou cellule_fraude — le dossier est REPRIS par un humain, jamais rejoué</div>
+
+  <div class="colonnes" style="grid-template-columns:1.3fr 1fr">
+<pre class="code"><span class="c">-- verrou compare-and-set atomique : deux reapers ne peuvent pas escalader deux fois</span>
+UPDATE demandes SET statut = 'secours', maj = now()
+WHERE (statut = 'en_cours' OR (statut = 'secours' AND fiche IS NULL))
+  AND maj &lt; now() - make_interval(secs => 30)
+RETURNING reference, etat;   <span class="c">-- 0 ligne ⇒ un autre reaper (ou la fin normale) a gagné</span>
+<span class="c">-- secours sans fiche : un classement raté est repris au passage suivant</span></pre>
+    <div class="note alerte petit">🔒 Le verrou « en_cours → secours » empêche une double escalade si le traitement finit malgré tout : la fin normale
+      (<code>terminer</code>) ne s'applique qu'à une demande encore <code>en_cours</code>. Une seule requête SQL, atomique (2.6).</div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>Pourquoi hors équipe ?</h3>⚖️ decision peut être celui qui a planté : le filet ne dépend d'aucun agent. Tracé <code>filet_securite</code>.
+      La base ne bloque jamais une décision : au premier échec d'écriture, la persistance est coupée pour la demande.</div>
+    <div class="note petit"><h3>Jamais rejouer</h3>Relancer la machine rappellerait le partenaire : refus <code>-32029</code> et manquement au contrat.</div>
+    <div class="note petit"><h3>File la plus prudente</h3>Lue dans l'état : <code>cellule_fraude</code> si avis élevé, ou F1–F4 sans avis et estimé &gt; 1 500 € ;
+      sinon <code>gestionnaire</code> (contrat non exploitable, antifraude non atteint…).</div>
+  </div>
+</section>

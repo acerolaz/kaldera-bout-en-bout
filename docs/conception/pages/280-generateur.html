@@ -1,0 +1,57 @@
+<section class="page" id="generateur">
+  <style>
+    #generateur .tableau td, #generateur .tableau th { font-size:10.5px; padding:4px 7px; }
+    #generateur pre.code { font-size:9.5px; }
+    #generateur .flux { display:flex; align-items:stretch; gap:6px; }
+    #generateur .flux .boite { flex:1; font-size:10px; padding:5px 5px; display:flex; flex-direction:column; justify-content:center; }
+  </style>
+  <div class="surtitre">Livrable 2 · Générateur de pièces</div>
+  <h2 class="titre"><span class="num">2.7</span>🏭 Le générateur de pièces · ① fabriquer les fichiers</h2>
+  <p class="chapo">Les 34 demandes décrivent déjà leurs pièces. <code>tools/generer_pieces.py</code> les transforme en vrais fichiers PDF et PNG, toujours
+    identiques, pour alimenter l'ingestion sans aucune donnée réelle — avec les 5 demandes dérivées des scénarios ING.</p>
+
+  <div class="flux">
+    <div class="boite"><b>📋 scenarios.jsonl</b>34 demandes + 5 ING<br>contrat · pieces · depots</div><span class="fleche" style="align-self:center">→</span>
+    <div class="boite tool"><b>🏭 generer_pieces.py</b><code>--seed 42</code><br>reportlab · Pillow</div><span class="fleche" style="align-self:center">→</span>
+    <div class="boite"><b>📁 fixtures/pieces/KAL…/</b>contrat.pdf · initiale_01_facture.pdf · depot1_01_photo.png</div><span class="fleche" style="align-self:center">→</span>
+    <div class="boite decision"><b>🧾 manifeste.jsonl</b>158 lignes : vérité terrain + sha256</div><span class="fleche" style="align-self:center">→</span>
+    <div class="boite ingestion"><b>📥 make seed</b>même API que la prod</div><span class="fleche" style="align-self:center">→</span>
+    <div class="boite ext"><b>🐘 PostgreSQL</b>descripteurs produits par le VLM</div><span class="fleche" style="align-self:center">→</span>
+    <div class="boite ok"><b>📏 make eval-ingestion</b>précision par champ + invariance</div>
+  </div>
+
+  <div class="colonnes" style="grid-template-columns:1fr 1.1fr">
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <table class="tableau">
+        <tr><th>Pièce</th><th>Rendu</th><th>lisible: true</th><th>lisible: false</th></tr>
+        <tr><td>📜 Contrat</td><td>PDF reportlab</td><td>natif, couche texte ; barème de la formule imprimé</td><td>variante <code>scannee_floue</code> (ING-01) ; franchise faussée × 10 (ING-02)</td></tr>
+        <tr><td>🧾 Facture</td><td>PDF</td><td><code>nette</code> (texte) ou <code>scannee</code> (image, rotation légère, grain)</td><td><code>floue</code> (sous-échantillonnage + flou fort)</td></tr>
+        <tr><td>👮 Plainte</td><td>PDF</td><td>idem facture</td><td>idem facture</td></tr>
+        <tr><td>📷 Photo</td><td>PNG Pillow</td><td>décor par sinistre : taches, flammes, effraction</td><td>floue + sous-exposée</td></tr>
+      </table>
+      <div class="carte"><h3>▶️ Commandes</h3><ul class="liste petit">
+        <li><code>uv run python tools/generer_pieces.py --seed 42 [--sortie DIR]</code> : fichiers + manifeste (<code>make generer</code>)</li>
+        <li><code>make seed</code> : crée chaque demande et dépose chaque fichier par l'API d'ingestion</li>
+        <li><code>make eval-ingestion</code> : précision du VLM contre <code>manifeste.jsonl</code> (2.7 ②)</li></ul></div>
+    </div>
+<pre class="code">rl_config.invariant = 1               <span class="c"># ni date ni ID aléatoire ⇒ sha256 stable</span>
+rng = random.Random(f"{seed}:{ref}")  <span class="c"># 1 graine par dossier : ordre indifférent</span>
+
+<span class="k">def</span> _variante(lisible: bool, rng) -> str:   <span class="c"># la vérité terrain décide</span>
+    <span class="k">return</span> rng.choice([<span class="k">"nette"</span>, <span class="k">"scannee"</span>]) <span class="k">if</span> lisible <span class="k">else</span> <span class="k">"floue"</span>
+
+<span class="c"># termes imprimés = vérité terrain ; barème lu dans regles.FORMULES</span>
+c, bareme = d[<span class="k">"contrat"</span>], regles.FORMULES[d[<span class="k">"contrat"</span>][<span class="k">"formule"</span>]]
+franchise = bareme[<span class="k">"franchise"</span>] * (10 <span class="k">if</span> variante == <span class="k">"franchise_faussee"</span> <span class="k">else</span> 1)
+<span class="c"># statut et cotisations : jamais imprimés (système de gestion)</span>
+
+<span class="c"># depot1_01_photo.png ⇒ relance 1 ⇒ premier dépôt de l'espace assuré</span>
+nom = f"{role}{relance or ''}_{i:02d}_{type}.{ext}"  <span class="c"># ex. initiale_01_facture.pdf</span></pre>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>Déterministe</h3>Même scénario + même graine ⇒ mêmes octets ⇒ même sha256 : le cache VLM sert, les tests restent stables.</div>
+    <div class="note petit"><h3>Synthétique</h3>Aucune vraie pièce, aucune donnée personnelle réelle : les fixtures vivent dans Git.</div>
+    <div class="note petit"><h3>Même chemin que la prod</h3><code>make seed</code> dépose les fichiers par l'API d'ingestion (2.4 ter), jamais par un INSERT direct.</div>
+  </div>
+</section>

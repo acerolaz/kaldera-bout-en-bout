@@ -1,0 +1,103 @@
+<section class="page" id="carte-agents">
+  <style>
+    #carte-agents .schema { position:relative; height:378px; }
+    #carte-agents .schema > div { position:absolute; }
+    #carte-agents svg { position:absolute; left:0; top:0; overflow:visible; }
+    #carte-agents .ingestion-col { left:0; top:0; width:168px; height:370px; border:1.5px dashed var(--ingestion-bord);
+      background:#faf8ff; border-radius:9px; padding:7px; font-size:10.5px; }
+    #carte-agents .ingestion-col .boite { position:static; margin:4px 0; padding:3px 5px; font-size:9.5px; line-height:1.3; }
+    #carte-agents .ingestion-col .boite b { font-size:11px; }
+    #carte-agents .agent { top:112px; width:166px; height:152px; text-align:left; padding:8px 10px; font-size:10.5px; }
+    #carte-agents .agent b { text-align:center; margin-bottom:4px; }
+    #carte-agents .ecrit { display:block; text-align:center; margin:2px 0 5px; }
+    #carte-agents .ecrit code { border:1.5px solid var(--ok-bord); background:#fff; border-radius:999px; padding:0 14px; }
+    #carte-agents .fait { color:var(--ok-bord); font-weight:750; } #carte-agents .pas { color:var(--risque-bord); font-weight:750; }
+    #carte-agents .etiq { font-size:9.5px; color:#4b5563; font-weight:600; }
+    #carte-agents .etat { left:190px; top:288px; width:560px; height:76px; border:1px solid var(--bordure); border-radius:9px;
+      background:#fff; padding:6px 10px; text-align:center; font-size:10.5px; }
+    #carte-agents .etat .sec { display:inline-block; border:1.5px solid #2f3a45; border-radius:999px; padding:1px 9px; margin:4px 2px; font-size:10.5px; font-weight:650; }
+  </style>
+  <div class="surtitre">Livrable 1 · Carte des agents</div>
+  <h2 class="titre"><span class="num">1.1</span>🗺️ Un tool, quatre agents, cinq frontières</h2>
+  <p class="chapo">L'éligibilité est un tool déterministe, <code>is_eligible()</code> (≈ <code>IsEligible()</code> en C#), appelé par
+    l'orchestrateur. Restent quatre agents spécialistes, chacun unique écrivain de sa section. Les fichiers sont lus <b>avant</b>
+    l'équipe, par un outil VLM ; côté espace assuré, un agent de relance répond hors de la machine (2.8).</p>
+
+  <div class="schema">
+    <svg width="1032" height="378">
+      <defs><marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#5c6672"/></marker>
+        <marker id="pv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#6f2dbd"/></marker>
+        <marker id="pb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6"/></marker></defs>
+      <!-- orchestrateur → is_eligible -->
+      <line x1="452" y1="34" x2="390" y2="34" stroke="#5c6672" stroke-width="1.5" marker-end="url(#pa)"/>
+      <text x="398" y="27" font-size="9.5" fill="#5c6672">appel direct</text>
+      <!-- orchestrateur → agents -->
+      <line x1="600" y1="76" x2="600" y2="92" stroke="#5c6672" stroke-width="1.5"/>
+      <line x1="273" y1="92" x2="798" y2="92" stroke="#5c6672" stroke-width="1.5"/>
+      <line x1="273" y1="92" x2="273" y2="110" stroke="#5c6672" stroke-width="1.5" marker-end="url(#pa)"/>
+      <line x1="448" y1="92" x2="448" y2="110" stroke="#5c6672" stroke-width="1.5" marker-end="url(#pa)"/>
+      <line x1="623" y1="92" x2="623" y2="110" stroke="#5c6672" stroke-width="1.5" marker-end="url(#pa)"/>
+      <line x1="798" y1="92" x2="798" y2="110" stroke="#5c6672" stroke-width="1.5" marker-end="url(#pa)"/>
+      <text x="290" y="86" font-size="9.5" fill="#5c6672" font-weight="600">aucun appel direct entre agents</text>
+      <text x="625" y="86" font-size="9.5" fill="#5c6672" font-weight="600">délègue / rend compte · agents = outils</text>
+      <!-- antifraude → partenaire (A2A) -->
+      <path d="M623,266 L623,278 L840,278 L840,286" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#pb)"/>
+      <text x="735" y="273" font-size="9.5" fill="#3b82f6" font-weight="700">A2A (référence déterministe)</text>
+      <!-- ingestion → admission → état -->
+      <path d="M170,326 L188,326" fill="none" stroke="#6f2dbd" stroke-width="1.8" marker-end="url(#pv)"/>
+    </svg>
+
+    <div class="ingestion-col">
+      <b style="color:var(--garde)">📥 INGESTION</b><br><span class="etiq">hors équipe · au dépôt · hors 10 s</span>
+      <div class="boite tool"><b>📁 Fichiers déposés</b>contrat · factures · photos</div>
+      <div class="boite tool"><b>🛡️ Contrôles</b>MIME réel · ≤ 10 Mo · sha256</div>
+      <div class="boite llm"><b>🔍 VLM (outil)</b><code>analyser_piece</code> · <code>extraire_contrat</code><br>1 tour · invariants · 3 verrous</div>
+      <div class="boite ext"><b>🐘 PostgreSQL</b>descripteurs + contrat validés</div>
+      <div class="boite tool" style="border-color:var(--ingestion-bord)"><b>🚪 Admission</b>après soumission explicite</div>
+      <span class="etiq" style="color:var(--garde)">0 agent · 0 décision · sorties vérifiées par le code</span>
+    </div>
+
+    <div class="boite tool" style="left:200px; top:2px; width:186px; height:68px; padding:5px"><b>🔧 is_eligible()</b>
+      fonction pure · E1 → E5<br><span style="color:var(--ok-bord)">0 agent · 0 appel LLM</span> · sur contrat validé (T0)</div>
+    <div class="boite orch" style="left:454px; top:2px; width:292px; height:72px; padding:7px"><b>🧭 orchestrateur</b>
+      route · borne · trace · fusionne les patchs<br><span style="color:var(--or)">✍️ écrit 1 seule section : eligibilite (via le tool)</span></div>
+
+    <div class="boite agent" style="left:190px"><b>📄 pieces</b><span class="ecrit">écrit : <code>pieces</code></span>
+      <span class="fait">✅ FAIT</span><br>descripteurs · relance<br>demande de complément<br>
+      <span class="pas">⛔ NE FAIT PAS</span><br>ne somme pas les factures<br>ne lit aucun fichier brut</div>
+    <div class="boite agent" style="left:365px"><b>💶 estimation</b><span class="ecrit">écrit : <code>estimation</code></span>
+      <span class="fait">✅ FAIT</span><br>justifié · retenu<br>franchise → puis plafond<br>
+      <span class="pas">⛔ NE FAIT PAS</span><br>ne calcule pas F1–F4<br>ne juge pas la fraude</div>
+    <div class="boite agent" style="left:540px"><b>🕵️ antifraude</b><span class="ecrit">écrit : <code>avis_fraude</code></span>
+      <span class="fait">✅ FAIT</span><br>indicateurs F1–F4<br>appel A2A + validation<br>
+      <span class="pas">⛔ NE FAIT PAS</span><br>aucun avis interne<br>rien hors liste blanche</div>
+    <div class="boite agent decision" style="left:715px"><b>⚖️ decision</b><span class="ecrit">écrit : <code>issue</code></span>
+      <span class="fait">✅ FAIT</span><br>règle 0 puis §10<br>fiche de décision + motif<br>
+      <span class="pas">⛔ NE FAIT PAS</span><br>ne recalcule aucun montant<br>n'appelle pas le partenaire</div>
+    <div class="boite llm" style="left:894px; top:112px; width:138px; height:152px; border-style:dashed; padding:8px 8px; font-size:10.5px">
+      <b>💬 relance</b><span class="etiq">espace assuré · hors machine (2.8)</span><br>
+      répond à l'assuré sur <b>ses pièces</b> seulement<br>n'écrit aucune section<br>ne voit ni avis, ni score</div>
+
+    <div class="etat"><b>🧠 État partagé de la demande — 1 section = 1 seul écrivain</b><br>
+      <span class="sec">eligibilite ← 🔧</span><span class="sec">pieces ← 📄</span><span class="sec">estimation ← 💶</span>
+      <span class="sec">avis_fraude ← 🕵️</span><span class="sec" style="background:var(--decision-fond)">issue ← ⚖️</span><br>
+      <span class="etiq">+ trace · compteurs · arret · contrat (provenance) : orchestrateur seul · termes : <b>demande.contrat</b></span></div>
+    <div class="boite ext" style="left:770px; top:288px; width:150px; height:76px; padding:6px"><b>🌐 Partenaire</b>
+      anti-fraude externe, joint via A2A, pour 🕵️ antifraude seul</div>
+  </div>
+
+  <div class="legende">
+    <span class="l-orch">Orchestrateur</span><span class="l-tool">Tool déterministe (code)</span><span>Agent interne</span>
+    <span class="l-llm">LLM</span><span class="l-ext">Externe / A2A · base</span><span class="l-decision">Décision</span><span class="l-ingestion">Ingestion</span>
+  </div>
+
+  <div class="grille-4 pousse">
+    <div class="note petit"><h3>Pourquoi un tool ?</h3>E1 → E5 = 5 règles binaires sur des données structurées : une fonction pure suffit. Un nœud agentique de moins, 0 appel LLM.</div>
+    <div class="note petit"><h3>Contrat respecté</h3>L'orchestrateur n'écrit qu'<b>une</b> section métier, <code>eligibilite</code> : « 1 section = 1 écrivain » reste vrai (interface.md).</div>
+    <div class="note petit"><h3>Agents-outils</h3>Les 4 agents ne s'appellent jamais entre eux : le ping-pong est impossible par construction.</div>
+    <div class="note petit"><h3>Ni le VLM ni la relance ne sont dans l'équipe</h3>Le VLM : 1 fichier, 1 tâche, 1 sortie structurée. La relance parle à l'assuré, hors machine. Aucun n'écrit de section.</div>
+  </div>
+</section>

@@ -1,0 +1,29 @@
+<section class="page" id="glossaire-2">
+  <style>
+    #glossaire-2 .tableau td:first-child { font-weight: 700; width: 20%; }
+    #glossaire-2 .tableau td { padding: 6.5px 9px; }
+  </style>
+  <div class="surtitre">Annexe</div>
+  <h2 class="titre"><span class="num">A</span>📖 Glossaire 2/5</h2>
+  <p class="chapo">Suite des termes, dans l'ordre alphabétique (de G à W).</p>
+
+  <table class="tableau">
+    <tr><th>Terme</th><th>Définition</th></tr>
+    <tr><td>Garde</td><td>Condition booléenne qui autorise une transition (≈ PermitIf de Stateless).</td></tr>
+    <tr><td>Générateur + validateur</td><td>Un LLM produit, un contrôle déterministe valide, sinon repli ; un rejet ne relance jamais la génération, donc pas de boucle.</td></tr>
+    <tr><td>Indicateurs F1–F4</td><td>Signaux de risque qui rendent l'avis anti-fraude obligatoire (§7).</td></tr>
+    <tr><td>JSON-RPC</td><td>Format d'appel distant (méthode + paramètres + id) utilisé par A2A.</td></tr>
+    <tr><td>Liste blanche</td><td>Seuls les champs explicitement autorisés sortent ; tout le reste est bloqué (projection A2A, vue de l'assuré).</td></tr>
+    <tr><td>Machine à états finis</td><td>Ensemble fini d'états reliés par des transitions gardées ; pattern retenu pour l'orchestration.</td></tr>
+    <tr><td>Mode dégradé</td><td>Plan B métier quand le partenaire est indisponible (§9).</td></tr>
+    <tr><td>Patch</td><td>Modification proposée par un agent, limitée à sa section, contrôlée avant fusion.</td></tr>
+    <tr><td>Ping-pong</td><td>Deux agents se renvoient la même tâche sans progresser.</td></tr>
+    <tr><td>Reaper</td><td>Processus indépendant (<code>make reaper</code>) qui repère les dossiers restés « en cours » trop longtemps (<code>KALDERA_REAPER_AGE_S</code>) et les escalade ; il a besoin de la base.</td></tr>
+    <tr><td>Snapshot</td><td>Copie de l'état partagé enregistrée après chaque transition (table <code>demandes</code>, <code>jsonb</code>), pour reprendre un dossier après un crash ; seulement si une base est configurée.</td></tr>
+    <tr><td>SSE</td><td>Server-Sent Events : réponse HTTP laissée ouverte où le serveur pousse des événements ; utilisé par le flux de l'espace assuré (5/5), pas avec le partenaire.</td></tr>
+    <tr><td>Table de transitions</td><td>Liste (état, garde, suivant) : seule source de vérité du flux, évaluée dans l'ordre.</td></tr>
+    <tr><td>Tool déterministe</td><td>Fonction de code pure appelée directement (ex. <code>is_eligible()</code>) : pas d'agent, pas de LLM.</td></tr>
+    <tr><td>Transition</td><td>Passage d'un état à un autre, déclenché quand sa garde est vraie (≈ Fire de Stateless).</td></tr>
+    <tr><td>Watchdog</td><td>Surveillant déterministe qui impose l'arrêt quand une borne est atteinte ; ici, la garde globale TG.</td></tr>
+  </table>
+</section>

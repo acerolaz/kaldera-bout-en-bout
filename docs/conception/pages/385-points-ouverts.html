@@ -1,0 +1,62 @@
+<section class="page" id="points-ouverts">
+  <style>
+    #points-ouverts .hyp { background: var(--risque-fond); border: 1.5px dashed var(--risque-bord); border-radius: 9px; padding: 10px 12px; }
+    #points-ouverts h3 { margin: 0 0 6px; font-size: 15px; font-weight: 750; }
+    #points-ouverts .hyp h3 { color: var(--risque-bord); }
+    #points-ouverts .mesure { background: var(--ext-fond); border: 1.5px solid var(--ext-bord); border-radius: 9px; padding: 10px 12px; }
+    #points-ouverts .mesure h3 { color: #1d4ed8; }
+    #points-ouverts ul.liste li { margin: 7px 0; font-size: 12.8px; line-height: 1.45; }
+  </style>
+  <div class="surtitre">Synthèse</div>
+  <h2 class="titre"><span class="num">5</span>❓ Points ouverts</h2>
+  <p class="chapo">Les hypothèses encore ouvertes, ce qui reste à mesurer avec les vrais modèles et le vrai partenaire,
+    et les questions à poser au métier.</p>
+
+  <div class="grille-3" style="grid-template-columns: 1fr 1.12fr 1fr; align-items: stretch; gap: 12px">
+    <div class="hyp">
+      <h3>❓ Hypothèses ouvertes</h3>
+      <ul class="liste">
+        <li><code>departement</code> en Corse : 2A sous 20200, 2B au-delà — découpage simplifié, à valider</li>
+        <li><code>relances_pieces_max = 1</code> : à valider avec le métier</li>
+        <li>💶 <b>estimation</b> : son LLM ne rédige que l'explication ; sa valeur sera tranchée par <code>make eval</code></li>
+        <li>📜 un contrat respecte-t-il toujours le <b>barème</b> de sa formule ? Le verrou ② le suppose (P&#8209;Q9)</li>
+        <li>📦 seuil de taille des fichiers : 10 Mo</li>
+        <li>📷 photos synthétiques représentatives ?</li>
+        <li>🔁 disjoncteur : <b>0,5</b> sur <b>60 s</b>, 10 tentatives au moins — valeurs provisoires</li>
+      </ul>
+    </div>
+
+    <div class="mesure">
+      <h3>📏 Reste à mesurer</h3>
+      <ul class="liste">
+        <li><b>Premier <code>make eval</code> avec les clés Azure</b> : matrice agent × modèle, modèle choisi par rôle et
+          consigné. L'épreuve de référence a tourné sans LLM (« llm 0 / repli 116 »).</li>
+        <li><b>Modèle par rôle</b> : latences réelles compatibles avec les délais par agent (1,2 / 0,8 / 1,5 / 1,2 s) ?</li>
+        <li><b>Bornes à remesurer</b> au même passage : <code>duree_max_s</code> et le disjoncteur.</li>
+        <li><code>delai_partenaire_s</code> (3 s) contre le <b>partenaire réel</b> : le simulateur ne le mesure pas.</li>
+        <li><b>Chemins Azure réels</b> (agents, VLM) non éprouvés ; épreuve de l'ingestion avec le vrai VLM à faire.</li>
+        <li><b>VLM</b> : il ne lit que la <b>page 1</b> du PDF ; un contrat de plusieurs pages serait mal lu.</li>
+        <li><b>Exploitation</b> : pas de console d'administration, pas de création de compte assuré hors démo ;
+          jeton de session valable jusqu'à son expiration (8 h), même après déconnexion.</li>
+      </ul>
+    </div>
+
+    <div class="carte">
+      <h3>🏢 Questions pour le métier</h3>
+      <ul class="liste">
+        <li>⚖️ Coût d'une fraude remboursée vs client escaladé à tort ?</li>
+        <li>🧑‍💼 Capacité de la file humaine face au mode dégradé ?</li>
+        <li>🔄 Réexaminer les décisions sans avis (interrupt / resume) ?</li>
+        <li>📜 RGPD : un LLM tiers (Azure AI Foundry) peut-il traiter la vue filtrée ?</li>
+        <li>⚡ Panne franche du partenaire : tenter l'appel à chaque dossier, ou disjoncteur ?</li>
+        <li>📜 Contrat non exploitable : escalade (T0) ou demande de document ? (P&#8209;Q8)</li>
+        <li>📜 RGPD : le VLM voit l'image du document (identité, adresse)</li>
+        <li>🗄️ Durée de conservation des pièces ?</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note alerte petit pousse">⚠️ <b>Choisir par la mesure, pas par intuition</b> : <code>.env.example</code> met
+    <code>Kimi-K2.6</code> sur les quatre agents et <code>gpt-4.1</code> sur le VLM, à titre d'exemple. Le choix final par rôle
+    revient à <code>make eval</code> (4.3, 4.4), qui sans clés répond « non mesuré » (code 2).</div>
+</section>

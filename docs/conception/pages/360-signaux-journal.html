@@ -1,0 +1,43 @@
+<section class="page" id="signaux-journal">
+  <style>
+    #signaux-journal .tableau td, #signaux-journal .tableau th { font-size:11px; padding:5px 8px; }
+  </style>
+  <div class="surtitre">Livrable 4 · Signaux &amp; journal</div>
+  <h2 class="titre"><span class="num">4.2</span>📊 Ce qu'on mesure, ce qu'on consigne</h2>
+  <p class="chapo">Les signaux viennent de la trace et des métriques de <code>traiter_lot</code> (<code>metriques_par_agent</code>,
+    <code>metriques_equipe</code>, docs/interface.md) ; tout changement de borne, garde, frontière ou routage laisse une ligne au journal.</p>
+
+  <div class="colonnes" style="grid-template-columns:1.45fr 1fr">
+    <div style="display:flex; flex-direction:column; gap:10px">
+      <table class="tableau">
+        <tr><th>Agent</th><th>Métriques</th><th>Signal d'alerte</th></tr>
+        <tr><td><b>🧭 orchestrateur</b></td><td>appels · échecs · <code>latence_ms</code> (y compris l'étape <code>is_eligible()</code>)</td>
+          <td>arrêt hors <code>relances_pieces_max</code> ; écriture rejetée &gt; 0 ; <code>TransitionInconnue</code> &gt; 0</td></tr>
+        <tr><td><b>📄 pieces</b></td><td>idem + <b>LLM</b> : replis · sorties rejetées · tours · jetons · latence LLM · modèles</td><td>relances au-delà de la borne</td></tr>
+        <tr><td><b>💶 estimation</b></td><td>idem</td><td>montant &gt; plafond (rejeté par le modèle)</td></tr>
+        <tr><td><b>🕵️ antifraude</b></td><td>idem + <code>appels_externes</code> + <b>natures</b> : ok · timeout · invalide · erreur · non_envoye · non_requis</td>
+          <td>appel externe sans F1–F4 ; latence &gt; délai</td></tr>
+        <tr><td><b>⚖️ decision</b></td><td>idem</td><td>issue absente ; motif vide</td></tr>
+      </table>
+      <div class="carte"><h3>👥 Au niveau de l'équipe (<code>metriques_equipe</code>)</h3><p class="petit">Durée de bout en bout (p95 &lt; 8 s, max &lt; 10 s) ·
+        étapes max · arrêts par borne · issues et escalades par file · taux de mode dégradé · écritures rejetées = 0 · appels partenaire par
+        référence ≤ 1 · séquence de transitions réelle = attendue (ex. NOM-02 : eligibilite → decision → refusee).</p></div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:10px">
+      <div class="carte"><h3>📓 Format du journal des ajustements</h3>
+        <table class="tableau" style="margin-top:4px">
+          <tr><th>Champ</th><th>Entrée réelle (journal)</th></tr>
+          <tr><td>📅 date</td><td>2026-10-09</td></tr>
+          <tr><td>🧪 scénario</td><td>PAN-02 (partenaire à 5 s)</td></tr>
+          <tr><td>📊 signal observé</td><td>abandon à 3 s enfin éprouvé</td></tr>
+          <tr><td>📏 seuil</td><td><code>delai_partenaire_s</code> = 3</td></tr>
+          <tr><td>🔧 ajustement</td><td>aucun (mesure)</td></tr>
+          <tr><td>↔️ avant / après</td><td>durée du lot : 3,03 s</td></tr>
+        </table>
+        <p class="tres-petit discret" style="margin-top:5px">Extrait de <code>docs/journal_ajustements.md</code>, qui consigne aussi les bornes en vigueur et leur statut (éprouvée / provisoire).</p></div>
+      <div class="note vert petit"><h3>✅ Critère de sortie</h3>Les tests d'acceptance fournis passent, les 6 exigences sont démontrées (une assertion
+        chacune, verdicts de <code>make epreuve</code>), chaque transition T1 → T11 est couverte, et chaque borne finale est justifiée par une ligne du journal.</div>
+    </div>
+  </div>
+</section>

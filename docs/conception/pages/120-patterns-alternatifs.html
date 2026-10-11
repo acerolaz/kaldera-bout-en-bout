@@ -1,0 +1,62 @@
+<section class="page" id="patterns-alternatifs">
+  <style>
+    #patterns-alternatifs .tableau td, #patterns-alternatifs .tableau th { padding: 4px 8px; font-size: 11px; }
+    #patterns-alternatifs .note { padding: 8px 11px; }
+    #patterns-alternatifs .tableau td:last-child { white-space: nowrap; }
+    #patterns-alternatifs .flux { display: grid; grid-template-columns: 74px 1fr; gap: 8px 6px; align-items: center; }
+    #patterns-alternatifs .flux .rang { display: flex; align-items: center; gap: 8px; }
+    #patterns-alternatifs .flux .boite { text-align: left; padding: 5px 9px; }
+    #patterns-alternatifs .flux .boite b { font-size: 12px; }
+    #patterns-alternatifs .ou { color: var(--gris-texte); font-size: 13px; }
+    #patterns-alternatifs .nom { font-weight: 700; font-size: 11.5px; }
+  </style>
+
+  <div class="surtitre">Livrable 2 · Patterns alternatifs</div>
+  <h2 class="titre"><span class="num">2.1 bis</span>🔍 Les autres patterns, considérés</h2>
+  <p class="chapo">Les patterns multi-agents considérés, avec la décision retenue pour chacun et la page où elle s'applique.</p>
+
+  <table class="tableau">
+    <tr><th style="width:23%">Pattern</th><th style="width:11%">Statut</th><th>Décision</th><th>Où</th></tr>
+    <tr><td>🔀 Machine à états finis</td><td>✅ Adopté</td><td>✅ <b>Retenu</b> : orchestration en code, table de transitions gardée, garde d'entrée T0</td><td>2.1 · 2.2</td></tr>
+    <tr><td>🤖 <b>Agent LLM</b> (tool calling, boucle bornée)</td><td>✅ Adopté</td><td>✅ <b>Retenu</b> : les 4 agents métier : un LLM, des outils exclusifs, une boucle bornée ; + agent de <b>relance</b> hors machine</td><td>1.4 · 1.4 bis · 2.8</td></tr>
+    <tr><td>✍️ Générateur + validateur à 1 tour</td><td>✅ Adopté</td><td>✅ <b>Généralisé</b> : toute sortie LLM passe le garde-fou : champs décisifs = référence, sinon repli</td><td>1.4 · 1.4 bis</td></tr>
+    <tr><td>🛟 Repli déterministe (fallback)</td><td>✅ Adopté</td><td>✅ <b>Généralisé</b> : chaque agent calcule d'abord sa <b>référence déterministe</b>, qui sert de repli (<code>mode=repli</code>)</td><td>1.4 bis</td></tr>
+    <tr><td>💾 Exécution durable (checkpointing)</td><td>✅ Adopté</td><td>✅ Retenu : snapshot PostgreSQL à chaque transition, avec le <code>mode</code> de chaque agent (si base configurée)</td><td>2.5 · 2.6</td></tr>
+    <tr><td>🧠 Superviseur LLM</td><td>❌ Écarté</td><td>❌ <b>Écarté</b> : le LLM est dans les agents, pas dans le routage</td><td>2.1</td></tr>
+    <tr><td>🔄 Handoff / Swarm</td><td>⛔ Écarté</td><td>⛔ Écarté : un agent LLM ne peut pas appeler un autre agent (pas d'outil pour ça)</td><td>1.4 bis</td></tr>
+    <tr><td>🧑‍💼 Human-in-the-loop interrupt / resume</td><td>🔜 Évolution</td><td>🔜 Évolution possible (question métier P-Q4)</td><td>5</td></tr>
+    <tr><td>⚡ Circuit breaker A2A</td><td>❓ Question métier</td><td>❓ En attente du métier (P-Q6) ; le disjoncteur <b>LLM</b> est réalisé : &gt; 50 % de replis / 60 s ⇒ repli pour tous</td><td>2.3 bis</td></tr>
+    <tr><td>🔍 <b>Outil LLM d'extraction</b> (VLM, 1 tour)</td><td>✅ Adopté</td><td>✅ <b>Retenu</b> : générateur + validateur à 1 tour, <b>hors équipe</b> ; 3 verrous, sinon <code>echec</code> / <code>non_exploitable</code></td><td>2.4 ter · quater</td></tr>
+    <tr><td>💾 <b>Cache d'analyse</b></td><td>✅ Adopté</td><td>✅ <b>Retenu</b> : clé <code>(sha256, modele, version_prompt)</code> = reproductibilité, aucune analyse refaite</td><td>2.4 ter</td></tr>
+  </table>
+
+  <div class="flux">
+    <div class="nom">Agents</div>
+    <div class="rang">
+      <div class="boite llm"><b>🤖 LLM</b>rédige son champ, outils</div><span class="fleche">→</span>
+      <div class="boite ok"><b>✅ Garde-fou</b>champs décisifs = référence</div><span class="fleche">→</span>
+      <div class="boite" style="background:#fff">✓ patch <code>mode=llm</code></div><span class="ou">ou</span>
+      <div class="boite risque">✗ 🛟 référence <code>mode=repli</code></div><span class="fleche">→</span>
+      <div class="boite orch"><b>🧭 <code style="background:none;color:#fff">fusionner()</code></b></div>
+    </div>
+    <div class="nom violet-texte">Ingestion</div>
+    <div class="rang">
+      <div class="boite ingestion"><b>🔍 VLM (outil)</b>lit 1 fichier (PDF : page 1)</div><span class="fleche">→</span>
+      <div class="boite ok"><b>✅ Invariants · 3 verrous</b>vérifiés par le code</div><span class="fleche">→</span>
+      <div class="boite" style="background:#fff">✓ <code>ok</code> / <code>valide</code></div><span class="ou">ou</span>
+      <div class="boite risque">✗ <code>echec</code> / <code>non_exploitable</code></div><span class="fleche">→</span>
+      <div class="boite ext">🐘 descripteur</div>
+    </div>
+  </div>
+
+  <div class="grille-4 pousse petit">
+    <div class="note"><h3>Un LLM par agent</h3><p>C'est ce qui fait un multi-agents réel, sans rien céder sur les
+      garanties : le LLM <b>rédige</b>, la référence <b>décide</b>.</p></div>
+    <div class="note"><h3>Généralisés</h3><p>Générateur + validateur et repli s'appliquent à <b>toute</b> sortie
+      LLM, pas seulement au motif.</p></div>
+    <div class="note"><h3>Lecture des fichiers</h3><p>Le même pattern sert à <b>lire les fichiers</b> : un VLM à
+      1 tour, hors équipe, dont la sortie est vérifiée et mise en cache.</p></div>
+    <div class="note"><h3>En une phrase</h3><p>« Une machine à états déterministe à exécution durable ; quatre agents
+      LLM ; <b>un VLM-outil au dépôt</b> ; chaque sortie LLM validée par du code. »</p></div>
+  </div>
+</section>

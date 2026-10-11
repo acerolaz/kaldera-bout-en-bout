@@ -1,0 +1,66 @@
+<section class="page" id="mesurer">
+  <style>
+    #mesurer .outil { border:1px solid var(--bordure); border-radius:10px; padding:10px 12px; background:#fff; display:flex; flex-direction:column; gap:7px; }
+    #mesurer .outil h3 { margin:0; font-size:15px; }
+    #mesurer .flux { display:flex; align-items:center; gap:6px; }
+    #mesurer .flux .boite { flex:1; font-size:10.5px; padding:5px 6px; }
+    #mesurer .tableau td, #mesurer .tableau th { font-size:10.5px; padding:4px 7px; }
+    #mesurer ul.liste { font-size:11px; }
+  </style>
+  <div class="surtitre">Livrable 4 · Mesurer pour de vrai</div>
+  <h2 class="titre"><span class="num">4.4</span>📏 <code style="font-size:21px">make epreuve</code> et <code style="font-size:21px">make eval</code> : mesurer pour de vrai</h2>
+  <p class="chapo">Deux commandes rejouent les 28 scénarios contre le partenaire simulé, lancé dans le processus, et rendent un verdict chiffré, archivé
+    en Markdown et en JSON dans <code>eval/rapports/</code>. L'une éprouve l'<b>équipe</b>, l'autre compare les <b>modèles</b>.</p>
+
+  <div class="grille-2" style="gap:14px; align-items:start">
+    <div class="outil" style="border-top:4px solid var(--vert)">
+      <h3>🧪 <code>make epreuve</code> · l'équipe (<code>tools/epreuve.py</code>)</h3>
+      <div class="flux">
+        <div class="boite">28 scénarios<br>34 demandes</div><span class="fleche">→</span>
+        <div class="boite ext">partenaire simulé<br>port libre</div><span class="fleche">→</span>
+        <div class="boite orch">orchestrateur par scénario<br>(mémoire, rejouable)</div><span class="fleche">→</span>
+        <div class="boite decision">verdicts<br>+ rapport</div>
+      </div>
+      <ul class="liste">
+        <li><b>Verdict par exigence</b> EX-01 → EX-06 + « attendu » (écarts nommés)</li>
+        <li><b>Couverture</b> des transitions T1 → T11 (T0 : ingestion)</li>
+        <li><b>Seuils d'équipe</b> : durée p95 &lt; <code>duree_max_s</code>, max &lt; 10 s, écritures rejetées = 0, étapes ≤ 12, arrêts hors relances = 0, appels partenaire par référence ≤ 1</li>
+        <li>Code de sortie <b>1</b> si une exigence, un seuil ou une transition manque</li>
+      </ul>
+      <table class="tableau">
+        <tr><th colspan="2">Référence archivée · <code>docs/epreuves/epreuve-2026-10-09.md</code></th></tr>
+        <tr><td>Résultat</td><td><b>réussie</b> · mode llm 0 / repli 116 · 6,2 s</td></tr>
+        <tr><td>Durée p95 / max</td><td>3 005,49 ms / 3 006,68 ms</td></tr>
+        <tr><td>Étapes max · appels / réf.</td><td>6 (≤ 12) · 1 (≤ 1)</td></tr>
+        <tr><td>Natures A2A</td><td>ok 7 · timeout 2 · invalide 7 · erreur 2 · non_envoye 0 · non_requis 7</td></tr>
+        <tr><td>Exigences · couverture</td><td>EX-01 → EX-06 ✅ · T1 → T11 11/11</td></tr>
+      </table>
+    </div>
+
+    <div class="outil" style="border-top:4px solid var(--llm-bord)">
+      <h3>🤖 <code>make eval</code> · les modèles (<code>tools/eval_llm.py</code>)</h3>
+      <div class="flux">
+        <div class="boite">modèles candidats<br><code>KALDERA_EVAL__MODELES</code></div><span class="fleche">→</span>
+        <div class="boite tool">passe de référence<br>sans LLM</div><span class="fleche">→</span>
+        <div class="boite llm">5 passes par modèle<br>disjoncteur neuf</div><span class="fleche">→</span>
+        <div class="boite decision">matrice<br>+ rapport</div>
+      </div>
+      <ul class="liste">
+        <li><b>Matrice agent × modèle</b> : replis, sorties rejetées, latence p95, tours, jetons ; alertes aux seuils de 4.3</li>
+        <li><b>Invariance</b> : champs décisifs de chaque fiche comparés à la référence, position par position (100 % exigé)</li>
+        <li><b>Recommandation par rôle</b> : parmi les cases vertes à invariance 100 %, le moins de replis, puis la plus faible latence</li>
+        <li><b>Bornes remesurées</b> avec le LLM : durée max, étapes, replis sur budget, arrêts de durée</li>
+      </ul>
+      <table class="tableau">
+        <tr><th>Code</th><th>Signification</th></tr>
+        <tr><td><b>0</b></td><td>tout vert</td></tr>
+        <tr><td><b>1</b></td><td>une alerte, invariance &lt; 100 % ou une borne dépassée</td></tr>
+        <tr><td><b>2</b></td><td>non mesuré : aucun modèle joignable (clés absentes) ou <code>.env</code> malformé, cause nommée</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="note alerte pousse"><b>⏳ Reste à mesurer.</b> <code>make eval</code> n'a pas encore tourné avec des clés Azure : le choix du modèle par rôle,
+    la remesure de <code>duree_max_s</code> et du disjoncteur (0,5 / 60 s, provisoires) l'attendent, et <code>delai_partenaire_s</code> reste à remesurer
+    contre le partenaire réel (le simulateur ne le mesure pas). Chaque résultat sera archivé dans <code>docs/epreuves/</code> et consigné au journal.</div>
+</section>

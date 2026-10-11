@@ -1,0 +1,23 @@
+<section class="page" id="glossaire-5">
+  <style>
+    #glossaire-5 .tableau td:first-child { font-weight: 700; width: 20%; }
+    #glossaire-5 .tableau td { padding: 6.5px 9px; }
+  </style>
+  <div class="surtitre">Annexe</div>
+  <h2 class="titre"><span class="num">A</span>📖 Glossaire 5/5</h2>
+  <p class="chapo">Les termes liés à l'espace assuré, à la liaison A2A et à la mesure (chantier 2).</p>
+
+  <table class="tableau">
+    <tr><th>Terme</th><th>Définition</th></tr>
+    <tr><td>Espace assuré</td><td>Front React 19 / Vite / Tailwind / shadcn et API <code>/assure/*</code> : l'assuré dépose ses pièces, soumet son dossier, suit 5 étapes et lit un verdict expliqué.</td></tr>
+    <tr><td>Vue projetée</td><td>Seul passage de l'état interne vers l'assuré (<code>vue_assure.py</code>) : liste blanche, DTO <code>extra="forbid"</code> ; jamais l'avis anti-fraude, le score, les indicateurs, la file <code>cellule_fraude</code> ni le mode dégradé.</td></tr>
+    <tr><td>Flux SSE</td><td><code>GET /assure/demandes/{reference}/flux</code> : pousse les événements de <code>evenements_assure</code> (étape, pièce, message, verdict) publiés par le worker et le reaper ; reprise par <code>Last-Event-ID</code>.</td></tr>
+    <tr><td>Agent de relance</td><td>5ᵉ agent LLM, hors machine à états (<code>relance.py</code>) : répond aux questions de l'assuré sur ses pièces ; outils <code>liste_pieces</code> et <code>consigne_depot</code>, 600 caractères au plus, <code>TERMES_INTERDITS</code> ⇒ repli sur gabarit.</td></tr>
+    <tr><td>argon2 / session</td><td>Mots de passe hachés par argon2 ; session = cookie signé (<code>kaldera_session</code>, clé <code>KALDERA_SESSION_SECRET</code>) valable 8 h ; compte bloqué 5 min après 5 échecs.</td></tr>
+    <tr><td>Registre A2A</td><td>Réservation de l'appel unique d'un dossier <b>avant</b> l'envoi (table <code>appels_partenaire</code>, ou en mémoire sans base) : un doublon ne part jamais (EX-D19).</td></tr>
+    <tr><td>Nature d'un appel A2A</td><td>Classement de chaque appel au partenaire : <code>ok</code>, <code>timeout</code>, <code>invalide</code>, <code>erreur</code>, <code>non_envoye</code>, <code>non_requis</code> ; seuls les quatre premiers comptent comme appels externes.</td></tr>
+    <tr><td>Épreuve (<code>make epreuve</code>)</td><td><code>tools/epreuve.py</code> rejoue les 28 scénarios contre le partenaire simulé, lancé dans le processus : verdict EX-01 → EX-06, couverture T1–T11, seuils d'équipe ; rapport md + json, code 1 si échec.</td></tr>
+    <tr><td>Eval (<code>make eval</code>)</td><td><code>tools/eval_llm.py</code> : passe de référence sans LLM, puis 5 répétitions par modèle ; matrice agent × modèle (replis &gt; 20 %, sorties rejetées &gt; 5 %, latence p95 &gt; délai, tours &gt; 2,5), recommandation par rôle, bornes remesurées. Sans clés : « non mesuré », code 2.</td></tr>
+    <tr><td>Invariance</td><td>Mêmes champs décisifs (issue, décision, montant, file, mode dégradé) avec ou sans LLM ; éprouvée par <code>tests/unit/test_invariance.py</code> et par <code>make eval</code>.</td></tr>
+  </table>
+</section>

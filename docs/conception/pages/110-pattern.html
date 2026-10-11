@@ -1,0 +1,89 @@
+<section class="page" id="pattern">
+  <style>
+    #pattern .arbre { position: relative; width: 1030px; height: 268px; margin-top: 10px; margin-bottom: 8px; }
+    #pattern .arbre svg { position: absolute; left: 0; top: 0; }
+    #pattern .arbre .boite { position: absolute; display: flex; flex-direction: column; justify-content: center; }
+    #pattern .question { background: var(--decision-fond); border-color: var(--decision-bord); font-size: 11.5px; font-weight: 700; }
+    #pattern .wf { background: var(--gris-clair); border-color: #9aa3ad; }
+    #pattern .mef { font-size: 11px; line-height: 1.45; color: #e9efe9; border: 2px solid var(--or); }
+    #pattern .mef b { color: #fff; font-size: 13px; margin-bottom: 3px; }
+    #pattern .ext b { font-size: 12px; }
+    #pattern .ext span { font-size: 10px; color: var(--gris-texte); }
+    #pattern .etiq { position: absolute; font-size: 10px; font-weight: 650; white-space: nowrap; }
+    #pattern .ecartes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px 12px; }
+    #pattern .ecartes span {
+      border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 600; text-align: center;
+      background: var(--risque-fond); border: 1px solid #f0a3a3;
+    }
+    #pattern .ecartes span.partiel { background: var(--decision-fond); border-color: var(--decision-bord); }
+  </style>
+
+  <div class="surtitre">Livrable 2 · Pattern</div>
+  <h2 class="titre"><span class="num">2.1</span>🏆 Quel pattern multi-agents ?</h2>
+  <p class="chapo">L'arbre de décision du brief théorique, descendu jusqu'au premier « oui ». Il précise la forme du
+    workflow : une machine à états finis.</p>
+
+  <div class="arbre">
+    <svg width="1030" height="268" viewBox="0 0 1030 268" aria-hidden="true">
+      <defs>
+        <marker id="pattern-fl-rouge" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#c92a2a"/></marker>
+        <marker id="pattern-fl-vert" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2f9e44"/></marker>
+      </defs>
+      <!-- Q1 → Q2 -->
+      <line x1="138" y1="58" x2="138" y2="133" stroke="#c92a2a" stroke-width="1.6" marker-end="url(#pattern-fl-rouge)"/>
+      <!-- Q2 → workflow → machine -->
+      <line x1="276" y1="162" x2="370" y2="162" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#pattern-fl-vert)"/>
+      <line x1="512" y1="162" x2="568" y2="162" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#pattern-fl-vert)"/>
+      <!-- machine → extensions -->
+      <line x1="784" y1="162" x2="800" y2="162" stroke="#2f9e44" stroke-width="1.8"/>
+      <line x1="800" y1="47" x2="800" y2="236" stroke="#2f9e44" stroke-width="1.8"/>
+      <line x1="800" y1="47" x2="820" y2="47" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#pattern-fl-vert)"/>
+      <line x1="800" y1="110" x2="820" y2="110" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#pattern-fl-vert)"/>
+      <line x1="800" y1="173" x2="820" y2="173" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#pattern-fl-vert)"/>
+      <line x1="800" y1="236" x2="820" y2="236" stroke="#2f9e44" stroke-width="1.8" marker-end="url(#pattern-fl-vert)"/>
+    </svg>
+
+    <div class="boite question" style="left:0; top:2px; width:276px; height:56px">Q1 · 1 agent + 10–15 outils suffit-il ?</div>
+    <div class="etiq" style="left:62px; top:86px; color:#c92a2a; background:#fff; padding:1px 4px">❌ Non : 1 section = 1 écrivain</div>
+    <div class="boite question" style="left:0; top:134px; width:276px; height:56px">Q2 · Étapes connues, ordre fixe ?</div>
+    <div class="etiq" style="left:282px; top:143px; color:#2f9e44">✅ Oui : §2 / §10</div>
+
+    <div class="boite wf" style="left:372px; top:127px; width:140px; height:70px"><b>WORKFLOW</b>séquentiel · chemin codé</div>
+    <div class="etiq" style="left:440px; top:204px; width:124px; color:#2f9e44; text-align:right; line-height:1.5">+ boucle bornée<br>+ sorties anticipées</div>
+
+    <div class="boite orch mef" style="left:570px; top:100px; width:214px; height:124px">
+      <b>🏆 MACHINE À ÉTATS FINIS</b>table de transitions + gardes<br>sous orchestrateur déterministe<br>« les agents proposent,<br>l'orchestration impose »</div>
+
+    <div class="boite ok ext" style="left:822px; top:22px; width:208px; height:50px"><b>➕ agent-as-tool</b><span>aucun appel direct ⇒ 0 ping-pong</span></div>
+    <div class="boite ok ext" style="left:822px; top:85px; width:208px; height:50px"><b>➕ module A2A</b><span>anti-fraude · 1 appel par dossier</span></div>
+    <div class="boite ok ext" style="left:822px; top:148px; width:208px; height:50px"><b>➕ parallèle</b><span>entre demandes (lot, en threads)</span></div>
+    <div class="boite ok ext" style="left:822px; top:211px; width:208px; height:50px"><b>➕ exécution durable</b><span>snapshot par transition (si base)</span></div>
+  </div>
+
+  <div>
+    <div style="font-weight:700; font-size:12.5px; margin-bottom:6px">Patterns écartés (matrice comparative du brief théorique) :</div>
+    <div class="ecartes">
+      <span>❌ Routeur · 1 seul spécialiste</span>
+      <span>❌ Superviseur LLM · imprévisible</span>
+      <span>❌ Hiérarchique · 1 seule équipe</span>
+      <span>❌ Plan-and-Execute · 30–60 s &gt; 10 s</span>
+      <span>⛔ Swarm · ping-pong</span>
+      <span>❌ Évaluateur–optimiseur · boucle</span>
+      <span class="partiel">🟨 Blackboard → état typé seulement</span>
+      <span class="partiel">🟨 Parallèle → entre demandes</span>
+    </div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note"><h3>Pourquoi « machine à états » ?</h3>
+      <p>Un pipeline est une ligne droite. Notre flux a une <b>boucle</b> (relance des pièces) et des <b>sorties
+        anticipées</b> : c'est un graphe d'états. Le glossaire du brief le prévoit : un workflow est « un pipeline
+        ou une machine à états codée ».</p></div>
+    <div class="note"><h3>Pourquoi pas un LLM superviseur ?</h3>
+      <p>Le chemin est écrit dans la spec : un LLM ajouterait coût, latence et imprévisibilité. La table de
+        transitions <b>est</b> la spec, en code (<code>machine.py</code>).</p></div>
+    <div class="note"><h3>Analogie .NET</h3>
+      <p>Une machine <b>Stateless</b> (<code>PermitIf</code>) pilotée par un orchestrateur de Saga +
+        <code>Parallel.ForEach</code> pour le lot (le lot Python tourne en threads).</p></div>
+  </div>
+</section>

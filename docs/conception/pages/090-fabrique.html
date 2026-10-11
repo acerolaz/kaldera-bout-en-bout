@@ -1,0 +1,66 @@
+<section class="page" id="fabrique">
+  <div class="surtitre">Livrable 1 · Agents LLM</div>
+  <h2 class="titre"><span class="num">1.4 bis</span>🧩 Ce que fait le LLM de chaque agent · ② la fabrique</h2>
+  <p class="chapo">Les 4 agents partagent un seul mécanisme, <code>AgentLLM</code> : seules leurs données changent. Chaque sortie de LLM passe
+    un garde-fou avant d'entrer dans l'état. Extraits de <code>src/kaldera/agents_llm.py</code>.</p>
+
+  <div class="grille-2" style="gap:12px; align-items:start">
+<pre class="code"><span class="c"># fabrique d'agents : 4 agents, 1 mécanisme, seules les données changent</span>
+@dataclass(frozen=True)
+<span class="k">class</span> SpecAgent:
+    section: str                       <span class="c"># section écrite</span>
+    modele_section: type[BaseModel]    <span class="c"># Pieces, Estimation…</span>
+    champ: str                         <span class="c"># champ rédigé par le LLM</span>
+    gabarit: Callable[[dict], str | None]  <span class="c"># texte du repli</span>
+    outils: Callable[[Vue, dict], list[Outil]]
+    controle: Controle                 <span class="c"># contrôle du texte</span>
+    fabrique_repli: Callable[[Bornes, Evaluateur | None], Repli]
+    prives: tuple[str, ...] = ()       <span class="c"># jamais montrés au LLM</span>
+
+SPECS = MappingProxyType({
+  <span class="k">"pieces"</span>:     SpecAgent(<span class="k">"pieces"</span>, Pieces, <span class="k">"message_relance"</span>, …),
+  <span class="k">"estimation"</span>: SpecAgent(<span class="k">"estimation"</span>, Estimation, <span class="k">"explication"</span>, …),
+  <span class="k">"antifraude"</span>: SpecAgent(<span class="k">"avis_fraude"</span>, AvisFraude, <span class="k">"note"</span>, …,
+                   prives=(<span class="k">"avis"</span>, <span class="k">"cause"</span>)),
+  <span class="k">"decision"</span>:   SpecAgent(<span class="k">"issue"</span>, Issue, <span class="k">"motif"</span>, …)})
+
+<span class="k">def</span> creer_agent(nom, llm, config, bornes, evaluer=None,
+                disjoncteur=None) -> AgentLLM:
+    spec = SPECS[nom]
+    <span class="k">return</span> AgentLLM(nom, spec, spec.fabrique_repli(bornes, evaluer),
+                    llm, config <span class="k">or</span> ConfigLLM(modele=<span class="k">"aucun"</span>),
+                    bornes, disjoncteur)</pre>
+<pre class="code"><span class="c"># AgentLLM.executer : la référence d'abord, le LLM ensuite</span>
+<span class="k">def</span> executer(self, vue, budget_s):
+    ref = self._reference(vue)        <span class="c"># repli déterministe (A2A compris)</span>
+    <span class="k">if</span> self.llm <span class="k">is</span> None:
+        <span class="k">return</span> repli(ref, cause=<span class="k">"llm_non_configure"</span>)
+    <span class="k">if</span> self.disjoncteur.ouvert():
+        <span class="k">return</span> repli(ref, cause=<span class="k">"disjoncteur"</span>)
+    budget = min(delai_agent_s, budget_s - temps_de_la_reference)
+    <span class="k">if</span> budget &lt; bornes.delai_min_llm_s:   <span class="c"># 0,3 s</span>
+        <span class="k">return</span> repli(ref, cause=<span class="k">"budget"</span>)
+    patch = self._tenter(...)   <span class="c"># boucle d'outils puis garde-fou</span>
+    self.disjoncteur.noter(repli=patch <span class="k">is</span> None)
+    <span class="k">return</span> patch <span class="k">or</span> ref
+
+<span class="c"># _tenter : chaque échec a sa cause, tracée dans la mesure</span>
+<span class="c">#   ErreurLLM       → erreur_llm      (délai, fournisseur)</span>
+<span class="c">#   ValueError      → sortie_invalide (JSON, modèle Pydantic)</span>
+<span class="c">#   OutilRefuse     → outil_refuse    (hors allowlist, > 4)</span>
+<span class="c">#   ToursEpuises    → tours_max</span>
+<span class="c">#   verifier_sortie → garde_fou       (écart à la référence)</span></pre>
+  </div>
+  <p class="tres-petit discret" style="margin:-4px 0 0">Le second extrait est condensé (noms et ordre réels, écriture simplifiée) ; le premier reprend les signatures exactes.</p>
+
+  <div class="grille-3 pousse">
+    <div class="carte"><h3>🏭 Fabrique d'agents</h3><p class="petit">Table <code>SPECS</code> + fonction <code>creer_agent()</code> : ajouter un agent = une
+      ligne (OCP). Pas d'Abstract Factory ni de sous-classe. En test, <code>FakeLLM</code> passe par la même fabrique (DIP). L'agent de relance
+      (2.8) réutilise le même <code>AgentLLM</code>.</p></div>
+    <div class="carte"><h3>🛡️ Garde-fou de sortie</h3><p class="petit">Fonction pure <code>verifier_sortie(patch, ref, vue, …) → violations</code>, testée
+      sans LLM : champs décisifs = référence, aucune donnée sensible, contrôle du texte propre à l'agent. Une violation ⇒ repli, tracé
+      <code>mode = repli</code> + <code>cause</code>.</p></div>
+    <div class="carte"><h3>🧾 Prompt versionné</h3><p class="petit">Le prompt système est un fichier, <code>prompts/&lt;agent&gt;.md</code> ; sa version
+      (8 premiers caractères du sha256) part dans chaque étape de trace avec le modèle : une fiche dit toujours quel prompt l'a rédigée.</p></div>
+  </div>
+</section>

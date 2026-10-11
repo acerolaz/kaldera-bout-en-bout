@@ -1,0 +1,76 @@
+<section class="page" id="etat-commun">
+  <style>
+    #etat-commun .haut { display:flex; align-items:center; gap:12px; justify-content:center; }
+    #etat-commun .haut .boite { font-size:11px; }
+    #etat-commun .etat { border:1px solid var(--bordure); border-radius:10px; padding:8px 12px; }
+    #etat-commun .etat-titre { text-align:center; font-weight:750; margin-bottom:6px; }
+    #etat-commun .trois { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; align-items:start; }
+    #etat-commun .sec { display:flex; align-items:center; gap:8px; margin:4px 0; font-size:11px; }
+    #etat-commun .sec code { border:1.5px solid var(--ok-bord); background:#fff; padding:1px 10px; border-radius:6px; min-width:96px; text-align:center; font-weight:700; }
+    #etat-commun .sec span.qui { flex:1; border:1px solid #c8ced6; border-radius:999px; padding:2px 8px; text-align:center; background:var(--agent-fond); }
+    #etat-commun pre.code { font-size:9.5px; background:#f6f7f9; color:#1f2937; border-left-color:var(--or); }
+    #etat-commun pre.code .c { color:#6b7280; } #etat-commun pre.code .k { color:#6f2dbd; }
+  </style>
+  <div class="surtitre">Livrable 2 · Mémoire partagée</div>
+  <h2 class="titre"><span class="num">2.4</span>🧠 L'état commun d'une demande</h2>
+  <p class="chapo">Un objet typé par demande, <code>EtatDemande</code>. Les agents ne le modifient jamais directement : ils proposent un patch,
+    l'orchestrateur le contrôle (<code>fusionner</code>), puis applique la transition. Le champ <code>contrat</code> de l'état porte la
+    <b>provenance</b> du contrat ; ses termes restent dans <code>demande.contrat</code>.</p>
+
+  <div class="haut">
+    <div class="boite" style="width:180px"><b>🤖 agent métier</b>retourne un PATCH de SA seule section</div>
+    <span class="fleche">→</span>
+    <div class="boite orch" style="width:320px; text-align:left"><b style="text-align:center">🛡️ orchestrateur — contrôle d'écriture</b>
+      ① le patch ne contient que la section de l'agent ?<br>② section non vide, validée par son modèle Pydantic ?<br>③ section encore vide ? (sauf réécriture de <code style="background:#2d5a44;color:#fff">pieces</code>)</div>
+    <span class="fleche" style="color:var(--risque-bord)">→ non</span>
+    <div class="boite risque" style="width:230px"><b>⛔ patch rejeté</b><code>ErreurEcriture</code> · étape « echec »<br>→ decision en escalade forcée</div>
+  </div>
+
+  <div class="etat">
+    <div class="etat-titre">🧠 EtatDemande — 1 objet Pydantic par demande · en mémoire + snapshot après chaque transition <span class="discret">(si une base est configurée, 2.5)</span></div>
+    <div class="trois">
+      <div class="boite" style="text-align:left; font-size:11px"><b>📥 demande — immuable</b>reference · sinistre · historique · assure · espace_assure
+        <div style="border:1.5px dashed var(--ingestion-bord); border-radius:6px; padding:4px 6px; margin:5px 0; background:#faf8ff">
+          <b style="display:inline; font-size:11px">contrat</b> : gestion (numéro, statut, cotisations) + termes (formule, date, franchise, plafond) + provenance</div>
+        <span style="color:var(--risque-bord)">🔒 identité, IBAN, description, PDF et n° de contrat : jamais vus par 🕵️ antifraude</span></div>
+      <div>
+        <div style="text-align:center; font-weight:750; font-size:11.5px">✍️ sections métier — 1 écrivain chacune</div>
+        <div class="sec"><code>eligibilite</code><span>←</span><span class="qui">🔧 tool, via orchestrateur</span></div>
+        <div class="sec"><code>pieces</code><span>←</span><span class="qui">📄 pieces (réécrite si relance)</span></div>
+        <div class="sec"><code>estimation</code><span>←</span><span class="qui">💶 estimation</span></div>
+        <div class="sec"><code>avis_fraude</code><span>←</span><span class="qui">🕵️ antifraude</span></div>
+        <div class="sec"><code>issue</code><span>←</span><span class="qui" style="background:var(--decision-fond); border-color:var(--decision-bord)">⚖️ decision</span></div>
+      </div>
+      <div class="boite orch" style="text-align:left; font-size:10.5px"><b>🧾 pilotage — orchestrateur seul</b>
+        <span style="color:var(--or)">etat_courant</span> eligibilite | pieces | … | escalade<br>
+        <span style="color:var(--or)">trace[]</span> {agent, ecrit, action, statut, duree_ms, de, vers, garde, mode, cause…}<br>
+        <span style="color:var(--or)">compteurs</span> étapes · relances · appels externes<br>
+        <span style="color:var(--or)">debut</span> horloge de l'admission<br>
+        <span style="color:var(--or)">contrat</span> provenance (<code style="background:#2d5a44;color:#fff">ContratDemande</code>)<br>
+        <span style="color:var(--or)">arret</span> null | {borne, valeur, etape} · <span style="color:var(--or)">escalade_forcee</span></div>
+    </div>
+  </div>
+
+  <div class="colonnes" style="grid-template-columns:1.25fr 1fr">
+<pre class="code"><span class="k">class</span> ContratDemande(BaseModel):   <span class="c"># ConfigDict(frozen=True) · écrite par l'orchestrateur seul</span>
+    <span class="c">"""Provenance des termes du contrat ; les termes restent dans demande."""</span>
+    statut_extraction: Literal[<span class="k">"valide"</span>, <span class="k">"non_exploitable"</span>] = <span class="k">"valide"</span>
+    violations: tuple[str, ...] = ()
+    source: Literal[<span class="k">"extraction_vlm"</span>, <span class="k">"demande_json"</span>] = <span class="k">"demande_json"</span>
+    modele: str | None = None
+    version_prompt: str | None = None
+    sha256: str | None = None
+<span class="c"># niveau 1 : demande_niveau_1() fusionne gestion + termes extraits (3 verrous, 2.4 quater)</span>
+<span class="c">#           + provenance dans demande["contrat"] ; T0 lit contrat.statut_extraction</span></pre>
+    <div class="note alerte"><h3>🔁 Invariance niveau 0 / niveau 1</h3><p class="petit">Niveau 0 : provenance absente ⇒ <code>source = "demande_json"</code>,
+      <code>statut_extraction = "valide"</code> par construction ⇒ les 28 scénarios fournis passent sans changement. Niveau 1 : mêmes champs,
+      remplis par l'extraction VLM.</p></div>
+  </div>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>Où vit-il ?</h3>En mémoire ; avec une base, snapshot après chaque transition dans PostgreSQL (<code>demandes.etat</code>
+      <code>jsonb</code>, 2.6), fiche finale dans <code>demandes.fiche</code>.</div>
+    <div class="note petit"><h3>Pas d'écrasement</h3>Propriété par section vérifiée à chaque écriture ; 1 état par demande ⇒ pas de verrou.</div>
+    <div class="note petit"><h3>Données sensibles</h3>Identité, texte libre, PDF et n° de contrat 🔒 ne sortent jamais vers 🕵️ antifraude ni vers un LLM.</div>
+  </div>
+</section>

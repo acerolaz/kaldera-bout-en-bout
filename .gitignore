@@ -51,3 +51,6 @@ front/node_modules/
 front/dist/
 front/test-results/
 front/playwright-report/
+
+# Dossier de conception généré (make dossier) : le livrable est copié hors du dépôt
+docs/conception/dossier-conception.pdf
