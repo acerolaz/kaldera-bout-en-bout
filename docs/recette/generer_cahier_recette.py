@@ -92,7 +92,8 @@ UI = [
          "« Pièces attendues » au statut « À fournir »."),
     ]),
     ("Dépôt des pièces et assistant", [
-        ("U-05", "Déposer un fichier texte (.txt) comme Facture.",
+        ("U-05", "Déposer un fichier texte (.txt) comme Facture (glisser-déposer, ou « Tous les "
+         "fichiers » dans le sélecteur).",
          "Refus : « Format non accepté : PDF, PNG ou JPEG uniquement. »"),
         ("U-06", f"Déposer comme <b>Facture</b> le fichier illisible <i>{F}KAL-26-0601/"
          "initiale_01_facture.pdf</i>.",
@@ -118,8 +119,9 @@ UI = [
         ("U-13", "Attendre la fin du traitement.",
          "Étape 5 « Décision » : « Remboursement accordé », montant remboursé <b>1 700 €</b> "
          "(1 850 € déclarés, franchise déduite), pièces prises en compte."),
-        ("U-14", "Rouvrir le chat, tenter de déposer une pièce.",
-         "« Votre dossier est clos : l'assistant n'est plus disponible. » ; dépôt impossible."),
+        ("U-14", "Après le verdict, chercher le chat et la zone de dépôt.",
+         "Le bouton « Aide sur mes pièces » et la zone de dépôt ne sont plus affichés : "
+         "dossier clos."),
         ("U-15", "Chercher dans la page (Ctrl+F) : <i>fraude</i>, <i>score</i>, <i>agent</i>, "
          "<i>partenaire</i>.",
          "Aucune occurrence : rien de l'anti-fraude ni du fonctionnement interne n'est visible."),
@@ -140,7 +142,8 @@ ADMIN = [
         ("A-03", f"{m('make scenarios')}",
          "Une fiche JSON par scénario de recette (« == NOM-01 — ... ») puis une synthèse : "
          "métriques par agent et bilan de l'équipe ; chaque scénario finit par une décision "
-         "ou une escalade."),
+         "ou une escalade. À lancer une seule fois : relancé, il réécrit le dossier de démo et "
+         "chaque dossier déjà soumis au partenaire passe en mode dégradé."),
         ("A-04", f"Ctrl+C dans les 3 terminaux, puis {m('make recette-reset')}",
          "Services arrêtés et base vidée ; la recette peut être rejouée depuis S-01."),
     ]),

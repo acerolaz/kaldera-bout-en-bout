@@ -88,7 +88,9 @@ indicateur F1–F4). `appels_externes` ne compte que `ok`, `timeout`, `invalide`
 Dans la trace, l'étape `antifraude` porte `nature`, et toute étape en échec sur une exception
 porte `erreur` (nom de l'exception).
 
-Les étapes des agents LLM portent `mode` (`llm` ou `repli`) et, en repli, `cause`. La cause
+Les étapes des agents LLM portent `mode` (`llm` ou `repli`) et, en repli, `cause` :
+`llm_non_configure`, `disjoncteur`, `budget`, `erreur_llm`, `sortie_invalide`, `outil_refuse`,
+`tours_max` ou `garde_fou`. La cause
 `disjoncteur` signale un repli forcé sans appel au LLM : plus de 50 % des tentatives LLM de la
 dernière minute (10 au moins) ont fini en repli. Le disjoncteur se referme seul.
 

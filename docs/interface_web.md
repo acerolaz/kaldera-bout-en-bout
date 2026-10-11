@@ -39,7 +39,7 @@ Tout ce qui atteint l'assuré passe par `vue_assure.py` (lecture) ou par `evenem
 | `evenements.py` | `publier_vue()` et `publier_message()` sur `evenements_assure`, au mieux |
 | `api_assure.py` | Routeur `/assure/*`, mince : il délègue aux unités ci-dessus |
 | `assure_postgres.py` | `DepotAssure` : comptes, rattachement des demandes, événements, lecture de la demande |
-| `migrations/004_assure.sql` | `utilisateurs`, `demandes_assure`, `evenements_assure`, `demandes.cree_le`, `pieces.depose_le` |
+| `src/kaldera/migrations/004_assure.sql` | `utilisateurs`, `demandes_assure`, `evenements_assure`, `demandes.cree_le`, `pieces.depose_le` |
 
 Le worker et le reaper publient des événements après une analyse, une admission, chaque étape
 et la fin de traitement. Ils le font avec des gabarits, sans LLM.
@@ -56,7 +56,7 @@ sequenceDiagram
     A->>API: GET /assure/demandes/{ref}
     A->>API: GET /assure/demandes/{ref}/flux (SSE, Last-Event-ID)
     A->>API: POST …/pieces (type, fichier)
-    API-->>A: 202 {statut, avertissement_multipage}
+    API-->>A: 202 {statut: recu, avertissement_multipage} (200 statut deja_recu si déjà déposé)
     W->>EV: pièce analysée → gabarit « facture illisible »
     EV-->>A: SSE : piece + message de l'agent
     A->>API: POST …/messages « pourquoi ? »
@@ -71,13 +71,15 @@ sequenceDiagram
 | POST / DELETE | `/assure/session` | ouvre ou ferme la session (cookie) |
 | GET | `/assure/demandes` | mes sinistres : référence, date, étape |
 | GET | `/assure/demandes/{ref}` | `VueDemande` : étape, branche, horodatages, temps restant, pièces, verdict |
-| POST | `/assure/demandes/{ref}/pieces` | dépôt (mêmes contrôles que l'existant) ; `avertissement_multipage` si le PDF a plusieurs pages ; 415 format, 413 taille, 409 après soumission |
+| POST | `/assure/demandes/{ref}/pieces` | dépôt (mêmes contrôles que l'existant) : 202 `recu`, ou 200 `deja_recu` si le même fichier a déjà été déposé ; `avertissement_multipage` si le PDF a plusieurs pages ; 415 format, 413 taille, 409 après soumission |
 | POST | `/assure/demandes/{ref}/soumettre` | admission ; 409 `analyse_en_cours`, `confirmation_requise` (pièces manquantes, `confirmer=true` exigé), `deja_soumise` |
 | POST | `/assure/demandes/{ref}/messages` | message (1 à 1 000 caractères, 30 au plus par demande, sinon 429) → réponse de l'agent ; 409 `dossier_clos` après le verdict |
 | GET | `/assure/demandes/{ref}/flux` | SSE : événements `etape`, `piece`, `message`, `verdict` ; reprise avec `Last-Event-ID` |
 
 Le flux relit `evenements_assure` une fois par seconde (`run_in_threadpool`, psycopg est
-synchrone) et se termine au verdict. L'historique du chat est le même flux relu depuis 0 : les
+synchrone) et se termine au verdict : plus d'événement nouveau et demande `terminee` ou
+`secours`. Il se termine aussi après 900 s (`DUREE_FLUX_S`) ; le navigateur se reconnecte alors
+avec `Last-Event-ID`. L'historique du chat est le même flux relu depuis 0 : les
 messages sont des événements `message`, il n'y a pas de table `messages_assure`. Le chat s'arrête
 donc au verdict : la page ne le propose plus, et la route des messages répond 409 `dossier_clos`
 (demande `terminee` ou `secours`), avant tout appel au LLM. Le flux s'arrête aussi quand le
