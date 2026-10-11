@@ -63,6 +63,7 @@ def groupes(liste):
 # Statut relevé au dernier déroulé (vide : à dérouler) ; mis à jour à chaque recette.
 STATUTS: dict[str, str] = {
     "S-01": "OK", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "OK",
+    "U-01": "OK", "U-02": "OK", "U-03": "OK", "U-04": "OK",
     "A-01": "OK", "A-02": "OK", "A-03": "OK", "A-04": "OK",
 }
 
@@ -187,7 +188,7 @@ def construire():
         PageBreak(),
 
         Paragraph("3. Contrôles d'exploitation (administrateur)", H1),
-        Paragraph("Le back-office gestionnaire (chantier 3) n'est pas encore livré : "
+        Paragraph("Les écrans du back-office (C3-2 à C3-4) ne sont pas encore livrés : "
                   "les contrôles se font par make.", TXT),
         *groupes(ADMIN),
         Spacer(1, 12),
