@@ -123,7 +123,7 @@ class DossierVue(BaseModel):
 def euros(montant: float) -> str:
     """1 230 € / 12,50 € : milliers en espace fine insécable, décimales si non nulles."""
     entier, _, decimales = f"{montant:,.2f}".partition(".")
-    texte = entier.replace(",", " ")
+    texte = entier.replace(",", "\u202f")
     return f"{texte} €" if decimales == "00" else f"{texte},{decimales} €"
 
 

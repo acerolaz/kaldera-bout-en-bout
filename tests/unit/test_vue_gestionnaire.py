@@ -233,10 +233,10 @@ def test_resumes_dossier_accepte() -> None:
     assert [e.resume for e in vue.etapes] == [
         "Éligible",
         "Pièces complètes (3 retenues)",
-        "Estimé 1 230 € = min(déclaré 1 850 €, justifié 1 380 €) − franchise "
-        "150 €, plafond 8 000 € non atteint",
+        "Estimé 1\u202f230 € = min(déclaré 1\u202f850 €, justifié 1\u202f380 €) − franchise "
+        "150 €, plafond 8\u202f000 € non atteint",
         "Avis non requis",
-        "Acceptée : 1 230 €",
+        "Acceptée : 1\u202f230 €",
     ]
 
 
@@ -265,8 +265,8 @@ def test_resumes_dossier_accepte() -> None:
             "estimation",
             Estimation(justifie=9000, retenu=9000, franchise=150, plafond=8000, estime=8000),
             "estimation",
-            "Estimé 8 000 € = min(déclaré 1 850 €, justifié 9 000 €) − franchise "
-            "150 €, plafond 8 000 € atteint",
+            "Estimé 8\u202f000 € = min(déclaré 1\u202f850 €, justifié 9\u202f000 €) − franchise "
+            "150 €, plafond 8\u202f000 € atteint",
         ),
         (
             "avis_fraude",
@@ -314,7 +314,8 @@ def test_resume_d_une_etape_sautee() -> None:
 
 
 def test_euros() -> None:
-    assert (euros(1230), euros(12.5), euros(0)) == ("1 230 €", "12,50 €", "0 €")
+    assert (euros(1230), euros(12.5), euros(0)) == ("1\u202f230 €", "12,50 €", "0 €")
+    assert euros(1230)[1] == "\u202f"
 
 
 # ---------------------------------------------------- garanties, anti-fraude
