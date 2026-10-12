@@ -87,7 +87,7 @@ ou `en_attente`, jamais une exception.
 |---|---|
 | `etat` | nom de l'étape |
 | `statut` | règle du §2.4 |
-| `avancement` | 100 si l'étape figure dans la trace, 0 sinon (sous-étapes en C3-3) |
+| `avancement` | 100 si l'étape est faite (présente dans la trace ou court-circuitée), 0 sinon (sous-étapes en C3-3) |
 | `duree_ms`, `latence_llm_ms` | entrée de trace (`mesure`) |
 | `modele`, `mode`, `cause`, `tours_llm`, `jetons`, `sortie_rejetee` | entrée de trace (`mesure`) |
 | `de`, `vers`, `garde` | entrée de trace |
@@ -109,7 +109,8 @@ Dans l'ordre, la première règle vraie gagne :
 
 | Condition | Statut |
 |---|---|
-| étape absente de la trace | `en_attente` |
+| étape absente de la trace, mais une étape aval y figure (court-circuit : la machine saute de `eligibilite` à `decision` sans tracer les étapes intermédiaires) | `sautee` |
+| étape absente de la trace, aucune étape aval n'y figure | `en_attente` |
 | garde d'entrée (action non exécutée : `ecrit` vide, `duree_ms` 0, pas de `mode`) | `sautee` |
 | `statut` de trace `echec` et étape `antifraude` avec avis indisponible | `degrade` |
 | `statut` de trace `echec` | `echec` |
@@ -130,6 +131,7 @@ Les cartes sont rattachées aux entrées de trace par leur `action`. Une entrée
 | `pieces` | « Pièces complètes (3 retenues) » · « Incomplet : manque facture » |
 | `estimation` | « Estimé 1 230 € = min(déclaré 1 850 €, justifié 1 380 €) − franchise 150 €, plafond 8 000 € non atteint » |
 | `antifraude` | « Avis non requis » · « Avis obtenu : niveau faible, score 12 » · « Avis indisponible : <cause> » |
+| toute étape `sautee` | « Sautée (garde <garde>) » (garde d'entrée) · « Sautée (court-circuit) » (étape non tracée) |
 | `decision` | « Acceptée : 1 230 € » · « Refusée : <motif> » · « Escaladée vers <file> : <motif> » |
 
 Montants formatés en français (espace insécable des milliers, « € »). Section absente ⇒ résumé vide.
