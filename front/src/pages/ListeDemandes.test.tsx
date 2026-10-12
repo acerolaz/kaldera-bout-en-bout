@@ -46,6 +46,18 @@ describe("E1 · Liste des demandes", () => {
     expect(espion).toHaveBeenLastCalledWith("/api/demandes?issue=escalade&mode_degrade=true&q=durand");
   });
 
+  it("la recherche garde le focus et l'URL est canonique", async () => {
+    avecLignes();
+    rendre(<ListeDemandes />);
+    await screen.findByRole("link", { name: "KAL-26-0203" });
+    const champ = screen.getByLabelText("Recherche");
+    await userEvent.type(champ, "durand{Enter}");
+    expect(document.activeElement).toBe(champ);
+    await userEvent.selectOptions(screen.getByLabelText("Issue"), "escalade");
+    await userEvent.selectOptions(screen.getByLabelText("Statut"), "terminee");
+    expect(screen.getByTestId("url")).toHaveTextContent("/?statut=terminee&issue=escalade&q=durand");
+  });
+
   it("les options de file viennent des données", async () => {
     avecLignes();
     rendre(<ListeDemandes />);
@@ -60,6 +72,7 @@ describe("E1 · Liste des demandes", () => {
     expect(await screen.findByText("Aucune demande ne correspond aux filtres.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Effacer les filtres" }));
     expect(screen.getByTestId("url")).toHaveTextContent(/^\/$/);
+    expect(document.activeElement).not.toBe(document.body);
     expect(await screen.findByRole("link", { name: "KAL-26-0203" })).toBeInTheDocument();
   });
 
@@ -85,6 +98,7 @@ describe("E1 · Liste des demandes", () => {
     simulerApi(() => new Promise<Response>(() => {}));
     rendre(<ListeDemandes />);
     expect(screen.getByTestId("liste")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("Chargement des demandes…");
   });
 
   it("n'a aucune violation axe", async () => {

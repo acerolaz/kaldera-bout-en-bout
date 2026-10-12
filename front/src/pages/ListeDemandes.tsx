@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { type FormEvent, useId } from "react";
+import { type FormEvent, useEffect, useId, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { lire, type LigneDemande } from "@/api";
 import { Statut } from "@/components/Statut";
@@ -24,6 +24,13 @@ export function ListeDemandes() {
     if (valeur) filtres.set(cle, valeur);
   }
   const requete = filtres.toString();
+  const q = params.get("q") ?? "";
+  const champ = useRef<HTMLInputElement>(null);
+  const zone = useRef<HTMLDivElement>(null);
+  // champ non contrôlé : sa valeur suit l'URL (effacement, retour arrière) sans le remonter
+  useEffect(() => {
+    if (champ.current) champ.current.value = q;
+  }, [q]);
   const toutes = useQuery({ queryKey: ["demandes", ""], queryFn: () => lire<LigneDemande[]>("/demandes") });
   const liste = useQuery({
     queryKey: ["demandes", requete],
@@ -32,10 +39,11 @@ export function ListeDemandes() {
   const files = [...new Set((toutes.data ?? []).flatMap((l) => (l.file ? [l.file] : [])))].sort();
 
   const changer = (cle: (typeof FILTRES)[number], valeur: string) => {
-    const suivant = new URLSearchParams(filtres);
-    if (valeur) suivant.set(cle, valeur);
-    else suivant.delete(cle);
-    setParams(suivant);
+    const valeurs = new Map(filtres);
+    if (valeur) valeurs.set(cle, valeur);
+    else valeurs.delete(cle);
+    // ordre canonique : une même combinaison de filtres donne toujours la même URL
+    setParams(FILTRES.flatMap((c): [string, string][] => (valeurs.has(c) ? [[c, valeurs.get(c)!]] : [])));
   };
   const rechercher = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -48,27 +56,56 @@ export function ListeDemandes() {
         <label className="flex flex-col gap-1 text-sm">
           Recherche
           <input
-            key={params.get("q") ?? ""}
+            ref={champ}
             name="q"
             type="search"
-            defaultValue={params.get("q") ?? ""}
+            defaultValue={q}
             placeholder="Référence, nom, police"
             className="h-9 rounded-md border bg-card px-2"
           />
         </label>
-        <Choix nom="Statut" valeur={params.get("statut")} options={STATUTS_DEMANDE.map((c) => [c, libelle(c)])} onChange={(v) => changer("statut", v)} />
-        <Choix nom="Issue" valeur={params.get("issue")} options={ISSUES.map((c) => [c, libelle(c)])} onChange={(v) => changer("issue", v)} />
-        <Choix nom="File" valeur={params.get("file")} options={files.map((f) => [f, f])} onChange={(v) => changer("file", v)} />
+        <Choix
+          nom="Statut"
+          tous="Tous"
+          valeur={params.get("statut")}
+          options={STATUTS_DEMANDE.map((c) => [c, libelle(c)])}
+          onChange={(v) => changer("statut", v)}
+        />
+        <Choix
+          nom="Issue"
+          tous="Toutes"
+          valeur={params.get("issue")}
+          options={ISSUES.map((c) => [c, libelle(c)])}
+          onChange={(v) => changer("issue", v)}
+        />
+        <Choix
+          nom="File"
+          tous="Toutes"
+          valeur={params.get("file")}
+          options={files.map((f) => [f, f])}
+          onChange={(v) => changer("file", v)}
+        />
         <label className="flex h-9 items-center gap-2 text-sm">
-          <input type="checkbox" checked={params.get("mode_degrade") === "true"} onChange={(e) => changer("mode_degrade", e.target.checked ? "true" : "")} />
+          <input
+            type="checkbox"
+            checked={params.get("mode_degrade") === "true"}
+            onChange={(e) => changer("mode_degrade", e.target.checked ? "true" : "")}
+          />
           Mode dégradé seulement
         </label>
         <Button type="submit" variant="outline">Rechercher</Button>
       </form>
 
-      <div data-testid="liste" aria-busy={liste.isPending}>
+      <div
+        ref={zone}
+        tabIndex={-1}
+        data-testid="liste"
+        aria-busy={liste.isPending}
+        className="outline-none"
+      >
         {liste.isPending ? (
           <div className="flex flex-col gap-1">
+            <p role="status" className="sr-only">Chargement des demandes…</p>
             {Array.from({ length: 5 }, (_, i) => (
               <div key={i} className="h-10 animate-pulse rounded-md bg-muted" />
             ))}
@@ -76,13 +113,19 @@ export function ListeDemandes() {
         ) : liste.isError ? (
           <div role="alert" className="flex items-center gap-3 rounded-lg border border-ton-danger p-4">
             <p>Impossible de charger les demandes : {liste.error.message}</p>
-            <Button variant="outline" onClick={() => liste.refetch()}>Réessayer</Button>
+            <Button variant="outline" onClick={() => {
+                zone.current?.focus();
+                void liste.refetch();
+              }}>Réessayer</Button>
           </div>
         ) : liste.data.length === 0 ? (
           requete ? (
             <Vide>
               Aucune demande ne correspond aux filtres.{" "}
-              <Button variant="link" onClick={() => setParams(new URLSearchParams())}>Effacer les filtres</Button>
+              <Button variant="link" onClick={() => {
+                  zone.current?.focus();
+                  setParams(new URLSearchParams());
+                }}>Effacer les filtres</Button>
             </Vide>
           ) : (
             <Vide>Aucune demande en base : lancer <code>make demo</code> puis <code>make scenarios</code>.</Vide>
@@ -95,10 +138,11 @@ export function ListeDemandes() {
   );
 }
 
-function Choix({ nom, valeur, options, onChange }: {
+function Choix({ nom, tous, valeur, options, onChange }: {
   nom: string;
+  tous: string;
   valeur: string | null;
-  options: string[][];
+  options: [string, string][];
   onChange: (valeur: string) => void;
 }) {
   // libellé relié par htmlFor (et non englobant) : son nom accessible ne contient pas le texte des options
@@ -107,7 +151,7 @@ function Choix({ nom, valeur, options, onChange }: {
     <div className="flex flex-col gap-1 text-sm">
       <label htmlFor={id}>{nom}</label>
       <select id={id} value={valeur ?? ""} onChange={(e) => onChange(e.target.value)} className="h-9 rounded-md border bg-card px-2">
-        <option value="">{nom === "Statut" ? "Tous" : "Toutes"}</option>
+        <option value="">{tous}</option>
         {options.map(([code, texteOption]) => (
           <option key={code} value={code}>{texteOption}</option>
         ))}
@@ -136,7 +180,7 @@ function Tableau({ lignes }: { lignes: LigneDemande[] }) {
                   {l.reference}
                 </Link>
               </td>
-              <td className="px-3">{l.nom || l.prenom ? [l.nom, l.prenom].filter(Boolean).join(" ") : ABSENT}</td>
+              <td className="px-3">{[l.nom, l.prenom].filter(Boolean).join(" ") || ABSENT}</td>
               <td className="px-3 font-mono">{texte(l.police)}</td>
               <td className="px-3">{l.type_sinistre ? l.type_sinistre.replaceAll("_", " ") : ABSENT}</td>
               <td className="px-3 text-right tabular-nums">{l.montant_declare === null ? ABSENT : euros(l.montant_declare)}</td>
