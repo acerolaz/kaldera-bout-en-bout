@@ -38,6 +38,16 @@ class Tache:
     mime: str
 
 
+@dataclass(frozen=True)
+class DemandeLue:
+    """Demande telle que lue pour l'IHM gestionnaire (projection dans ``vue_gestionnaire``)."""
+
+    reference: str
+    statut: str
+    fiche: dict[str, Any] | None
+    etat: EtatDemande
+
+
 class IngestionPostgres:
     def __init__(self, connexions: ConnectionPool) -> None:
         self.connexions = connexions
@@ -65,6 +75,25 @@ class IngestionPostgres:
                 "SELECT reference, statut, fiche FROM demandes WHERE reference = %s", (reference,)
             ).fetchone()
         return None if ligne is None else dict(zip(("reference", "statut", "fiche"), ligne))
+
+    def lister(self) -> list[DemandeLue]:
+        """Toutes les demandes, référence décroissante (données factices : pas de pagination)."""
+        with _connexion(self.connexions) as conn:
+            lignes = conn.execute(
+                "SELECT reference, statut, fiche, etat FROM demandes ORDER BY reference DESC"
+            ).fetchall()
+        return [DemandeLue(r, s, f, EtatDemande.model_validate(e)) for r, s, f, e in lignes]
+
+    def lire_dossier(self, reference: str) -> DemandeLue | None:
+        with _connexion(self.connexions) as conn:
+            ligne = conn.execute(
+                "SELECT reference, statut, fiche, etat FROM demandes WHERE reference = %s",
+                (reference,),
+            ).fetchone()
+        if ligne is None:
+            return None
+        r, s, f, e = ligne
+        return DemandeLue(r, s, f, EtatDemande.model_validate(e))
 
     def deposer_piece(
         self,
