@@ -1,5 +1,5 @@
-"""API de dépôt (dossier 2.4 ter) et de lecture du back-office (C3-2), traitement et suivi de lot (C3-3) :
-routes minces, contrôles dans ``ingestion``, SQL dans le dépôt.
+"""API de dépôt (dossier 2.4 ter) et de lecture du back-office (C3-2),
+traitement et suivi de lot (C3-3) : routes minces, contrôles dans ``ingestion``, SQL dans le dépôt.
 
 Routes ``def`` synchrones : FastAPI les exécute dans son pool de threads (psycopg synchrone).
 """
@@ -10,7 +10,16 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 import psycopg
-from fastapi import BackgroundTasks, Depends, FastAPI, Form, HTTPException, Request, Response, UploadFile
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
