@@ -1,4 +1,4 @@
-"""API de dépôt (dossier 2.4 ter) et de lecture du back-office (C3-2) :
+"""API de dépôt (dossier 2.4 ter) et de lecture du back-office (C3-2), traitement et suivi de lot (C3-3) :
 routes minces, contrôles dans ``ingestion``, SQL dans le dépôt.
 
 Routes ``def`` synchrones : FastAPI les exécute dans son pool de threads (psycopg synchrone).
@@ -10,17 +10,19 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 import psycopg
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from . import traitements
 from . import vue_gestionnaire as vue
 from .ingestion import FichierRefuse, controler_fichier
 from .ingestion_postgres import IngestionPostgres
+from .lots_postgres import DepotLots, DossiersNonLancables, ReferencesInconnues
 from .ports import ErreurPersistance
 from .postgres import ConfigBase, pool
 from .vlm import ConfigIngestion
-from .vue_gestionnaire import DossierVue, LigneDemande
+from .vue_gestionnaire import DossierVue, LigneDemande, LotVue
 
 app = FastAPI(title="Kaldera — dépôt des demandes et des pièces")
 
@@ -43,9 +45,30 @@ Ingestion = Annotated[IngestionPostgres, Depends(depot_ingestion)]
 Config = Annotated[ConfigIngestion, Depends(config_ingestion)]
 
 
+def depot_lots(ingestion: Ingestion) -> DepotLots:
+    return DepotLots(ingestion.connexions)
+
+
+Lots = Annotated[DepotLots, Depends(depot_lots)]
+
+
 @app.exception_handler(ErreurPersistance)
 def _base_indisponible(request: Request, exc: ErreurPersistance) -> JSONResponse:
     return JSONResponse(status_code=503, content={"detail": "base indisponible"})
+
+
+@app.exception_handler(ReferencesInconnues)
+def _references_inconnues(request: Request, exc: ReferencesInconnues) -> JSONResponse:
+    return JSONResponse(
+        status_code=404, content={"detail": "demande inconnue", "references": exc.references}
+    )
+
+
+@app.exception_handler(DossiersNonLancables)
+def _non_lancables(request: Request, exc: DossiersNonLancables) -> JSONResponse:
+    return JSONResponse(
+        status_code=409, content={"detail": "dossiers non lançables", "references": exc.references}
+    )
 
 
 class ContratGestion(BaseModel):
@@ -77,6 +100,24 @@ class StatutDemande(BaseModel):
 class Depot(BaseModel):
     sha256: str
     piece_id: UUID | None = None
+
+
+class Traitement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    references: list[Annotated[str, Field(pattern=r"^KAL-\d{2}-\d{4}$")]] = Field(min_length=1)
+
+    @field_validator("references")
+    @classmethod
+    def _sans_doublon(cls, references: list[str]) -> list[str]:
+        if len(set(references)) != len(references):
+            raise ValueError("référence en double")
+        return references
+
+
+class LotLance(BaseModel):
+    lot_id: int
+    references: list[str]
 
 
 @app.post("/demandes", status_code=201, response_model=StatutDemande)
@@ -155,3 +196,19 @@ def lire_demande(reference: str, ingestion: Ingestion) -> DossierVue:
     if demande is None:
         raise HTTPException(404, "demande inconnue")
     return vue.dossier(demande.reference, demande.statut, demande.fiche, demande.etat)
+
+
+@app.post("/traitements", status_code=202, response_model=LotLance)
+def lancer_traitement(corps: Traitement, lots: Lots, taches: BackgroundTasks) -> LotLance:
+    lot_id, demandes = lots.lancer(corps.references)  # 404 / 409 : gestionnaires ci-dessus
+    taches.add_task(traitements.traiter, lots.connexions, demandes)
+    return LotLance(lot_id=lot_id, references=corps.references)
+
+
+@app.get("/lots/{lot_id}", response_model=LotVue)
+def lire_lot(lot_id: int, lots: Lots) -> LotVue:
+    lu = lots.lire(lot_id)
+    if lu is None:
+        raise HTTPException(404, "lot inconnu")
+    demandes = ((d.reference, d.statut, d.fiche, d.etat) for d in lu.demandes)
+    return vue.lot(lu.id, lu.debut, lu.derniere_maj, demandes)

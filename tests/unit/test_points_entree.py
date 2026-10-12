@@ -99,3 +99,16 @@ def test_entree_malformee_n_arrete_pas_le_lot(malformee: Any) -> None:
     assert fiches[0]["issue"] == "decision"
     assert (fiches[1]["issue"], fiches[1]["file"]) == ("escalade", "gestionnaire")
     assert fiches[1]["trace"][-1]["action"] == "filet_securite"
+
+
+def test_lot_avec_un_orchestrateur_fourni() -> None:
+    appels: list[str] = []
+
+    class Espion(Orchestrateur):
+        def traiter(self, demande: dict[str, Any]) -> dict[str, Any]:
+            appels.append(demande["reference"])
+            return super().traiter(demande)
+
+    demandes = [d for d in NOMINAUX if d["reference"] == "KAL-26-0102"]  # NOM-02 : refusée
+    resultat = kaldera.traiter_lot(demandes, orchestrateur=Espion(evaluer=lambda d, t: None))
+    assert appels == ["KAL-26-0102"] and resultat["fiches"][0]["decision"] == "refusee"
