@@ -84,7 +84,7 @@ def _carte(vue: Any, nom: str) -> Any:
 
 
 def test_ligne_reprend_les_champs_de_la_liste() -> None:
-    lg = ligne("KAL-26-0101", "terminee", _complet())
+    lg = ligne("KAL-26-0101", "terminee", None, _complet())
     assert lg.model_dump() == {
         "reference": "KAL-26-0101",
         "nom": "Martin",
@@ -107,8 +107,43 @@ def test_ligne_escalade_degradee() -> None:
         file="cellule_fraude",
         mode_degrade=True,
     )
-    lg = ligne("KAL-26-0203", "terminee", etat)
+    lg = ligne("KAL-26-0203", "terminee", None, etat)
     assert (lg.issue, lg.file, lg.mode_degrade) == ("escalade", "cellule_fraude", True)
+
+
+FICHE_SECOURS = {
+    "issue": "escalade",
+    "decision": None,
+    "montant_rembourse": None,
+    "motif": "Escalade de secours : panne (dernier état : estimation)",
+    "file": "gestionnaire",
+    "mode_degrade": False,
+}
+
+
+def _sans_issue() -> EtatDemande:
+    return EtatDemande(demande=_demande())
+
+
+def test_escalade_de_secours_lue_dans_la_fiche() -> None:
+    etat = _sans_issue()
+    lg = ligne("KAL-26-0301", "terminee", FICHE_SECOURS, etat)
+    assert (lg.issue, lg.file) == ("escalade", "gestionnaire")
+    d = dossier("KAL-26-0301", "terminee", FICHE_SECOURS, etat)
+    assert (d.issue, d.file, d.motif) == ("escalade", "gestionnaire", FICHE_SECOURS["motif"])
+    assert d.mode_degrade is False
+
+
+def test_etat_issue_prime_sur_la_fiche() -> None:
+    etat = _complet()  # accepté
+    d = dossier("KAL-26-0101", "terminee", FICHE_SECOURS, etat)
+    assert (d.issue, d.file) == ("acceptee", None)
+
+
+def test_filtre_escalade_garde_le_dossier_de_secours() -> None:
+    lg = ligne("KAL-26-0301", "terminee", FICHE_SECOURS, _sans_issue())
+    assert filtrer([lg], issue="escalade") == [lg]
+    assert filtrer([lg], file="gestionnaire") == [lg]
 
 
 # --------------------------------------------------------- statut d'une étape
@@ -383,7 +418,7 @@ def test_aucune_donnee_personnelle_hors_liste_blanche() -> None:
     etat = _complet()
     assure = etat.demande["assure"]
     sorties = (
-        ligne("KAL-26-0101", "terminee", etat).model_dump_json()
+        ligne("KAL-26-0101", "terminee", None, etat).model_dump_json()
         + dossier("KAL-26-0101", "terminee", None, etat).model_dump_json()
     )
     for cle in ("email", "telephone", "iban", "adresse", "id_client"):

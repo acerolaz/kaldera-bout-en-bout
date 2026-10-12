@@ -7,7 +7,7 @@ ci-dessous sortent de l'API (jamais email, téléphone, IBAN, adresse ni identif
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, NamedTuple
 
 from pydantic import BaseModel
 
@@ -132,20 +132,42 @@ def _sous(source: dict[str, Any], cle: str) -> dict[str, Any]:
     return valeur if isinstance(valeur, dict) else {}
 
 
-def _code_issue(etat: EtatDemande) -> CodeIssue | None:
-    if etat.issue is None:
-        return None
-    return "escalade" if etat.issue.issue == "escalade" else etat.issue.decision
+class _Sortie(NamedTuple):
+    code: CodeIssue | None
+    file: str | None
+    motif: str | None
+    mode_degrade: bool
+    montant_rembourse: float | None
+
+
+def _sortie(fiche: dict[str, Any] | None, etat: EtatDemande) -> _Sortie:
+    """Issue du dossier : ``etat.issue`` fait foi ; sinon la fiche de secours (filet, reaper)."""
+    if etat.issue is not None:
+        i = etat.issue
+        code = "escalade" if i.issue == "escalade" else i.decision
+        return _Sortie(code, i.file, i.motif, i.mode_degrade, i.montant_rembourse)
+    if fiche and fiche.get("issue"):
+        code = "escalade" if fiche["issue"] == "escalade" else fiche.get("decision")
+        return _Sortie(
+            code,
+            fiche.get("file"),
+            fiche.get("motif"),
+            bool(fiche.get("mode_degrade")),
+            fiche.get("montant_rembourse"),
+        )
+    return _Sortie(None, None, None, False, None)
 
 
 # ------------------------------------------------------------------ E1
 
 
-def ligne(reference: str, statut: str, etat: EtatDemande) -> LigneDemande:
+def ligne(
+    reference: str, statut: str, fiche: dict[str, Any] | None, etat: EtatDemande
+) -> LigneDemande:
     assure = _sous(etat.demande, "assure")
     contrat = _sous(etat.demande, "contrat")
     sinistre = _sous(etat.demande, "sinistre")
-    issue = etat.issue
+    sortie = _sortie(fiche, etat)
     return LigneDemande(
         reference=reference,
         nom=assure.get("nom"),
@@ -154,9 +176,9 @@ def ligne(reference: str, statut: str, etat: EtatDemande) -> LigneDemande:
         type_sinistre=sinistre.get("type"),
         montant_declare=sinistre.get("montant_declare"),
         statut=statut,
-        issue=_code_issue(etat),
-        file=issue.file if issue else None,
-        mode_degrade=bool(issue and issue.mode_degrade),
+        issue=sortie.code,
+        file=sortie.file,
+        mode_degrade=sortie.mode_degrade,
     )
 
 
@@ -345,9 +367,10 @@ def _antifraude(etat: EtatDemande) -> CarteAntifraude | None:
 def dossier(
     reference: str, statut: str, fiche: dict[str, Any] | None, etat: EtatDemande
 ) -> DossierVue:
-    base = ligne(reference, statut, etat)
+    base = ligne(reference, statut, fiche, etat)
+    sortie = _sortie(fiche, etat)
     etapes = _etapes(etat)
-    issue, arret = etat.issue, etat.arret
+    arret = etat.arret
     faites = sum(e.statut in FAITES for e in etapes)
     return DossierVue(
         reference=reference,
@@ -362,9 +385,9 @@ def dossier(
         budget_ms=BORNES.duree_max_s * 1000,
         issue=base.issue,
         file=base.file,
-        motif=issue.motif if issue else None,
+        motif=sortie.motif,
         mode_degrade=base.mode_degrade,
-        montant_rembourse=issue.montant_rembourse if issue else None,
+        montant_rembourse=sortie.montant_rembourse,
         garanties=_garanties(etat),
         etapes=etapes,
         antifraude=_antifraude(etat),
