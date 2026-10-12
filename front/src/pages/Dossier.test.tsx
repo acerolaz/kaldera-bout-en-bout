@@ -76,6 +76,7 @@ describe("E2 · Dossier", () => {
     simulerApi(() => json({ detail: "demande inconnue" }, 404));
     ouvrir("KAL-26-9999");
     expect(await screen.findByText("Dossier introuvable.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Dossier KAL-26-9999" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Retour à la liste des demandes" })).toHaveAttribute("href", "/");
   });
 

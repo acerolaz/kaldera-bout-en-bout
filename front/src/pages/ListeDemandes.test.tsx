@@ -97,7 +97,8 @@ describe("E1 · Liste des demandes", () => {
   it("chargement : zone aria-busy", () => {
     simulerApi(() => new Promise<Response>(() => {}));
     rendre(<ListeDemandes />);
-    expect(screen.getByTestId("liste")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByTestId("liste")).not.toHaveAttribute("aria-busy");
+    expect(screen.getByRole("status").nextElementSibling).toHaveAttribute("aria-busy", "true");
     expect(screen.getByRole("status")).toHaveTextContent("Chargement des demandes…");
   });
 

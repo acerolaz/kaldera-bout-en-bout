@@ -16,7 +16,7 @@ const ETAPES: Record<string, string> = {
 const AVIS: Record<CarteAntifraude["statut"], string> = { ok: "Avis obtenu", indisponible: "Indisponible", non_requis: "Non requis" };
 
 const secondes = (ms: number) => `${(ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`;
-const duree = (ms: number) => (ms < 1000 ? `${Math.round(ms)} ms` : secondes(ms)); // une étape rapide ne lit pas « 0 s »
+const dureeEtape = (ms: number) => (ms < 1000 ? `${Math.round(ms)} ms` : secondes(ms)); // une étape rapide ne lit pas « 0 s »
 const montant = (valeur: number | null) => (valeur === null ? ABSENT : euros(valeur));
 
 export function Dossier() {
@@ -29,18 +29,20 @@ export function Dossier() {
 
   let contenu: ReactNode;
   if (requete.isPending) {
-    contenu = <div aria-busy="true">
+    contenu = (
+      <div>
         <p role="status" className="sr-only">Chargement du dossier…</p>
-        <div className="h-40 animate-pulse rounded-lg bg-muted" />
-      </div>;
-  } else if (requete.isError && requete.error instanceof ErreurApi && requete.error.statut === 404) {
+        <div aria-busy="true" className="h-40 animate-pulse rounded-lg bg-muted" />
+      </div>
+    );
+  } else if (!requete.data && requete.isError && requete.error instanceof ErreurApi && requete.error.statut === 404) {
     contenu = (
       <Vide>
         Dossier introuvable.{" "}
         <Link to="/" className="font-medium text-primary underline underline-offset-4">Retour à la liste des demandes</Link>
       </Vide>
     );
-  } else if (requete.isError) {
+  } else if (!requete.data && requete.isError) {
     contenu = (
       <div role="alert" className="flex items-center gap-3 rounded-lg border border-ton-danger p-4">
         <p>Impossible de charger le dossier : {requete.error.message}</p>
@@ -78,7 +80,7 @@ function Detail({ dossier: d }: { dossier: DossierVue }) {
         {d.issue ? (
           <p className="text-sm">
             {d.file ? <>File <strong>{d.file}</strong> · </> : null}
-            {d.motif}
+            {d.motif ?? ABSENT}
             {d.montant_rembourse !== null ? <> · Remboursé <span className="tabular-nums">{euros(d.montant_rembourse)}</span></> : null}
           </p>
         ) : null}
@@ -116,7 +118,7 @@ function Detail({ dossier: d }: { dossier: DossierVue }) {
 
 function CarteEtape({ etape: e, antifraude }: { etape: Etape; antifraude: CarteAntifraude | null }) {
   const execution = [
-    e.duree_ms !== null ? duree(e.duree_ms) : null,
+    e.duree_ms !== null ? dureeEtape(e.duree_ms) : null,
     e.mode ? `${e.mode}${e.cause ? ` (${e.cause})` : ""}` : null,
     e.modele,
     e.tours_llm !== null ? `${e.tours_llm} tour${e.tours_llm > 1 ? "s" : ""}` : null,
@@ -155,14 +157,7 @@ function DetailAntifraude({ carte: c }: { carte: CarteAntifraude }) {
   if (c.cause) lignes.push(["Motif du mode dégradé", c.cause]);
   return (
     <section aria-label="Carte anti-fraude" className="rounded-md border p-2 text-sm">
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
-        {lignes.map(([cle, valeur]) => (
-          <div key={cle} className="contents">
-            <dt className="text-muted-foreground">{cle}</dt>
-            <dd>{valeur}</dd>
-          </div>
-        ))}
-      </dl>
+      <Definitions lignes={lignes} className="gap-y-1" />
     </section>
   );
 }
@@ -193,15 +188,21 @@ function Garanties({ dossier: d }: { dossier: DossierVue }) {
           <SheetTitle>Garanties</SheetTitle>
           <SheetDescription>Extraites du contrat, en lecture seule.</SheetDescription>
         </SheetHeader>
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2 px-4 text-sm">
-          {lignes.map(([cle, valeur]) => (
-            <div key={cle} className="contents">
-              <dt className="text-muted-foreground">{cle}</dt>
-              <dd className="tabular-nums">{valeur}</dd>
-            </div>
-          ))}
-        </dl>
+        <Definitions lignes={lignes} className="gap-y-2 px-4 text-sm" ddClassName="tabular-nums" />
       </SheetContent>
     </Sheet>
+  );
+}
+
+function Definitions({ lignes, className, ddClassName }: { lignes: [string, string][]; className: string; ddClassName?: string }) {
+  return (
+    <dl className={`grid grid-cols-[max-content_1fr] gap-x-4 ${className}`}>
+      {lignes.map(([cle, valeur]) => (
+        <div key={cle} className="contents">
+          <dt className="text-muted-foreground">{cle}</dt>
+          <dd className={ddClassName}>{valeur}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

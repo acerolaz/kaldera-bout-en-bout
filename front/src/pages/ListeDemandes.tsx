@@ -100,15 +100,16 @@ export function ListeDemandes() {
         ref={zone}
         tabIndex={-1}
         data-testid="liste"
-        aria-busy={liste.isPending}
         className="outline-none"
       >
         {liste.isPending ? (
           <div className="flex flex-col gap-1">
             <p role="status" className="sr-only">Chargement des demandes…</p>
-            {Array.from({ length: 5 }, (_, i) => (
-              <div key={i} className="h-10 animate-pulse rounded-md bg-muted" />
-            ))}
+            <div aria-busy="true" className="flex flex-col gap-1">
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={i} className="h-10 animate-pulse rounded-md bg-muted" />
+              ))}
+            </div>
           </div>
         ) : liste.isError ? (
           <div role="alert" className="flex items-center gap-3 rounded-lg border border-ton-danger p-4">
