@@ -17,5 +17,7 @@
     <tr><td>Design system</td><td>Règles visuelles communes (couleurs, typographie, composants, états) du back-office, dans <code>design-system/kaldera/</code> ; produit avec <code>ui-ux-pro-max</code>.</td></tr>
     <tr><td>Token de design</td><td>Variable CSS nommée (<code>--primary</code>, <code>--ton-danger</code>…) définie une fois par thème ; les écrans n'utilisent jamais une couleur en dur.</td></tr>
     <tr><td>Thème clair / sombre</td><td>Jeu de tokens choisi par l'attribut <code>data-theme</code> ; défaut : thème du système ; choix mémorisé (<code>kaldera.theme</code>).</td></tr>
+    <tr><td>Projection (vue gestionnaire)</td><td>Fonction pure du serveur qui transforme l'état d'une demande en vue affichable (<code>LigneDemande</code>, <code>DossierVue</code>) ; l'IHM n'interprète rien.</td></tr>
+    <tr><td>Statut d'affichage</td><td>Statut d'une étape vu par le gestionnaire (<code>en_attente</code>, <code>termine</code>, <code>sautee</code>, <code>echec</code>, <code>repli</code>, <code>degrade</code>), déduit de la trace.</td></tr>
   </table>
 </section>
