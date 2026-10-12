@@ -60,11 +60,61 @@ def groupes(liste):
         for nom, lignes in liste]
 
 
-# Statut relevé au dernier déroulé (vide : à dérouler) ; mis à jour à chaque recette.
-STATUTS: dict[str, str] = {}
+# Statut relevé au dernier déroulé ; mis à jour à chaque recette.
+STATUTS: dict[str, str] = {
+    "S-01": "OK",
+    "S-02": "OK",
+    "S-03": "NT",
+    "S-04": "OK",
+    "S-05": "OK",
+    "S-06": "OK",
+    "U-01": "OK",
+    "U-02": "OK",
+    "U-03": "OK",
+    "U-04": "OK",
+    "U-05": "OK",
+    "U-06": "OK",
+    "U-07": "KO",
+    "U-08": "KO",
+    "U-09": "OK",
+    "U-10": "OK",
+    "U-11": "OK",
+    "U-12": "OK",
+    "U-13": "OK",
+    "U-14": "OK",
+    "U-15": "OK",
+    "A-01": "OK",
+    "A-02": "OK",
+    "A-03": "OK",
+    "A-04": "NT",
+}
 
-# Remarque relevée au dernier déroulé (vide : aucune) ; mise à jour à chaque recette.
-REMARQUES: dict[str, str] = {}
+# Remarque relevée au dernier déroulé ; mise à jour à chaque recette.
+REMARQUES: dict[str, str] = {
+    "S-01": (
+        "Adapté : make recette non lancé (docker) ; tables vidées, make demo, make "
+        "partenaire."
+    ),
+    "S-03": "Pas de profil VLM Azure sur ce poste : le worker refuse de démarrer.",
+    "S-05": "Jeton PARTENAIRE_JETON passé à make api en ligne de commande (pas de .env).",
+    "U-02": "Sans flash : vérifié par l'e2e fumee.spec.ts, pas à l'œil.",
+    "U-05": "Infobulle = attribut title ; motif lu par aria-describedby.",
+    "U-06": (
+        "Adapté : 0103 refusé d'emblée (non éligible), 100 % en 0,1 s ; cartes non "
+        "observables."
+    ),
+    "U-07": (
+        "30 dossiers, lot 3,2 s, dossier max 3,05 s, barres et compteurs OK. Écart : "
+        "0102-0109 (sans anti-fraude) démarrent 3 s après les autres, pool saturé."
+    ),
+    "U-08": (
+        "Via le proxy Vite, API tuée : ni erreur ni « Reconnexion… » en 12 s ; Ctrl+C seul "
+        "n'arrête pas l'API tant qu'un flux SSE est ouvert."
+    ),
+    "U-14": "Adapté : partenaire lent (délai > 3 s), pas en panne ; dossier KAL-26-0404.",
+    "A-01": "18 appels, 18 dossiers distincts, aucun doublon.",
+    "A-04": "make recette-reset non lancé : PostgreSQL du checkout principal conservé.",
+}
 
 # Python 3.11 : pas de guillemets imbriqués dans une expression de f-string.
 PARTENAIRE_LENT = m('make ctl ARGS="lent --delai 5"')
