@@ -29,7 +29,6 @@ lance le traitement. Seul `prete` est sélectionnable dans E1 :
 
 ## 2. API
 
-
 Le front appelle `/api/…` ; le proxy Vite retire `/api` et transmet à FastAPI (`make api`, port 8000).
 
 ### `GET /demandes`
@@ -90,7 +89,7 @@ Corps `{"references": ["KAL-26-0104", "KAL-26-0105"]}` (non vide, sans doublon).
 
 ### Flux SSE : `GET /flux/demandes/{ref}` · `GET /flux/lots/{id}`
 
-`text/event-stream` ; `: ouvert` à la connexion, `: ping` toutes les 15 s, puis un message par
+404 `demande inconnue` / `lot inconnu` (les deux routes) ; sinon `text/event-stream` ; `: ouvert` à la connexion, `: ping` toutes les 15 s, puis un message par
 événement du dossier (ou des dossiers du lot) :
 
 ```

@@ -93,7 +93,7 @@ UI = [
     ("Socle du back-office", [
         ("U-01", "Ouvrir <b>http://localhost:5173</b>.",
          "En-tête « Kaldera · back-office gestionnaire », lien « Demandes » souligné (page "
-         "courante), bouton de thème ; titre « Liste des demandes » (contenu vérifié en U-05)."),
+         "courante), bouton de thème ; titre « Liste des demandes » (contenu vérifié en U-10)."),
         ("U-02", "Cliquer le bouton de thème (lune), recharger la page, puis recliquer (soleil).",
          "Passage en sombre ; après rechargement la page reste en sombre, sans flash clair ; "
          "second clic : retour en clair. Navigateur sans choix enregistré (fenêtre privée) : "
@@ -135,9 +135,8 @@ UI = [
     ("Lecture des dossiers (E1, E2)", [
         ("U-10", "Après U-07, ouvrir <b>http://localhost:5173</b>.",
          "E1 liste les dossiers traités en U-06 et U-07 et KAL-26-0101 : référence, assuré, "
-         "police, "
-         "sinistre, montant, statut et issue en icône + libellé, file, badge mode dégradé ; "
-         "aucun email, téléphone ni IBAN affiché."),
+         "police, sinistre, montant, statut et issue en icône + libellé, file, badge mode "
+         "dégradé ; aucun email, téléphone ni IBAN affiché."),
         ("U-11", "Filtrer Issue = Escaladée, cocher « Mode dégradé seulement », chercher un "
          "nom ; recharger ; cliquer « Effacer les filtres ».",
          "La liste se restreint à chaque filtre ; l'adresse porte les filtres et les conserve "
