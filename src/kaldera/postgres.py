@@ -241,7 +241,7 @@ class SignauxPostgres:
                     "SELECT pg_notify(%s, %s)", (CANAL, json.dumps(evenement, ensure_ascii=False))
                 )
         except ErreurPersistance as exc:  # jamais bloquant pour une décision (EX-01)
-            LOGGER.debug("signal %s perdu : %s", evenement.get("type"), exc)
+            LOGGER.warning("signal %s perdu : %s", evenement.get("type"), exc)
 
 
 def _pool_par_defaut() -> ConnectionPool | None:

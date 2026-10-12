@@ -38,8 +38,9 @@ def traiter_lot(
     ici avec la configuration par défaut."""
     orchestrateur = orchestrateur or Orchestrateur(partenaire_url)  # config lue une fois
     # un EtatDemande par demande : l'orchestrateur et les agents partagés ne gardent aucun état
-    # ponytail: pool par défaut ; borne explicite si le partenaire ou Azure limitent le débit
-    with ThreadPoolExecutor() as pool:
+    # ponytail: un fil par dossier (un dossier sans anti-fraude ne fait pas la queue derrière les
+    # lents) ; plafonner si les lots dépassent ~100 dossiers ou si le partenaire/Azure limitent
+    with ThreadPoolExecutor(max_workers=max(1, len(demandes))) as pool:
         fiches = list(pool.map(orchestrateur.traiter, demandes))
     return {
         "fiches": fiches,

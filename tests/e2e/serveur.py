@@ -70,7 +70,6 @@ def main() -> None:
     vlm = FakeVLM(verites_fake(lire_manifeste()))
     config = ConfigIngestion(_env_file=None)
 
-
     def boucle() -> None:
         while True:
             try:

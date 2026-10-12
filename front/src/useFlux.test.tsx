@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EvenementVue } from "./api";
 import { FauxEventSource, simulerFlux } from "./test/flux";
@@ -54,6 +54,35 @@ describe("useFlux", () => {
     expect(screen.getByText(/^coupé/)).toBeInTheDocument();
     source.ouvrir();
     expect(screen.getByText(/^ok/)).toBeInTheDocument();
+  });
+
+  it("réponse non 200 (flux fermé par le navigateur) : rouvert après 3 s, badge levé à l'ouverture", () => {
+    vi.useFakeTimers();
+    try {
+      const { invalider } = monter("/flux/demandes/KAL-26-0104");
+      FauxEventSource.instances[0].couperDefinitivement();
+      expect(screen.getByText(/^coupé/)).toBeInTheDocument();
+      expect(FauxEventSource.instances).toHaveLength(1);
+      act(() => void vi.advanceTimersByTime(3000));
+      expect(FauxEventSource.instances).toHaveLength(2);
+      FauxEventSource.instances[1].ouvrir();
+      expect(screen.getByText(/^ok/)).toBeInTheDocument();
+      expect(invalider).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("coupure réseau (le navigateur retente seul) : pas de seconde source", () => {
+    vi.useFakeTimers();
+    try {
+      monter("/flux/demandes/KAL-26-0104");
+      FauxEventSource.instances[0].couper();
+      act(() => void vi.advanceTimersByTime(10000));
+      expect(FauxEventSource.instances).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("sans chemin : aucun flux ; démontage : flux fermé", () => {

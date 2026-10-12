@@ -48,7 +48,10 @@ class DepotLots:
             connues = {
                 r
                 for (r,) in conn.execute(
-                    "SELECT reference FROM demandes WHERE reference = ANY(%s)", (references,)
+                    # ordre fixe : deux lots qui se recouvrent verrouillent dans le même ordre
+                    "SELECT reference FROM demandes WHERE reference = ANY(%s) "
+                    "ORDER BY reference FOR UPDATE",
+                    (references,),
                 )
             }
             if inconnues := [r for r in references if r not in connues]:

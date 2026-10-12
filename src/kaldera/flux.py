@@ -19,7 +19,9 @@ async def ecouter(conninfo: str, ping_s: float = PING_S) -> AsyncGenerator[str |
     """Charges utiles du canal d'avancement ; ``None`` à chaque fenêtre de ``ping_s`` secondes."""
     # ponytail: une connexion par client SSE (usage local) ; un écouteur partagé si plusieurs
     # gestionnaires suivent des lots en même temps
-    async with await psycopg.AsyncConnection.connect(conninfo, autocommit=True) as conn:
+    async with await psycopg.AsyncConnection.connect(
+        conninfo, autocommit=True, connect_timeout=2
+    ) as conn:
         await conn.execute(f"LISTEN {CANAL}")  # CANAL : constante du module, jamais une donnée
         while True:
             async for notification in conn.notifies(timeout=ping_s):

@@ -44,10 +44,10 @@ reaper:
 	uv run python -m kaldera.reaper
 
 api:
-	uv run uvicorn kaldera.api:app --port 8000
+	uv run uvicorn kaldera.api:app --port 8000 --timeout-graceful-shutdown 3
 
 api-epreuve:
-	PARTENAIRE_URL=http://127.0.0.1:9 uv run uvicorn kaldera.api:app --port 8000
+	PARTENAIRE_URL=http://127.0.0.1:9 uv run uvicorn kaldera.api:app --port 8000 --timeout-graceful-shutdown 3
 
 worker:
 	uv run python -m kaldera.worker

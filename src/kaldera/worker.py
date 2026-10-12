@@ -124,7 +124,7 @@ def _contrat(
 
 def _admettre(ingestion: IngestionPostgres, reference: str) -> None:
     if ingestion.admettre(reference):
-        LOGGER.info("demande %s prête : traitement lancé par le gestionnaire (E1)", reference)
+        LOGGER.info("demande %s prête : prête, en attente du lancement (E1)", reference)
 
 
 def main() -> None:
