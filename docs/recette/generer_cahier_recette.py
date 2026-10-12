@@ -64,7 +64,7 @@ def groupes(liste):
 STATUTS: dict[str, str] = {
     "S-01": "OK", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "OK", "S-06": "OK",
     "U-01": "OK", "U-02": "OK", "U-03": "OK", "U-04": "OK", "U-05": "OK", "U-06": "OK",
-    "U-07": "KO", "U-08": "KO", "U-09": "OK", "U-10": "OK", "U-11": "OK", "U-12": "OK",
+    "U-07": "OK", "U-08": "OK", "U-09": "OK", "U-10": "OK", "U-11": "OK", "U-12": "OK",
     "U-13": "OK", "U-14": "OK", "U-15": "OK", "A-01": "OK", "A-02": "OK", "A-03": "OK",
     "A-04": "NT",
 }
@@ -84,12 +84,12 @@ REMARQUES: dict[str, str] = {
         "observables."
     ),
     "U-07": (
-        "30 dossiers, lot 3,2 s, dossier max 3,05 s, barres et compteurs OK. Écart : "
-        "0102-0109 (sans anti-fraude) démarrent 3 s après les autres, pool saturé."
+        "Rejoué après correctif : 30 dossiers, lot 3,5 s, dossier max 3,35 s ; 12 sans anti-fraude "
+        "finis à 0,5 s, 18 à 3,5 s ; tous démarrés en 5 ms (un fil par dossier)."
     ),
     "U-08": (
-        "Via le proxy Vite, API tuée : ni erreur ni « Reconnexion… » en 12 s ; Ctrl+C seul "
-        "n'arrête pas l'API tant qu'un flux SSE est ouvert."
+        "Rejoué après correctif : SIGINT, API arrêtée en 0,2 s ; « Reconnexion… » à +3 s ; "
+        "levé 2 s après le redémarrage, état relu."
     ),
     "U-14": "Adapté : partenaire lent (délai > 3 s), pas en panne ; dossier KAL-26-0404.",
     "A-01": "18 appels, 18 dossiers distincts, aucun doublon.",
