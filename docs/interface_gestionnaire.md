@@ -50,7 +50,7 @@ d'entrée) ⇒ `sautee` ; mode `repli` ⇒ `repli` ; sinon `termine`.
 
 **Avancement du dossier** : (étapes `termine` + `sautee` + `repli` + `degrade`) / 5 ; dossier `terminee` ou `secours` ⇒ 100 %.
 
-**Liste blanche** : email, téléphone, IBAN, adresse et identifiant client de l'assuré ne sortent jamais de l'API.
+**Liste blanche** : email, téléphone, IBAN, adresse, code postal et identifiant client de l'assuré ne sortent jamais de l'API.
 
 ## 3. Lancer en local
 

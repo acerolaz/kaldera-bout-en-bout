@@ -87,8 +87,7 @@ UI = [
     ("Socle du back-office", [
         ("U-01", "Ouvrir <b>http://localhost:5173</b>.",
          "En-tête « Kaldera · back-office gestionnaire », lien « Demandes » souligné (page "
-         "courante), bouton de thème ; titre « Liste des demandes » et cadre « Écran livré au "
-         "sous-projet C3-2 »."),
+         "courante), bouton de thème ; titre « Liste des demandes » (contenu vérifié en U-05)."),
         ("U-02", "Cliquer le bouton de thème (lune), recharger la page, puis recliquer (soleil).",
          "Passage en sombre ; après rechargement la page reste en sombre, sans flash clair ; "
          "second clic : retour en clair. Navigateur sans choix enregistré (fenêtre privée) : "
@@ -97,7 +96,7 @@ UI = [
          "1er Tab : « Aller au contenu » apparaît en haut à gauche ; 2e : « Demandes » ; 3e : "
          "bouton de thème. Anneau de focus or visible à chaque fois, dans les deux thèmes."),
         ("U-04", "Ouvrir <i>/demandes/KAL-26-0101</i>, <i>/lots/1</i>, puis <i>/inconnu</i>.",
-         "Titres « Dossier KAL-26-0101 » et « Lot 1 » (cadres C3-2 / C3-3) ; adresse inconnue : "
+         "Titres « Dossier KAL-26-0101 » (E2, vérifié en U-07) et « Lot 1 » (cadre C3-3) ; adresse inconnue : "
          "« Page introuvable » et lien « Retour à la liste des demandes »."),
     ]),
     ("Lecture des dossiers (E1, E2)", [
