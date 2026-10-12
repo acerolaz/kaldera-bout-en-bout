@@ -1,22 +1,24 @@
 """Serveur de bout en bout (Playwright) : API réelle + worker sur FakeVLM, partenaire coupé.
 
-Base : TEST_DATABASE_URL, vidée puis préparée (tools.demo). Aucun appel Azure : les
-profils LLM sont retirés de l'environnement et le .env n'est pas lu (agents en gabarit/repli).
+Base : TEST_DATABASE_URL, vidée puis préparée (tools.demo) ; NOM-03 (refusée) et AF-03
+(escalade, avis anti-fraude indisponible : partenaire coupé) traités pour les écrans de lecture.
+Aucun appel Azure : les profils LLM sont retirés de l'environnement et le .env n'est pas lu
+(agents en gabarit/repli).
 Usage : uv run python -m tests.e2e.serveur (lancé par front/playwright.config.ts).
 """
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import threading
 import time
+from pathlib import Path
 
 import uvicorn
 
-ENV_LLM = re.compile(
-    r"^(AZURE_AI_|KALDERA_(PIECES|ESTIMATION|ANTIFRAUDE|DECISION|INGESTION)__)"
-)
+ENV_LLM = re.compile(r"^(AZURE_AI_|KALDERA_(PIECES|ESTIMATION|ANTIFRAUDE|DECISION|INGESTION)__)")
 
 
 def main() -> None:
@@ -30,7 +32,7 @@ def main() -> None:
         PARTENAIRE_URL="http://127.0.0.1:9",
         KALDERA_INGESTION__DELAI_ANALYSE_S="5",  # même valeur pour l'API (.env lu) et le worker
     )
-    from kaldera import llm
+    from kaldera import llm, traiter_lot
     from kaldera.ingestion_postgres import IngestionPostgres
     from kaldera.ports import ErreurPersistance
     from kaldera.postgres import pool
@@ -49,6 +51,13 @@ def main() -> None:
             "blobs"
         )
     preparer(connexions)
+    scenarios = {
+        s["id"]: s
+        for s in map(json.loads, Path("eval/scenarios.jsonl").read_text("utf-8").splitlines())
+        if s
+    }
+    # dossiers déjà traités pour E1 / E2 (PARTENAIRE_URL coupé : avis indisponible si requis)
+    traiter_lot([scenarios[i]["demandes"][0] for i in ("NOM-03", "AF-03")])
     ingestion = IngestionPostgres(connexions)
     vlm = FakeVLM(verites_fake(lire_manifeste()))
     config = ConfigIngestion(_env_file=None)
