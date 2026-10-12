@@ -1,12 +1,31 @@
-"""Rejoue des demandes : ``python -m kaldera.cli eval/scenarios.jsonl [--scenario ID]``."""
+"""Rejoue des demandes : ``python -m kaldera.cli eval/scenarios.jsonl [--scenario ID]``.
+
+``--charger`` : insère les demandes en « prete » (base requise) ; le gestionnaire les lance
+depuis l'IHM (E1 → E2 / E3), rien n'est traité ici.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 from . import traiter_lot
+from .ingestion_postgres import IngestionPostgres
+from .postgres import ConfigBase, pool
+
+
+def charger(scenarios: list[dict[str, Any]], ingestion: IngestionPostgres) -> tuple[int, list[str]]:
+    """Insère chaque demande en « prete » ; renvoie (chargées, références déjà en base)."""
+    chargees, ignorees = 0, []
+    for scenario in scenarios:
+        for demande in scenario["demandes"]:
+            if ingestion.charger(demande):
+                chargees += 1
+            else:
+                ignorees.append(demande["reference"])
+    return chargees, ignorees
 
 
 def main() -> None:
@@ -15,14 +34,25 @@ def main() -> None:
     parser.add_argument("--scenario", action="append", help="identifiant(s) de scénario à rejouer")
     parser.add_argument("--partenaire", default=None, help="URL du partenaire anti-fraude")
     parser.add_argument("--trace", action="store_true", help="affiche la trace de chaque fiche")
+    parser.add_argument(
+        "--charger", action="store_true", help="insère les demandes en « prete », sans traiter"
+    )
     args = parser.parse_args()
 
-    for ligne in args.fichier.read_text(encoding="utf-8").splitlines():
-        if not ligne.strip():
-            continue
-        scenario = json.loads(ligne)
-        if args.scenario and scenario["id"] not in args.scenario:
-            continue
+    scenarios = [
+        s
+        for s in map(json.loads, filter(str.strip, args.fichier.read_text("utf-8").splitlines()))
+        if not args.scenario or s["id"] in args.scenario
+    ]
+    if args.charger:
+        url = ConfigBase().database_url
+        if not url:
+            raise SystemExit("KALDERA_DATABASE_URL absente : rien à charger")
+        chargees, ignorees = charger(scenarios, IngestionPostgres(pool(url)))
+        deja = ", ".join(ignorees) or "aucune"
+        print(f"{chargees} demandes prêtes ; déjà en base, ignorées : {deja}")
+        return
+    for scenario in scenarios:
         print(f"== {scenario['id']} — {scenario['titre']}")
         resultat = traiter_lot(scenario["demandes"], partenaire_url=args.partenaire)
         for fiche in resultat["fiches"]:

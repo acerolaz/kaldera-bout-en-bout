@@ -21,6 +21,7 @@ from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .etat import EtatDemande
+from .memoire import DepotDepuisDemande
 from .ports import ErreurPersistance, PieceRef
 
 LOGGER = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ ATTENTE_ECRITURE_S = 0.5  # base tombée en cours de route : une seule attente c
 REESSAI_S = 30.0  # base injoignable au démarrage : pas de nouvel essai avant ce délai
 # ponytail: échecs mémorisés par processus ; disjoncteur partagé si plusieurs workers
 _ECHECS: dict[str, float] = {}
+_NIVEAU_0 = DepotDepuisDemande()  # sans état : partagé
 
 
 class ConfigBase(BaseSettings):
@@ -110,16 +112,23 @@ def _piece(
 
 
 class DepotPostgres:
-    """Niveau 1 : descripteurs de la table ``pieces`` (remplie par l'ingestion, SP3)."""
+    """Niveau 1 : descripteurs de la table ``pieces`` (remplie par l'ingestion, SP3) ; à défaut,
+    les pièces de la demande (niveau 0)."""
 
     def __init__(self, connexions: ConnectionPool) -> None:
         self.connexions = connexions
 
     def initiales(self, demande: dict[str, Any]) -> list[PieceRef]:
-        return self._lire("relance IS NULL ORDER BY depose_le, piece_id", demande)
+        # table vide pour la référence ⇒ pièces de la demande (scénarios chargés, niveau 0) ;
+        # une demande créée par l'API n'a jamais de champ « pieces » (extra=forbid)
+        return self._lire("relance IS NULL ORDER BY depose_le, piece_id", demande) or (
+            _NIVEAU_0.initiales(demande)
+        )
 
     def depots(self, demande: dict[str, Any]) -> list[PieceRef]:
-        return self._lire("relance IS NOT NULL ORDER BY relance, depose_le, piece_id", demande)
+        return self._lire(
+            "relance IS NOT NULL ORDER BY relance, depose_le, piece_id", demande
+        ) or _NIVEAU_0.depots(demande)
 
     def _lire(self, condition: str, demande: dict[str, Any]) -> list[PieceRef]:
         requete = (  # condition : littéral de cette classe, jamais une donnée

@@ -99,3 +99,19 @@ def test_tables_de_l_espace_assure_retirees_colonnes_gardees(base: Any) -> None:
         assert appliquer_migrations(conn) == []  # rejouable : rien de plus à appliquer
     assert tables == []
     assert sorted(colonnes) == [("demandes", "cree_le"), ("pieces", "depose_le")]
+
+
+def test_statut_prete_accepte_et_statut_inconnu_refuse(base: Any) -> None:
+    with base.connection() as conn:
+        _demande(conn, statut="prete")
+        with pytest.raises(psycopg.errors.CheckViolation):
+            _demande(conn, reference="KAL-26-9002", statut="en_pause")
+
+
+def test_lot_reference_une_demande_existante(base: Any) -> None:
+    with base.connection() as conn:
+        (lot_id,) = conn.execute("INSERT INTO lots DEFAULT VALUES RETURNING id").fetchone()
+        with pytest.raises(psycopg.errors.ForeignKeyViolation):
+            conn.execute(
+                "INSERT INTO lot_demandes (lot_id, reference) VALUES (%s, 'KAL-26-9999')", (lot_id,)
+            )

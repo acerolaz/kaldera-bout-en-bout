@@ -66,13 +66,21 @@ class IngestionPostgres:
 
     def creer_demande(self, demande: dict[str, Any]) -> bool:
         """Ligne ``admission`` ; faux si la référence existe déjà."""
+        return self._inserer(demande, "admission")
+
+    def charger(self, demande: dict[str, Any]) -> bool:
+        """Ligne ``prete`` (niveau 0 : contrat et pièces dans la demande, sans ingestion) ;
+        ``make scenarios ARGS=--charger``. Faux si la référence existe déjà."""
+        return self._inserer(demande, "prete")
+
+    def _inserer(self, demande: dict[str, Any], statut: str) -> bool:
         etat = EtatDemande(demande=demande).model_dump(mode="json")
         with _connexion(self.connexions) as conn:
             ligne = conn.execute(
                 "INSERT INTO demandes (reference, numero_contrat, etat, etat_courant, statut) "
-                "VALUES (%s, %s, %s, 'eligibilite', 'admission') "
+                "VALUES (%s, %s, %s, 'eligibilite', %s) "
                 "ON CONFLICT (reference) DO NOTHING RETURNING reference",
-                (demande["reference"], demande["contrat"]["numero"], Jsonb(etat)),
+                (demande["reference"], demande["contrat"]["numero"], Jsonb(etat), statut),
             ).fetchone()
         return ligne is not None
 
