@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 from kaldera.etat import AvisFraude, Eligibilite, Estimation, EtatDemande, Issue, Piece, Pieces
-from kaldera.vue_gestionnaire import LigneDemande, dossier, euros, filtrer, ligne
+from kaldera.vue_gestionnaire import LigneDemande, dossier, euros, filtrer, ligne, lignes
 
 RACINE = Path(__file__).resolve().parents[2]
 NOM_01 = json.loads((RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines()[0])
@@ -144,6 +144,22 @@ def test_filtre_escalade_garde_le_dossier_de_secours() -> None:
     lg = ligne("KAL-26-0301", "terminee", FICHE_SECOURS, _sans_issue())
     assert filtrer([lg], issue="escalade") == [lg]
     assert filtrer([lg], file="gestionnaire") == [lg]
+
+
+def test_une_ligne_illisible_ne_fait_pas_tomber_la_liste() -> None:
+    mauvais = _complet()
+    mauvais.demande["assure"]["nom"] = 12
+    res = lignes(
+        [("KAL-26-0101", "terminee", None, _complet()), ("KAL-26-0102", "terminee", None, mauvais)]
+    )
+    assert [lg.reference for lg in res] == ["KAL-26-0101", "KAL-26-0102"]
+    assert res[0].nom == "Martin"
+    assert res[1].model_dump() == {
+        **dict.fromkeys(LigneDemande.model_fields),
+        "reference": "KAL-26-0102",
+        "statut": "terminee",
+        "mode_degrade": False,
+    }
 
 
 # --------------------------------------------------------- statut d'une étape

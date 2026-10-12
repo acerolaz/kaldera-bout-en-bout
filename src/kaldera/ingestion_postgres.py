@@ -13,6 +13,7 @@ from uuid import UUID
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
+from pydantic import ValidationError
 
 from .etat import EtatDemande
 from .ingestion import ExtractionContrat
@@ -50,7 +51,11 @@ class DemandeLue:
 
 def _demande_lue(ligne: tuple[Any, ...]) -> DemandeLue:
     reference, statut, fiche, etat = ligne
-    return DemandeLue(reference, statut, fiche, EtatDemande.model_validate(etat))
+    try:
+        lu = EtatDemande.model_validate(etat)
+    except ValidationError:  # état illisible : la liste reste servie (spec C3-2 §5)
+        lu = EtatDemande(demande={"reference": reference})
+    return DemandeLue(reference, statut, fiche, lu)
 
 
 class IngestionPostgres:

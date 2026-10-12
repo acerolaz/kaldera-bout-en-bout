@@ -7,9 +7,11 @@ ci-dessous sortent de l'API (jamais email, téléphone, IBAN, adresse ni identif
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterable
 from typing import Any, Literal, NamedTuple
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from .etat import BORNES, EtatDemande
 from .machine import Etat
@@ -22,7 +24,10 @@ ETAPES = tuple(
 TERMINAUX = frozenset({"terminee", "secours"})  # statuts de demande : dossier clos
 FAITES = frozenset({"termine", "sautee", "repli", "degrade"})  # étapes comptées dans l'avancement
 
+log = logging.getLogger(__name__)
+
 CodeIssue = Literal["acceptee", "refusee", "escalade"]
+StatutDemande = Literal["admission", "en_cours", "terminee", "secours"]
 StatutEtape = Literal["en_attente", "termine", "sautee", "echec", "repli", "degrade"]
 StatutAvis = Literal["ok", "indisponible", "non_requis"]
 STATUT_AVIS: dict[str, StatutAvis] = {
@@ -180,6 +185,33 @@ def ligne(
         file=sortie.file,
         mode_degrade=sortie.mode_degrade,
     )
+
+
+def lignes(
+    demandes: Iterable[tuple[str, str, dict[str, Any] | None, EtatDemande]],
+) -> list[LigneDemande]:
+    """Projette la liste ; une ligne illisible devient une ligne minimale (spec §5), sans PII."""
+    resultat: list[LigneDemande] = []
+    for reference, statut, fiche, etat in demandes:
+        try:
+            resultat.append(ligne(reference, statut, fiche, etat))
+        except ValidationError:
+            log.warning("état illisible, ligne minimale pour %s", reference)
+            resultat.append(
+                LigneDemande(
+                    reference=reference,
+                    nom=None,
+                    prenom=None,
+                    police=None,
+                    type_sinistre=None,
+                    montant_declare=None,
+                    statut=statut,
+                    issue=None,
+                    file=None,
+                    mode_degrade=False,
+                )
+            )
+    return resultat
 
 
 def filtrer(

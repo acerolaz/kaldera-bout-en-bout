@@ -143,7 +143,7 @@ def lister_demandes(
     mode_degrade: bool | None = None,
     q: str | None = None,
 ) -> list[LigneDemande]:
-    lignes = [vue.ligne(d.reference, d.statut, d.fiche, d.etat) for d in ingestion.lister()]
+    lignes = vue.lignes((d.reference, d.statut, d.fiche, d.etat) for d in ingestion.lister())
     return vue.filtrer(
         lignes, statut=statut, issue=issue, file=file, mode_degrade=mode_degrade, q=q
     )

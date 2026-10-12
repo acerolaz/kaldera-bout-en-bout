@@ -202,3 +202,18 @@ def test_aucune_donnee_personnelle_exposee(client: TestClient, base: Any) -> Non
     corps = client.get("/demandes").text + client.get(f"/demandes/{reference}").text
     for cle in ("email", "telephone", "iban", "adresse", "code_postal", "id_client"):
         assert str(assure[cle]) not in corps, cle
+
+
+def test_etat_illisible_ne_fait_pas_tomber_la_liste(client: TestClient, base: Any) -> None:
+    abime, sain = _traiter(base, "NOM-03"), _traiter(base, "AF-03")
+    with base.connection() as conn:
+        conn.execute(
+            "UPDATE demandes SET etat = jsonb_set(etat, '{demande,assure,nom}', '12') "
+            "WHERE reference = %s",
+            (abime,),
+        )
+    reponse = client.get("/demandes")
+    assert reponse.status_code == 200
+    par_ref = {d["reference"]: d for d in reponse.json()}
+    assert set(par_ref) == {abime, sain}
+    assert par_ref[abime]["nom"] is None and par_ref[abime]["statut"] == "terminee"
