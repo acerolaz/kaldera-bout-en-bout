@@ -16,7 +16,7 @@ from psycopg_pool import ConnectionPool
 from pydantic import ValidationError
 
 from .etat import EtatDemande
-from .ingestion import ExtractionContrat
+from .ingestion import ExtractionContrat, demande_niveau_1
 from .ports import ErreurPersistance
 from .postgres import _connexion
 
@@ -327,30 +327,45 @@ class IngestionPostgres:
             ).fetchall()
         return [reference for (reference,) in lignes]
 
-    def admettre(self, reference: str) -> dict[str, Any] | None:
-        """Contrôle d'admission atomique : la demande JSON au gagnant, None aux autres."""
-        with _connexion(self.connexions) as conn:
+    def admettre(self, reference: str) -> bool:
+        """Admission atomique (C3-3) : la demande passe en ``prete`` avec sa vue niveau 1 (termes du
+        contrat extraits) dans la même transaction ; faux pour les perdants. Le gestionnaire lance."""
+        with _connexion(self.connexions) as conn, conn.transaction():
             ligne = conn.execute(
-                "UPDATE demandes SET statut = 'en_cours', maj = now() "
-                "WHERE reference = %s AND " + self._ADMISSIBLE + " RETURNING etat",
+                "SELECT etat FROM demandes WHERE reference = %s AND "
+                + self._ADMISSIBLE
+                + " FOR UPDATE SKIP LOCKED",
                 (reference,),
             ).fetchone()
-        return None if ligne is None else dict(ligne[0]["demande"])
+            if ligne is None:
+                return False
+            demande = dict(ligne[0]["demande"])
+            contrat = self._lire_contrat(conn, demande["contrat"]["numero"])
+            etat = EtatDemande(demande=demande_niveau_1(demande, contrat))
+            conn.execute(
+                "UPDATE demandes SET statut = 'prete', etat = %s, maj = now() WHERE reference = %s",
+                (Jsonb(etat.model_dump(mode="json")), reference),
+            )
+        return True
 
     def contrat(self, numero: str) -> dict[str, Any] | None:
         with _connexion(self.connexions) as conn:
-            contrat = (
-                conn.cursor(row_factory=dict_row)
-                .execute(
-                    "SELECT formule, date_souscription, statut_extraction, violations, modele, "
-                    "version_prompt, sha256 FROM contrats WHERE numero = %s",
-                    (numero,),
-                )
-                .fetchone()
+            return self._lire_contrat(conn, numero)
+
+    @staticmethod
+    def _lire_contrat(conn: Any, numero: str) -> dict[str, Any] | None:
+        contrat = (
+            conn.cursor(row_factory=dict_row)
+            .execute(
+                "SELECT formule, date_souscription, statut_extraction, violations, modele, "
+                "version_prompt, sha256 FROM contrats WHERE numero = %s",
+                (numero,),
             )
+            .fetchone()
+        )
         if contrat is None:
             return None
         if contrat["date_souscription"] is not None:
             contrat["date_souscription"] = contrat["date_souscription"].isoformat()
         contrat["violations"] = list(contrat["violations"])
-        return contrat
+        return dict(contrat)
