@@ -31,10 +31,10 @@ copié à la racine du brief.
 |---|---|
 | Quels dossiers lancer | Nouveau statut **`prete`** : le worker s'arrête après l'admission, seul le gestionnaire lance le traitement. Seul `prete` est sélectionnable ; `terminee` / `secours` ne le sont pas (leur reprise : C3-4). Un re-traitement complet est écarté : le partenaire refuse un second appel (contrat §6) et l'état serait écrasé sans historique (EX-D48). |
 | Finesse du temps réel | **Sous-étapes d'agent** (conforme à EX-D46) : vue reçue → tours LLM / appels d'outil → garde-fou → patch fusionné. |
-| Qui exécute | **L'API**, dans une `BackgroundTask` FastAPI qui appelle `traiter_lot`. API tuée en plein lot ⇒ le reaper escalade (inchangé). |
+| Qui exécute | **L'API**, dans une `BackgroundTask` FastAPI qui appelle `traiter_lot`. API tuée en plein lot ⇒ le reaper escalade (inchangé). Un orchestrateur, donc un disjoncteur, par lot. |
 | Acheminement des événements | **Port `Signaux`** injecté, `pg_notify` émis par le code (orchestrateur, agent, reaper) ; une seule source, quel que soit le processus qui traite. Trigger SQL et file en mémoire écartés. |
 | Données des scénarios | `make scenarios ARGS=--charger` insère les 28 scénarios en `prete` (niveau 0) au lieu de les traiter. |
-| Seed et épreuve | `tools/seed.py` attend `prete`, appelle `POST /traitements`, puis attend `terminee` : l'épreuve C2b passe par la nouvelle route. |
+| Seed et épreuve | `tools/seed.py` attend `prete`, appelle `POST /traitements`, puis attend `terminee` : l'épreuve C2b passe par la nouvelle route (API lancée par `make api-epreuve`, partenaire indisponible). |
 | Infobulle « non sélectionnable » | Pas de nouvelle dépendance : motif en `title` (souris) et `aria-describedby` (clavier, lecteur d'écran). |
 
 ### Hors périmètre
@@ -65,7 +65,7 @@ CREATE TABLE lot_demandes (
 | Composant | Changement |
 |---|---|
 | `IngestionPostgres.admettre` | Passe la demande en **`prete`** (et non plus `en_cours`) et écrit dans `etat.demande` la **demande niveau 1** (`demande_niveau_1`, termes du contrat), dans **une seule transaction**. Compare-and-set inchangé. |
-| `worker._admettre` | Ne construit plus d'`Orchestrateur` : l'admission s'arrête à `prete`. |
+| `worker._admettre` | Ne construit plus d'`Orchestrateur` : l'admission s'arrête à `prete` ; `travailler()` perd son paramètre `disjoncteur`. |
 | Reaper | Inchangé : il ne fauche que `en_cours`. Il émet `dossier_fin` après `classer` (§3.2). |
 | `cli.py --charger` | Insère chaque demande des scénarios en `prete` (`etat = {"demande": …}`, niveau 0 : contrat et pièces dans la demande). Référence déjà en base ⇒ ignorée et signalée. Sans `--charger` : comportement actuel. |
 | Dépôt de pièces | `DepotPostgres` lu d'abord ; table vide pour la référence ⇒ pièces de la demande (niveau 0). Sans risque : une demande créée par l'API n'a jamais de champ `pieces` (`DemandeCreation`, `extra=forbid`). |
@@ -81,7 +81,7 @@ Corps `{references: [str]}` : liste non vide, sans doublon, références au form
    sinon `INSERT INTO lot_demandes`.
 2. Réponse **202** `{lot_id, references}`.
 3. `BackgroundTasks` : `traiter_lot(demandes, orchestrateur=…)` avec un orchestrateur câblé sur
-   Postgres (snapshots, dépôt du §2.1, `SignauxPostgres`, disjoncteur partagé par le processus API).
+   Postgres (snapshots, dépôt du §2.1, `SignauxPostgres` ; un disjoncteur par lot).
 
 `traiter_lot` gagne un paramètre facultatif `orchestrateur` ; le `cli` et les tests existants
 l'appellent sans changement. `Orchestrateur.traiter` reste le point d'entrée : `debuter` réécrit le
@@ -97,7 +97,7 @@ snapshot (statut déjà `en_cours`), le filet couvre chaque dossier.
 | `fin` | `max(maj)` des dossiers quand tous sont terminaux, sinon `null` |
 | `avancement` | dossiers terminaux (`terminee`, `secours`) / dossiers du lot × 100 |
 | `compteurs` | `acceptee`, `refusee`, `escalade` par file, `mode_degrade` |
-| `dossiers` | `LigneLot` par dossier (ordre de `lot_demandes`) |
+| `dossiers` | `LigneLot` par dossier (ordre des références) |
 
 `LigneLot` : `reference`, `nom`, `prenom`, `police`, `statut`, `avancement` (celui de `DossierVue`),
 `etape_en_cours` (`etat_courant` si `en_cours`, sinon `null`), `duree_ms`, `issue`, `file`,
@@ -205,7 +205,7 @@ data: {"type": "sous_etape", "reference": "KAL-26-0203", "etat": "estimation", "
 - `useFlux("/flux/demandes/" + ref, cle)` actif tant que le dossier n'est pas terminal.
 - Carte de l'étape `en_cours` : `<Statut code="en_cours">` et barre `role="progressbar"` du % agent ;
   l'avancement de l'en-tête suit à chaque `etape_fin`.
-- Région `aria-live="polite"` : « Étape {x} terminée » (pas les sous-étapes).
+- Région `aria-live="polite"` : « Étape en cours : {x} », puis « Traitement terminé » (pas les sous-étapes) ; mention « Reconnexion… » si le flux est coupé.
 
 ### 4.3 E3 · Suivi de lot (`pages/Lot.tsx`, remplace le cadre de `socle.tsx`)
 
@@ -247,10 +247,10 @@ data: {"type": "sous_etape", "reference": "KAL-26-0203", "etat": "estimation", "
 
 | Fichier | Vérifie |
 |---|---|
-| `unit/test_vue_gestionnaire.py` | sélectionnabilité et motif par statut ; `avancement_agent` (vue, tour k, garde-fou, repli) ; étape `en_cours` ; `LotVue` (avancement, compteurs, `fin`, liste blanche) |
+| `unit/test_vue_traitement.py` (+ `test_vue_gestionnaire.py`) | sélectionnabilité et motif par statut ; `avancement_agent` (vue, tour k, garde-fou, repli) ; étape `en_cours` ; `LotVue` (avancement, compteurs, `fin`, liste blanche) |
 | `unit/test_orchestrateur.py` | ordre des signaux avec un faux `Signaux` (`etape_debut` → `sous_etape`… → `etape_fin` après le snapshot → `dossier_fin`) ; éligibilité sans sous-étape ; décisions identiques avec et sans signaux |
 | `unit/test_agents_llm.py` | `signaler` : tours, outils, garde-fou ; repli ⇒ `garde_fou` directement ; `signaler=None` ⇒ comportement actuel |
-| `unit/test_cli.py` | `--charger` : 28 scénarios en `prete` ; référence existante ignorée |
+| `integration/test_cli.py` | `--charger` : 28 scénarios en `prete` ; référence existante ignorée |
 | `test_contrat_ports.py` | faux `Signaux` en mémoire conforme au port |
 | `integration/test_api.py` | `POST /traitements` 202 (puis `terminee`), 409 tout ou rien, 422, 404 ; `GET /lots` ; SSE : un `pg_notify` reçu sur `/flux/demandes`, filtrage par lot |
 | `integration/test_worker.py` | admission ⇒ `prete` avec demande niveau 1, aucun traitement |
@@ -271,7 +271,7 @@ data: {"type": "sous_etape", "reference": "KAL-26-0203", "etat": "estimation", "
 
 | Document | Mise à jour |
 |---|---|
-| Cahier de recette (générateur + PDF, déroulé) | **U-11** sélection (non sélectionnables et motifs) ; **U-12** traiter 1 dossier : E2 en direct, état terminal ≤ 8 s ; **U-13** lot des 28 scénarios (`make scenarios ARGS=--charger`, E3, barres indépendantes, PAN-02 lent via `make ctl` ne retarde aucun autre dossier) ; **U-14** reconnexion (API relancée ⇒ relecture) ; **U-15** 409 (dossier déjà lancé dans un autre onglet). Légende U-01 → U-15. |
+| Cahier de recette (générateur + PDF, déroulé) | **S-06** `make scenarios ARGS=--charger` ; groupe « Traitement » placé avant la lecture (qui porte sur les dossiers ainsi traités) : **U-05** sélection (non sélectionnables et motifs) ; **U-06** traiter 1 dossier : E2 en direct, état terminal ≤ 8 s ; **U-07** lot des scénarios chargés (E3, barres indépendantes, partenaire lent via `make ctl` : les dossiers sans anti-fraude ne sont pas retardés) ; **U-08** reconnexion (API relancée ⇒ relecture) ; **U-09** 409 (dossier déjà lancé dans un autre onglet). Cas de lecture C3-2 renumérotés **U-10 → U-15**. Légende S-01 → S-06, U-01 → U-15. |
 | Dossier de conception (`make dossier` + copie à la racine) | page `299b-ihm-traitement.html`, section « 2.10 IHM gestionnaire · traitement, temps réel et E3 » : cycle de vie avec `prete`, séquence `POST /traitements` → `BackgroundTask` → `pg_notify` → SSE, calcul des %, tables `lots` / `lot_demandes` ; sommaire ; glossaire (lot, SSE, `LISTEN/NOTIFY`). |
 | `docs/interface_gestionnaire.md` | routes `POST /traitements`, `GET /lots/{id}`, flux SSE avec exemples d'événements ; E3 marqué livré ; statut `prete`. |
 | `README.md` | `make scenarios ARGS=--charger`, lancement d'un lot depuis E1, capture `docs/captures/e3-lot.png`. |
