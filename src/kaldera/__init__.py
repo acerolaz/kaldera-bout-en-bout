@@ -27,13 +27,20 @@ def traiter_demande(
 
 
 def traiter_lot(
-    demandes: list[dict[str, Any]], *, partenaire_url: str | None = None
+    demandes: list[dict[str, Any]],
+    *,
+    partenaire_url: str | None = None,
+    orchestrateur: Orchestrateur | None = None,
 ) -> dict[str, Any]:
-    """Traite un lot de demandes en parallèle (§12) ; fiches dans l'ordre, métriques par agent."""
-    orchestrateur = Orchestrateur(partenaire_url)  # config lue et clients construits une fois
+    """Traite un lot de demandes en parallèle (§12) ; fiches dans l'ordre, métriques par agent.
+
+    ``orchestrateur`` : câblé par l'appelant (API : PostgreSQL et signaux, C3-3) ; sinon construit
+    ici avec la configuration par défaut."""
+    orchestrateur = orchestrateur or Orchestrateur(partenaire_url)  # config lue une fois
     # un EtatDemande par demande : l'orchestrateur et les agents partagés ne gardent aucun état
-    # ponytail: pool par défaut ; borne explicite si le partenaire ou Azure limitent le débit
-    with ThreadPoolExecutor() as pool:
+    # ponytail: un fil par dossier (un dossier sans anti-fraude ne fait pas la queue derrière les
+    # lents) ; plafonner si les lots dépassent ~100 dossiers ou si le partenaire/Azure limitent
+    with ThreadPoolExecutor(max_workers=max(1, len(demandes))) as pool:
         fiches = list(pool.map(orchestrateur.traiter, demandes))
     return {
         "fiches": fiches,

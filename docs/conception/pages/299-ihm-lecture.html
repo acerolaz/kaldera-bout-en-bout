@@ -28,7 +28,7 @@
   </table>
 
   <div class="grille-3 pousse">
-    <div class="note petit"><h3>Avancement</h3>(<code>termine</code> + <code>sautee</code> + <code>repli</code> + <code>degrade</code>) / 5 × 100 ; statut terminal (<code>terminee</code>, <code>secours</code>) ⇒ 100 %. Écart assumé au brief « (termine + sautee) / 5 » : une étape finie en repli ou dégradé est faite, sinon la barre stagne. <code>en_cours</code> n'est jamais produit ici.</div>
+    <div class="note petit"><h3>Avancement</h3>(<code>termine</code> + <code>sautee</code> + <code>repli</code> + <code>degrade</code>) / 5 × 100 ; statut terminal (<code>terminee</code>, <code>secours</code>) ⇒ 100 %. Écart assumé au brief « (termine + sautee) / 5 » : une étape finie en repli ou dégradé est faite, sinon la barre stagne. <code>en_cours</code> : voir 2.10 (temps réel).</div>
     <div class="note petit"><h3>Liste blanche</h3>La projection n'expose jamais l'email, le téléphone, l'IBAN, l'adresse, le code postal ni l'identifiant client ; un test vérifie le JSON sérialisé. Résumés d'étape formatés côté serveur (<code>1 230 €</code>).</div>
     <div class="note petit"><h3>API</h3><code>GET /demandes</code> : filtres combinés en ET, tri par référence décroissante. <code>GET /demandes/{ref}</code> renvoie <code>DossierVue</code> (404 si inconnue), qui garde <code>reference</code>, <code>statut</code> et <code>fiche</code> par compatibilité.</div>
   </div>

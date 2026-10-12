@@ -21,6 +21,7 @@ def _sans_llm_reel(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(postgres, "snapshots_par_defaut", lambda: None)
     monkeypatch.setattr(postgres, "registre_par_defaut", lambda: None)  # .env local ignoré
+    monkeypatch.setattr(postgres, "signaux_par_defaut", lambda: None)
 
 
 @pytest.fixture
@@ -34,7 +35,7 @@ def base() -> Iterator[Any]:
     connexions = pool(url)
     with connexions.connection() as conn:
         conn.execute(
-            "TRUNCATE appels_partenaire, pieces, file_ingestion, analyses, demandes, contrats, "
-            "blobs"
+            "TRUNCATE lot_demandes, lots, appels_partenaire, pieces, file_ingestion, analyses, "
+            "demandes, contrats, blobs"
         )
     yield connexions

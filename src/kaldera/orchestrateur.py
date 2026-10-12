@@ -15,12 +15,12 @@ from typing import Any
 
 from . import llm, partenaire, postgres, regles
 from .agents import NIVEAUX_AVIS, Evaluateur, is_eligible
-from .agents_llm import AgentLLM, MesureAgent, creer_agent
+from .agents_llm import AgentLLM, MesureAgent, Signaler, creer_agent
 from .disjoncteur import Disjoncteur
 from .llm import ClientLLM, ConfigAgents
 from .etat import BORNES, PROPRIETAIRES, Arret, Bornes, ContratDemande, EtatDemande
 from .memoire import DepotDepuisDemande, RegistreA2AEnMemoire
-from .ports import DepotPieces, ErreurPersistance, RegistreA2A, Snapshots
+from .ports import DepotPieces, ErreurPersistance, RegistreA2A, Signaux, Snapshots
 from .machine import TERMINAUX, Etat, TransitionInconnue, garde_entree, transition
 
 LOGGER = logging.getLogger(__name__)
@@ -70,6 +70,7 @@ class Orchestrateur:
         snapshots: Snapshots | None = None,
         registre: RegistreA2A | None = None,
         disjoncteur: Disjoncteur | None = None,
+        signaux: Signaux | None = None,
     ) -> None:
         self.bornes = bornes or BORNES
         # un disjoncteur pour les 4 agents (« repli pour tous ») ; partagé s'il est injecté
@@ -80,6 +81,7 @@ class Orchestrateur:
         # sans base configurée : aucune persistance ; les pièces restent lues dans la demande
         # (niveau 0) tant que l'ingestion (SP3) ne remplit pas la table pieces
         self.snapshots = snapshots if snapshots is not None else postgres.snapshots_par_defaut()
+        self.signaux = signaux if signaux is not None else postgres.signaux_par_defaut()
         cfg = config or self._charger_config()
         if llms is None:
             llms = {nom: llm.fabrique_llm(cfg, nom) for nom in llm.AGENTS_LLM}
@@ -109,6 +111,30 @@ class Orchestrateur:
             LOGGER.warning("config LLM invalide, agents déterministes : %s", exc)
             return ConfigAgents.model_construct()  # aucun agent configuré, sans relire l'env
 
+    def _signaler(self, evenement: dict[str, Any]) -> None:
+        if self.signaux is not None:
+            self.signaux.emettre(evenement)
+
+    def _signaleur(self, etat: EtatDemande, courant: Etat, tours_max: int) -> Signaler | None:
+        """Rappel de l'agent pour cette étape (fermeture : rien n'est partagé entre threads)."""
+        if self.signaux is None:
+            return None
+        reference = etat.demande.get("reference")
+
+        def signaler(sous_etape: str, tour: int) -> None:
+            self._signaler(
+                {
+                    "type": "sous_etape",
+                    "reference": reference,
+                    "etat": courant.value,
+                    "sous_etape": sous_etape,
+                    "tour": tour,
+                    "tours_max": tours_max,
+                }
+            )
+
+        return signaler
+
     def traiter(self, demande: dict[str, Any]) -> dict[str, Any]:
         etat = EtatDemande(demande={})
         try:
@@ -122,6 +148,7 @@ class Orchestrateur:
                 "demande %s déjà escaladée par le reaper : la base garde l'escalade de secours",
                 etat.demande.get("reference"),
             )
+        self._signaler({"type": "dossier_fin", "reference": etat.demande.get("reference")})
         return fiche
 
     @staticmethod
@@ -164,6 +191,9 @@ class Orchestrateur:
     # ------------------------------------------------------------------ un tour
 
     def _etape(self, etat: EtatDemande, courant: Etat) -> Etat:
+        self._signaler(
+            {"type": "etape_debut", "reference": etat.demande.get("reference"), "etat": courant.value}
+        )
         section = SECTION_DE[courant]
         agent = PROPRIETAIRES[section]
         debut, statut, ecrit = perf_counter(), "ok", []
@@ -172,7 +202,8 @@ class Orchestrateur:
         try:
             action, vue = self.actions[courant], vue_filtree(etat, courant, self.bornes, self.depot)
             if isinstance(action, AgentLLM):
-                patch, mesure = action.executer(vue, self._budget(etat, courant))
+                signaler = self._signaleur(etat, courant, action.config.tours_max)
+                patch, mesure = action.executer(vue, self._budget(etat, courant), signaler)
             else:  # tool d'éligibilité, ou action remplacée dans un test
                 patch = action(vue)
             fusionner(etat, patch, section)
@@ -224,6 +255,9 @@ class Orchestrateur:
         )
         etat.etat_courant = suivant.value
         self._persister(etat, lambda s: s.enregistrer(etat))  # exécution durable (2.5)
+        self._signaler(
+            {"type": "etape_fin", "reference": etat.demande.get("reference"), "etat": courant.value}
+        )
         return suivant
 
     def _sauter(self, etat: EtatDemande, courant: Etat, suivant: Etat, garde: str) -> Etat:
@@ -240,6 +274,9 @@ class Orchestrateur:
         )
         etat.etat_courant = suivant.value
         self._persister(etat, lambda s: s.enregistrer(etat))  # exécution durable (2.5)
+        self._signaler(
+            {"type": "etape_fin", "reference": etat.demande.get("reference"), "etat": courant.value}
+        )
         return suivant
 
     # ponytail: base en panne puis processus mort ⇒ hors du reaper ; file d'écritures si mesuré

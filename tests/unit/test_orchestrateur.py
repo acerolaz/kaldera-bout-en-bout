@@ -20,7 +20,7 @@ from kaldera.disjoncteur import Disjoncteur
 from kaldera.etat import AvisFraude, Bornes, ContratDemande, Estimation, EtatDemande
 from kaldera.llm import FakeLLM, ReponseLLM, fidele
 from kaldera.machine import Etat
-from kaldera.memoire import RegistreA2AEnMemoire
+from kaldera.memoire import RegistreA2AEnMemoire, SignauxEnMemoire, SnapshotsEnMemoire
 from kaldera.partenaire import Indisponible
 from kaldera.ports import PieceRef
 from kaldera.orchestrateur import (
@@ -595,3 +595,52 @@ def test_disjoncteur_propre_a_chaque_orchestrateur_sauf_injection() -> None:
     partage = Disjoncteur.depuis(Bornes())
     c = Orchestrateur(evaluer=_avis_faible, disjoncteur=partage)
     assert c.disjoncteur is partage
+
+
+# --------------------------------------------------------------------- signaux (C3-3)
+
+CLES_SIGNAL = {"type", "reference", "etat", "sous_etape", "tour", "tours_max"}
+
+
+def test_signaux_dans_l_ordre() -> None:
+    signaux = SignauxEnMemoire()
+    Orchestrateur(evaluer=_sans_partenaire, signaux=signaux).traiter(_demande("NOM-02"))
+    assert [(e["type"], e.get("etat"), e.get("sous_etape")) for e in signaux.evenements] == [
+        ("etape_debut", "eligibilite", None),
+        ("etape_fin", "eligibilite", None),
+        ("etape_debut", "decision", None),
+        ("sous_etape", "decision", "vue"),
+        ("sous_etape", "decision", "garde_fou"),
+        ("etape_fin", "decision", None),
+        ("dossier_fin", None, None),
+    ]
+    assert {e["reference"] for e in signaux.evenements} == {"KAL-26-0102"}
+    assert all(set(e) <= CLES_SIGNAL for e in signaux.evenements)  # ni PII ni patch
+    assert {e["tours_max"] for e in signaux.evenements if e["type"] == "sous_etape"} == {3}
+
+
+def test_etape_fin_apres_le_snapshot() -> None:
+    snapshots = SnapshotsEnMemoire()
+
+    class Temoin:
+        def __init__(self) -> None:
+            self.vus: list[str] = []
+
+        def emettre(self, evenement: dict[str, Any]) -> None:
+            if evenement["type"] == "etape_fin":
+                ligne = snapshots.lignes[evenement["reference"]]
+                self.vus.append(ligne["etat"]["trace"][-1]["action"])
+
+    temoin = Temoin()
+    Orchestrateur(evaluer=_sans_partenaire, snapshots=snapshots, signaux=temoin).traiter(
+        _demande("NOM-02")
+    )
+    assert temoin.vus == ["eligibilite", "decision"]
+
+
+def test_decisions_identiques_avec_ou_sans_signaux() -> None:
+    decisifs = ("issue", "decision", "montant_rembourse", "file", "mode_degrade")
+    absent = lambda d, timeout: None  # noqa: E731 — partenaire muet : avis indisponible si requis
+    avec = Orchestrateur(evaluer=absent, signaux=SignauxEnMemoire()).traiter(_demande("AF-03"))
+    sans = Orchestrateur(evaluer=absent).traiter(_demande("AF-03"))
+    assert {k: avec[k] for k in decisifs} == {k: sans[k] for k in decisifs}

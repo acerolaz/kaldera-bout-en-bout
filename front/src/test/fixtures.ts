@@ -1,20 +1,30 @@
-import type { DossierVue, Etape, LigneDemande } from "@/api";
+import type { DossierVue, Etape, LigneDemande, LotVue } from "@/api";
 
 export const LIGNES: LigneDemande[] = [
   {
     reference: "KAL-26-0203", nom: "Durand", prenom: "Paul", police: "CTR-778803",
     type_sinistre: "degat_des_eaux", montant_declare: 9200, statut: "terminee", issue: "escalade",
-    file: "cellule_fraude", mode_degrade: true,
+    file: "cellule_fraude", mode_degrade: true, selectionnable: false, motif_non_selectionnable: "Déjà traité",
   },
   {
     reference: "KAL-26-0103", nom: "Martin", prenom: "Léa", police: "CTR-778802",
     type_sinistre: "vol", montant_declare: 640, statut: "terminee", issue: "refusee",
-    file: null, mode_degrade: false,
+    file: null, mode_degrade: false, selectionnable: false, motif_non_selectionnable: "Déjà traité",
   },
   {
     reference: "KAL-26-0101", nom: "Martin", prenom: "Claire", police: "CTR-778801",
     type_sinistre: "degat_des_eaux", montant_declare: null, statut: "admission", issue: null,
-    file: null, mode_degrade: false,
+    file: null, mode_degrade: false, selectionnable: false, motif_non_selectionnable: "Pièces en cours d'analyse",
+  },
+  {
+    reference: "KAL-26-0105", nom: "Petit", prenom: "Jean", police: "CTR-778805",
+    type_sinistre: "degat_des_eaux", montant_declare: 4200, statut: "prete", issue: null,
+    file: null, mode_degrade: false, selectionnable: true, motif_non_selectionnable: null,
+  },
+  {
+    reference: "KAL-26-0104", nom: "Roux", prenom: "Anne", police: "CTR-778804",
+    type_sinistre: "incendie", montant_declare: 1500, statut: "prete", issue: null,
+    file: null, mode_degrade: false, selectionnable: true, motif_non_selectionnable: null,
   },
 ];
 
@@ -65,4 +75,30 @@ export const DOSSIER_DEGRADE: DossierVue = {
     evaluation_id: null, version_modele: null, note: null, cause: "transport:timeout",
   },
   arret: { borne: "duree_max_s", valeur: 8, etat: "decision" },
+};
+
+export const DOSSIER_EN_COURS: DossierVue = {
+  ...DOSSIER_ACCEPTE,
+  statut: "en_cours", avancement: 20, issue: null, motif: null, montant_rembourse: null,
+  etapes: [
+    etape("eligibilite", { vers: "pieces", resume: "Éligible" }),
+    etape("pieces", { statut: "en_cours", avancement: 0, duree_ms: null, de: null, garde: null }),
+    ...["estimation", "antifraude", "decision"].map((e) =>
+      etape(e, { statut: "en_attente", avancement: 0, passages: 0, duree_ms: null, de: null, garde: null })),
+  ],
+};
+
+export const LOT: LotVue = {
+  id: 7, debut: "2026-10-12T09:00:00Z", fin: null, avancement: 50,
+  compteurs: { acceptee: 1, refusee: 0, escalade: { cellule_fraude: 1 }, mode_degrade: 1 },
+  dossiers: [
+    { reference: "KAL-26-0104", nom: "Roux", prenom: "Anne", police: "CTR-778804", statut: "terminee", avancement: 100,
+      etape_en_cours: null, duree_ms: 2400, issue: "acceptee", file: null, mode_degrade: false, borne: null },
+    { reference: "KAL-26-0105", nom: "Petit", prenom: "Jean", police: "CTR-778805", statut: "en_cours", avancement: 40,
+      etape_en_cours: "estimation", duree_ms: 900, issue: null, file: null, mode_degrade: false, borne: null },
+    { reference: "KAL-26-0106", nom: "Blanc", prenom: "Lou", police: "CTR-778806", statut: "terminee", avancement: 100,
+      etape_en_cours: null, duree_ms: 8100, issue: "escalade", file: "cellule_fraude", mode_degrade: true, borne: "duree_max_s" },
+    { reference: "KAL-26-0107", nom: "Noir", prenom: "Max", police: "CTR-778807", statut: "en_cours", avancement: 0,
+      etape_en_cours: "eligibilite", duree_ms: 0, issue: null, file: null, mode_degrade: false, borne: null },
+  ],
 };

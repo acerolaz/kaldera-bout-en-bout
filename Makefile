@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: install up down partenaire scenarios ctl test test-integration reaper api worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve eval fumee-vlm demo front front-test front-e2e recette recette-reset dossier
+.PHONY: install up down partenaire scenarios ctl test test-integration reaper api api-epreuve worker fmt lint typecheck generer seed worker-epreuve eval-ingestion epreuve eval fumee-vlm demo front front-test front-e2e recette recette-reset dossier
 
 install:
 	uv sync
@@ -44,7 +44,10 @@ reaper:
 	uv run python -m kaldera.reaper
 
 api:
-	uv run uvicorn kaldera.api:app --port 8000
+	uv run uvicorn kaldera.api:app --port 8000 --timeout-graceful-shutdown 3
+
+api-epreuve:
+	PARTENAIRE_URL=http://127.0.0.1:9 uv run uvicorn kaldera.api:app --port 8000 --timeout-graceful-shutdown 3
 
 worker:
 	uv run python -m kaldera.worker

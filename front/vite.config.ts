@@ -11,7 +11,20 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     // API FastAPI (make api) : même origine pour le navigateur, pas de CORS
-    proxy: { "/api": { target: "http://127.0.0.1:8000", rewrite: (chemin) => chemin.replace(/^\/api/, "") } },
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8000",
+        rewrite: (chemin) => chemin.replace(/^\/api/, ""),
+        // flux SSE : si l'API meurt en cours de route, couper aussi la connexion du navigateur
+        // (sinon il ne voit ni erreur ni fin et ne se reconnecte jamais)
+        configure: (proxy) =>
+          proxy.on("proxyRes", (proxyRes, _req, res) =>
+            proxyRes.on("close", () => {
+              if (!res.writableEnded) res.destroy();
+            }),
+          ),
+      },
+    },
   },
   test: {
     environment: "jsdom",

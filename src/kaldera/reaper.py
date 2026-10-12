@@ -15,13 +15,15 @@ from pydantic import ValidationError
 from .etat import EtatDemande
 from .machine import Etat
 from .orchestrateur import _etape_sans_action, construire_fiche
-from .ports import ErreurPersistance, Snapshots
-from .postgres import ConfigBase, SnapshotsPostgres, pool
+from .ports import ErreurPersistance, Signaux, Snapshots
+from .postgres import ConfigBase, SignauxPostgres, SnapshotsPostgres, pool
 
 LOGGER = logging.getLogger(__name__)
 
 
-def faucher(snapshots: Snapshots, age_s: float) -> list[dict[str, Any]]:
+def faucher(
+    snapshots: Snapshots, age_s: float, signaux: Signaux | None = None
+) -> list[dict[str, Any]]:
     """Passe en ``secours`` les demandes inactives depuis ``age_s`` s ; retourne leurs fiches."""
     fiches = []
     for reference, brut in snapshots.faucher(age_s):
@@ -31,6 +33,8 @@ def faucher(snapshots: Snapshots, age_s: float) -> list[dict[str, Any]]:
         except ErreurPersistance as exc:  # sans fiche : reprise au passage suivant
             LOGGER.error("demande %s non classée : %s", reference, exc)
             continue
+        if signaux is not None:  # E2 / E3 relisent le dossier clos
+            signaux.emettre({"type": "dossier_fin", "reference": reference})
         fiches.append(fiche)
     return fiches
 
@@ -75,10 +79,12 @@ def main() -> None:
     config = ConfigBase()
     if not config.database_url:
         raise SystemExit("KALDERA_DATABASE_URL absente : rien à faucher")
-    snapshots = SnapshotsPostgres(pool(config.database_url))
+    connexions = pool(config.database_url)
+    snapshots = SnapshotsPostgres(connexions)
+    signaux = SignauxPostgres(connexions)
     while True:
         try:
-            fiches = faucher(snapshots, config.reaper_age_s)
+            fiches = faucher(snapshots, config.reaper_age_s, signaux)
             for fiche in fiches:
                 LOGGER.warning(
                     "demande %s escaladée par le reaper (file %s)",

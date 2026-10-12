@@ -1,6 +1,6 @@
 """Dépose les pièces générées par l'API (dossier 2.7) : même chemin que la prod, jamais d'INSERT.
 
-Usage : make api & make worker-epreuve, puis uv run python -m tools.seed [--attente-s 3600]
+Usage : make api-epreuve & make worker-epreuve, puis uv run python -m tools.seed [--attente-s 3600]
 (premier passage avec un VLM réel : ~120 fichiers analysés un par un, compter large.)
 """
 
@@ -67,15 +67,35 @@ def deposer(
     return list(par_reference)
 
 
-def _traitee(client: httpx.Client, reference: str) -> bool:
+def _lire(client: httpx.Client, reference: str) -> dict[str, Any]:
     reponse = client.get(f"/demandes/{reference}")
     if reponse.status_code == 404:
         raise EchecSeed(f"{reference} inconnue de l'API")
     _verifier(reponse, 200, f"{reference} lecture")
-    demande = reponse.json()  # fauchée par le reaper : sa fiche de secours la clôt
+    demande: dict[str, Any] = reponse.json()
+    return demande
+
+
+def _traitee(client: httpx.Client, reference: str) -> bool:
+    demande = _lire(client, reference)  # fauchée par le reaper : sa fiche de secours la clôt
     return demande["statut"] == "terminee" or (
         demande["statut"] == "secours" and demande["fiche"] is not None
     )
+
+
+def lancer(
+    client: httpx.Client, references: list[str], attente_s: float, pause_s: float = 2.0
+) -> None:
+    """Attend la fin des analyses (« prete »), puis lance les demandes prêtes en un lot, comme le
+    gestionnaire depuis E1 (POST /traitements, C3-3)."""
+    echeance = time.monotonic() + attente_s
+    while restantes := [r for r in references if _lire(client, r)["statut"] == "admission"]:
+        if time.monotonic() >= echeance:
+            raise EchecSeed(f"délai dépassé : {len(restantes)} demande(s) encore en analyse")
+        time.sleep(pause_s)
+    pretes = [r for r in references if _lire(client, r)["statut"] == "prete"]
+    if pretes:
+        _verifier(client.post("/traitements", json={"references": pretes}), 202, "lancement du lot")
 
 
 def attendre(
@@ -118,6 +138,7 @@ def main() -> None:
         try:
             references = deposer(client, lire_manifeste())
             print(f"{len(references)} demandes déposées et soumises ; attente du traitement…")
+            lancer(client, references, a.attente_s)
             attendre(client, references, a.attente_s)
         except EchecSeed as exc:
             raise SystemExit(f"seed en échec : {exc}") from exc

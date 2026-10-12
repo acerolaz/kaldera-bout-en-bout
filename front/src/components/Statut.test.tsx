@@ -15,7 +15,7 @@ describe("Statut", () => {
   it("couvre tout le vocabulaire du brief", () => {
     expect(Object.keys(STATUTS).sort()).toEqual(
       [
-        "admission", "en_cours", "terminee", "secours",
+        "admission", "prete", "en_cours", "terminee", "secours",
         "acceptee", "refusee", "escalade",
         "en_attente", "termine", "sautee", "echec", "repli", "degrade",
         "mode_degrade", "borne",

@@ -133,9 +133,9 @@ Un contrat illisible ou incohérent part en escalade (règle 0). Codes de refus 
 
 ```bash
 make generer          # régénère fixtures/pieces (déterministe, --seed 42)
-make api &            # puis, dans un autre terminal :
+make api-epreuve &   # API avec le partenaire indisponible : elle exécute le traitement
 make worker-epreuve   # worker avec le partenaire indisponible (invariance)
-make seed             # dépose tout le manifeste par l'API et attend le traitement
+make seed             # dépose le manifeste, attend « prete », lance un lot (POST /traitements), attend le traitement
 make eval-ingestion   # rapport dans eval/rapports/
 ```
 
@@ -160,13 +160,13 @@ donne la matrice agent × modèle (replis, sorties rejetées, latence LLM p95, t
 modèle recommandé par rôle, l'invariance des issues et les bornes remesurées. Code de sortie : 0
 tout vert, 1 alerte, 2 non mesuré (aucune clé ou aucun modèle).
 
-IHM : back-office gestionnaire (chantier 3 ; socle C3-1 et lecture E1 / E2 C3-2 livrés ; traitement, E3 et reprise à venir) :
+IHM : back-office gestionnaire (chantier 3 ; socle C3-1, lecture C3-2, traitement, temps réel et E3 C3-3 livrés ; reprise à venir) :
 
 ```bash
 make up
 docker compose --profile integration up -d --wait postgres
 make demo    # demande KAL-26-0101 et son contrat
-make scenarios  # dossiers traités, visibles dans E1 / E2
+make scenarios ARGS=--charger  # dossiers prêts, lancés depuis E1
 make api     # http://127.0.0.1:8000/docs
 make worker
 make front   # http://localhost:5173 : back-office gestionnaire
@@ -180,13 +180,15 @@ sans choix, le thème du système. Design system : `design-system/kaldera/MASTER
 |---|---|
 | ![IHM en thème clair](docs/captures/ihm-clair.png) | ![IHM en thème sombre](docs/captures/ihm-sombre.png) |
 
+E1 : cocher des dossiers « Prête » puis « Traiter la sélection » (1 ⇒ E2, plusieurs ⇒ E3). E2 et E3 se mettent à jour en direct (SSE, `LISTEN/NOTIFY`) ; E3 montre une barre par dossier.
+
 E1 liste et filtre les demandes (filtres dans l'adresse) ; E2 montre un dossier : en-tête, panneau Garanties, timeline des
 5 étapes (statut, durée, mode llm / repli, résumé) et carte anti-fraude. API et règles d'affichage :
 `docs/interface_gestionnaire.md`.
 
-| E1 · Liste | E2 · Dossier |
-|---|---|
-| ![E1, liste des demandes](docs/captures/e1-liste.png) | ![E2, dossier](docs/captures/e2-dossier.png) |
+| E1 · Liste | E2 · Dossier | E3 · Lot |
+|---|---|---|
+| ![E1, liste des demandes](docs/captures/e1-liste.png) | ![E2, dossier](docs/captures/e2-dossier.png) | ![E3, suivi de lot](docs/captures/e3-lot.png) |
 
 `make demo` et `make seed` créent tous deux `KAL-26-0101` : on n'en lance qu'un par base (sinon
 « base déjà préparée » ou « base déjà semée »).
@@ -236,6 +238,7 @@ docker compose --profile integration down -v        # vider la base (et tout arr
   - `cli.py` : rejeu des scénarios (`make scenarios`)
   - `partenaire.py`, `depots_assure.py`, `regles.py` : client A2A, dépôts de complément, référentiel métier
   - `ports.py`, `memoire.py`, `postgres.py`, `reaper.py`, `migrations/` : persistance
+  - `traitements.py` (tâche de fond du lot), `lots_postgres.py` (lots), `flux.py` (SSE)
   - `api.py`, `worker.py`, `ingestion.py`, `ingestion_postgres.py`, `vlm.py` : ingestion des pièces
 - `front/` : back-office gestionnaire (page d'attente, React, Vite, Playwright dans `front/e2e/`)
 - `design-system/` : design system de l'interface web
@@ -264,7 +267,7 @@ make fmt        # ruff format + autofix
 make lint       # ruff check
 make typecheck  # mypy
 make front-test # Vitest (front)
-make front-e2e  # Playwright : socle et lecture E1 / E2 (thème, clavier, axe ; démarre PostgreSQL de test)
+make front-e2e  # Playwright : socle, lecture E1 / E2, traitement 1 / N et E3 (thème, clavier, axe)
 make down       # arrête les services docker
 ```
 

@@ -6,6 +6,7 @@ Toute ``psycopg.Error`` devient ``ErreurPersistance`` : le domaine ne voit jamai
 from __future__ import annotations
 
 import functools
+import json
 import logging
 from time import monotonic
 from collections.abc import Iterator
@@ -20,6 +21,7 @@ from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .etat import EtatDemande
+from .memoire import DepotDepuisDemande
 from .ports import ErreurPersistance, PieceRef
 
 LOGGER = logging.getLogger(__name__)
@@ -28,6 +30,7 @@ ATTENTE_ECRITURE_S = 0.5  # base tombée en cours de route : une seule attente c
 REESSAI_S = 30.0  # base injoignable au démarrage : pas de nouvel essai avant ce délai
 # ponytail: échecs mémorisés par processus ; disjoncteur partagé si plusieurs workers
 _ECHECS: dict[str, float] = {}
+_NIVEAU_0 = DepotDepuisDemande()  # sans état : partagé
 
 
 class ConfigBase(BaseSettings):
@@ -109,16 +112,23 @@ def _piece(
 
 
 class DepotPostgres:
-    """Niveau 1 : descripteurs de la table ``pieces`` (remplie par l'ingestion, SP3)."""
+    """Niveau 1 : descripteurs de la table ``pieces`` (remplie par l'ingestion, SP3) ; à défaut,
+    les pièces de la demande (niveau 0)."""
 
     def __init__(self, connexions: ConnectionPool) -> None:
         self.connexions = connexions
 
     def initiales(self, demande: dict[str, Any]) -> list[PieceRef]:
-        return self._lire("relance IS NULL ORDER BY depose_le, piece_id", demande)
+        # table vide pour la référence ⇒ pièces de la demande (scénarios chargés, niveau 0) ;
+        # une demande créée par l'API n'a jamais de champ « pieces » (extra=forbid)
+        return self._lire("relance IS NULL ORDER BY depose_le, piece_id", demande) or (
+            _NIVEAU_0.initiales(demande)
+        )
 
     def depots(self, demande: dict[str, Any]) -> list[PieceRef]:
-        return self._lire("relance IS NOT NULL ORDER BY relance, depose_le, piece_id", demande)
+        return self._lire(
+            "relance IS NOT NULL ORDER BY relance, depose_le, piece_id", demande
+        ) or _NIVEAU_0.depots(demande)
 
     def _lire(self, condition: str, demande: dict[str, Any]) -> list[PieceRef]:
         requete = (  # condition : littéral de cette classe, jamais une donnée
@@ -215,6 +225,25 @@ class RegistreA2APostgres:
             )
 
 
+CANAL = "kaldera_avancement"  # LISTEN / NOTIFY : avancement des dossiers vers les flux SSE
+
+
+class SignauxPostgres:
+    """``pg_notify`` best effort : un événement perdu ne fausse rien (l'IHM relit l'état)."""
+
+    def __init__(self, connexions: ConnectionPool) -> None:
+        self.connexions = connexions
+
+    def emettre(self, evenement: dict[str, Any]) -> None:
+        try:
+            with _connexion(self.connexions) as conn:
+                conn.execute(
+                    "SELECT pg_notify(%s, %s)", (CANAL, json.dumps(evenement, ensure_ascii=False))
+                )
+        except ErreurPersistance as exc:  # jamais bloquant pour une décision (EX-01)
+            LOGGER.warning("signal %s perdu : %s", evenement.get("type"), exc)
+
+
 def _pool_par_defaut() -> ConnectionPool | None:
     """Pool si ``KALDERA_DATABASE_URL`` est configurée et joignable, sinon aucun."""
     try:
@@ -236,6 +265,12 @@ def snapshots_par_defaut() -> SnapshotsPostgres | None:
     """Snapshots PostgreSQL si la base est configurée et joignable, sinon aucun."""
     connexions = _pool_par_defaut()
     return SnapshotsPostgres(connexions) if connexions is not None else None
+
+
+def signaux_par_defaut() -> SignauxPostgres | None:
+    """Signaux PostgreSQL si la base est configurée et joignable, sinon aucun."""
+    connexions = _pool_par_defaut()
+    return SignauxPostgres(connexions) if connexions is not None else None
 
 
 class _RegistreA2AParesseux(RegistreA2APostgres):

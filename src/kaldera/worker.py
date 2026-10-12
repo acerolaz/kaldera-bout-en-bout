@@ -1,4 +1,5 @@
-"""Worker d'ingestion (dossier 2.4 ter) : analyse les fichiers, puis admet et fait traiter.
+"""Worker d'ingestion (dossier 2.4 ter) : analyse les fichiers, puis admet en ``prete`` ;
+le gestionnaire lance le traitement depuis l'IHM (C3-3).
 
 Plusieurs workers peuvent tourner : ``SKIP LOCKED`` répartit les tâches, l'admission est un
 compare-and-set ; le VLM est appelé hors transaction, ses sorties sont vérifiées par le code.
@@ -12,20 +13,16 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from .disjoncteur import Disjoncteur
-from .etat import BORNES
 from .ingestion import (
     AnalysePiece,
     ExtractionContrat,
-    demande_niveau_1,
     invariants_piece,
     texte_pdf,
     verrous_contrat,
 )
 from .ingestion_postgres import IngestionPostgres, Tache
-from .orchestrateur import Orchestrateur
 from .ports import ErreurPersistance
-from .postgres import ConfigBase, DepotPostgres, SnapshotsPostgres, pool
+from .postgres import ConfigBase, pool
 from .vlm import ClientVLM, ConfigIngestion, ErreurVLM, consigne, fabrique_vlm
 
 LOGGER = logging.getLogger(__name__)
@@ -41,16 +38,15 @@ def travailler(
     ingestion: IngestionPostgres,
     vlm: ClientVLM,
     config: ConfigIngestion,
-    disjoncteur: Disjoncteur,
 ) -> bool:
     """Un tour : reprise, une tâche, admissions. Vrai si une tâche a été traitée."""
     ingestion.reprendre_bloquees(2 * config.delai_analyse_s, ESSAIS_MAX)
     tache = ingestion.prendre_tache()
     if tache is not None:
         _analyser(ingestion, vlm, config, tache)
-        _admettre(ingestion, tache.reference, disjoncteur)
+        _admettre(ingestion, tache.reference)
     for reference in ingestion.admissibles():  # tout en cache, ou soumise après la fin
-        _admettre(ingestion, reference, disjoncteur)
+        _admettre(ingestion, reference)
     return tache is not None
 
 
@@ -126,18 +122,9 @@ def _contrat(
     return extraction is not None
 
 
-def _admettre(
-    ingestion: IngestionPostgres, reference: str, disjoncteur: Disjoncteur
-) -> None:
-    demande = ingestion.admettre(reference)
-    if demande is None:
-        return
-    demande = demande_niveau_1(demande, ingestion.contrat(demande["contrat"]["numero"]))
-    Orchestrateur(
-        depot=DepotPostgres(ingestion.connexions),
-        snapshots=SnapshotsPostgres(ingestion.connexions),
-        disjoncteur=disjoncteur,
-    ).traiter(demande)
+def _admettre(ingestion: IngestionPostgres, reference: str) -> None:
+    if ingestion.admettre(reference):
+        LOGGER.info("demande %s prête, en attente du lancement (E1)", reference)
 
 
 def main() -> None:
@@ -154,10 +141,9 @@ def main() -> None:
             "AZURE_AI_CHAT_ENDPOINT et AZURE_AI_CHAT_KEY sont requis"
         )
     ingestion = IngestionPostgres(pool(url))
-    disjoncteur = Disjoncteur.depuis(BORNES)  # vit autant que le worker
     while True:
         try:
-            occupe = travailler(ingestion, vlm, config, disjoncteur)
+            occupe = travailler(ingestion, vlm, config)
         except ErreurPersistance as exc:
             LOGGER.error("worker : %s ; nouvel essai dans %s s", exc, PAUSE_S)
             occupe = False

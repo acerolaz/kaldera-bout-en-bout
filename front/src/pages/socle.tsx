@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export function Cadre({ titre, children }: { titre: string; children: ReactNode }) {
   useEffect(() => {
@@ -16,15 +16,6 @@ export function Cadre({ titre, children }: { titre: string; children: ReactNode 
 export const Vide = ({ children }: { children: ReactNode }) => (
   <p className="rounded-lg border border-dashed p-6 text-muted-foreground">{children}</p>
 );
-
-export function Lot() {
-  const { id = "" } = useParams();
-  return (
-    <Cadre titre={`Lot ${id}`}>
-      <Vide>Écran livré au sous-projet C3-3 : avancement de chaque dossier du lot.</Vide>
-    </Cadre>
-  );
-}
 
 export function Introuvable() {
   return (

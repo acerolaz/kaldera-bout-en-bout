@@ -172,6 +172,8 @@ def test_lister_filtrer_et_rechercher(client: TestClient, base: Any) -> None:
         "issue",
         "file",
         "mode_degrade",
+        "selectionnable",
+        "motif_non_selectionnable",
     }
     par_ref = {d["reference"]: d for d in toutes}
     assert par_ref[admission]["statut"] == "admission" and par_ref[admission]["issue"] is None

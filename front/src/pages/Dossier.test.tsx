@@ -1,9 +1,10 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
-import { DOSSIER_ACCEPTE, DOSSIER_DEGRADE } from "@/test/fixtures";
+import { DOSSIER_ACCEPTE, DOSSIER_DEGRADE, DOSSIER_EN_COURS } from "@/test/fixtures";
+import { FauxEventSource, simulerFlux } from "@/test/flux";
 import { json, rendre, simulerApi } from "@/test/rendre";
 import { Dossier } from "./Dossier";
 
@@ -18,6 +19,30 @@ const ouvrir = (reference: string) =>
   );
 
 describe("E2 · Dossier", () => {
+  it("en cours : étape courante, % agent en direct, région annoncée", async () => {
+    simulerFlux();
+    simulerApi(() => json(DOSSIER_EN_COURS));
+    ouvrir("KAL-26-0101");
+    expect(await screen.findByRole("progressbar", { name: "Avancement de l'étape Pièces" })).toHaveAttribute("aria-valuenow", "0");
+    expect(screen.getByText("Étape en cours : Pièces")).toBeInTheDocument();
+    const source = FauxEventSource.instances[0];
+    expect(source.url).toBe("/api/flux/demandes/KAL-26-0101");
+    source.emettre({ type: "sous_etape", reference: "KAL-26-0101", etat: "pieces", statut: "en_cours", avancement_agent: 50 });
+    // notification TanStack asynchrone
+    await waitFor(() => expect(screen.getByRole("progressbar", { name: "Avancement de l'étape Pièces" })).toHaveAttribute("aria-valuenow", "50"));
+    source.couper();
+    expect(screen.getByText("Reconnexion…")).toBeInTheDocument();
+  });
+
+  it("terminal : aucun flux", async () => {
+    simulerFlux();
+    simulerApi(() => json(DOSSIER_ACCEPTE));
+    ouvrir("KAL-26-0101");
+    await screen.findByText("Martin Claire");
+    expect(FauxEventSource.instances).toHaveLength(0);
+    expect(screen.getByText("Traitement terminé")).toBeInTheDocument();
+  });
+
   it("en-tête : titre, assuré, issue, avancement et durée sur le budget", async () => {
     simulerApi(() => json(DOSSIER_ACCEPTE));
     ouvrir("KAL-26-0101");

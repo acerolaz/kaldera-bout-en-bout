@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
@@ -114,5 +114,82 @@ describe("E1 · Liste des demandes", () => {
     const { container } = rendre(<ListeDemandes />);
     await screen.findByRole("link", { name: "KAL-26-0203" });
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("seuls les dossiers prêts sont sélectionnables ; le motif est lisible au clavier", async () => {
+    avecLignes();
+    rendre(<ListeDemandes />);
+    const bloquee = await screen.findByRole("checkbox", { name: "Sélectionner KAL-26-0101" });
+    expect(bloquee).toBeDisabled();
+    expect(bloquee).toHaveAccessibleDescription("Pièces en cours d'analyse");
+    expect(bloquee).toHaveAttribute("title", "Pièces en cours d'analyse");
+    expect(screen.getByRole("checkbox", { name: "Sélectionner KAL-26-0104" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Traiter la sélection (0)" })).toBeDisabled();
+  });
+
+  it("tout sélectionner coche les dossiers prêts visibles", async () => {
+    avecLignes();
+    rendre(<ListeDemandes />);
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Tout sélectionner" }));
+    expect(screen.getByRole("button", { name: "Traiter la sélection (2)" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Tout sélectionner" }));
+    expect(screen.getByRole("button", { name: "Traiter la sélection (0)" })).toBeDisabled();
+  });
+
+  const lancement = (reponse: Response) =>
+    simulerApi((_url, init) => (init?.method === "POST" ? reponse : json(LIGNES)));
+
+  it("1 dossier ⇒ E2", async () => {
+    const espion = lancement(json({ lot_id: 7, references: ["KAL-26-0104"] }, 202));
+    rendre(<ListeDemandes />);
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Sélectionner KAL-26-0104" }));
+    await userEvent.click(screen.getByRole("button", { name: "Traiter la sélection (1)" }));
+    await waitFor(() => expect(screen.getByTestId("url")).toHaveTextContent(/^\/demandes\/KAL-26-0104$/));
+    expect(espion).toHaveBeenCalledWith("/api/traitements", expect.objectContaining({
+      method: "POST", body: '{"references":["KAL-26-0104"]}',
+    }));
+  });
+
+  it("N dossiers ⇒ E3", async () => {
+    lancement(json({ lot_id: 7, references: ["KAL-26-0105", "KAL-26-0104"] }, 202));
+    rendre(<ListeDemandes />);
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Tout sélectionner" }));
+    await userEvent.click(screen.getByRole("button", { name: "Traiter la sélection (2)" }));
+    await waitFor(() => expect(screen.getByTestId("url")).toHaveTextContent(/^\/lots\/7$/));
+  });
+
+  it("409 : alerte avec les dossiers refusés", async () => {
+    lancement(json({ detail: "dossiers non lançables", references: ["KAL-26-0104"] }, 409));
+    rendre(<ListeDemandes />);
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Sélectionner KAL-26-0104" }));
+    await userEvent.click(screen.getByRole("button", { name: "Traiter la sélection (1)" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Impossible de lancer le traitement : dossiers non lançables : KAL-26-0104",
+    );
+  });
+
+  it("changer de filtre vide la sélection", async () => {
+    avecLignes();
+    rendre(<ListeDemandes />);
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Sélectionner KAL-26-0104" }));
+    await userEvent.selectOptions(screen.getByLabelText("Statut"), "prete");
+    expect(await screen.findByRole("button", { name: "Traiter la sélection (0)" })).toBeDisabled();
+  });
+
+  it("après un 409, les dossiers devenus non lançables sortent de la sélection", async () => {
+    let refuse = false;
+    simulerApi((_url, init) => {
+      if (init?.method === "POST") {
+        refuse = true;
+        return json({ detail: "dossiers non lançables", references: ["KAL-26-0104"] }, 409);
+      }
+      return json(LIGNES.map((l) => (refuse && l.reference === "KAL-26-0104"
+        ? { ...l, selectionnable: false, motif_non_selectionnable: "Traitement en cours" } : l)));
+    });
+    rendre(<ListeDemandes />);
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Tout sélectionner" }));
+    await userEvent.click(screen.getByRole("button", { name: "Traiter la sélection (2)" }));
+    expect(await screen.findByRole("button", { name: "Traiter la sélection (1)" })).toBeEnabled();
+    expect(screen.getByRole("checkbox", { name: "Sélectionner KAL-26-0104" })).not.toBeChecked();
   });
 });

@@ -1,0 +1,56 @@
+<section class="page" id="ihm-traitement">
+  <style>
+    #ihm-traitement .tableau td, #ihm-traitement .tableau th { font-size:9.5px; padding:3px 6px; }
+    #ihm-traitement svg { width:100%; height:auto; display:block; margin-top:8px; }
+    #ihm-traitement svg text { font-size:10px; fill:currentColor; }
+    #ihm-traitement svg rect { fill:none; stroke:currentColor; stroke-width:1; }
+    #ihm-traitement svg path { fill:none; stroke:currentColor; stroke-width:1; }
+  </style>
+  <div class="surtitre">Livrable 2 · IHM gestionnaire</div>
+  <h2 class="titre"><span class="num">2.10</span>📡 IHM gestionnaire · traitement, temps réel et suivi de lot (E3)</h2>
+  <p class="chapo">Le gestionnaire sélectionne des dossiers prêts et lance leur traitement (1 ⇒ E2, N ⇒ E3). L'avancement arrive en direct,
+    jusqu'aux sous-étapes d'agent ; l'IHM n'interprète rien (EX-D44, EX-D45, EX-D46).</p>
+
+  <table class="tableau">
+    <tr><th colspan="4">🔁 Cycle de vie · <code>admission → prete → en_cours → terminee | secours</code></th></tr>
+    <tr><th>Statut</th><th>Sens</th><th>Sélectionnable</th><th>Motif</th></tr>
+    <tr><td><code>admission</code></td><td>Pièces en analyse (worker)</td><td>non</td><td>Pièces en cours d'analyse</td></tr>
+    <tr><td><code>prete</code></td><td>Admise, attend le gestionnaire</td><td><b>oui</b></td><td>·</td></tr>
+    <tr><td><code>en_cours</code></td><td><code>POST /traitements</code> : compare-and-set, tout ou rien</td><td>non</td><td>Traitement en cours</td></tr>
+    <tr><td><code>terminee</code> / <code>secours</code></td><td>Dossier clos par l'orchestrateur ou le reaper</td><td>non</td><td>Déjà traité</td></tr>
+  </table>
+
+  <svg viewBox="0 0 960 92" role="img" aria-label="Séquence du traitement au navigateur">
+    <defs><marker id="fl" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L8,4 L0,8 z" style="fill:currentColor"/></marker></defs>
+    <g>
+      <rect x="2" y="8" width="104" height="38" rx="5"/><text x="54" y="24" text-anchor="middle">E1</text><text x="54" y="37" text-anchor="middle">POST /traitements</text>
+      <rect x="130" y="8" width="118" height="38" rx="5"/><text x="189" y="24" text-anchor="middle">lots + en_cours</text><text x="189" y="37" text-anchor="middle">(une transaction)</text>
+      <rect x="272" y="8" width="100" height="38" rx="5"/><text x="322" y="24" text-anchor="middle">BackgroundTask</text><text x="322" y="37" text-anchor="middle">traiter_lot</text>
+      <rect x="396" y="8" width="130" height="38" rx="5"/><text x="461" y="24" text-anchor="middle">orchestrateur</text><text x="461" y="37" text-anchor="middle">/ agent</text>
+      <rect x="550" y="8" width="170" height="38" rx="5"/><text x="635" y="24" text-anchor="middle">pg_notify</text><text x="635" y="37" text-anchor="middle">('kaldera_avancement')</text>
+      <rect x="744" y="8" width="104" height="38" rx="5"/><text x="796" y="24" text-anchor="middle">LISTEN</text><text x="796" y="37" text-anchor="middle">(route SSE)</text>
+      <rect x="868" y="8" width="90" height="38" rx="5"/><text x="913" y="24" text-anchor="middle">EventSource</text><text x="913" y="37" text-anchor="middle">(E2, E3)</text>
+    </g>
+    <g marker-end="url(#fl)">
+      <path d="M106,27 H128"/><path d="M248,27 H270"/><path d="M372,27 H394"/><path d="M526,27 H548"/><path d="M720,27 H742"/><path d="M848,27 H866"/>
+    </g>
+    <path d="M913,46 V68 H54 V50" marker-end="url(#fl)"/>
+    <text x="480" y="82" text-anchor="middle">GET (état complet) à l'ouverture et à chaque etape_fin / dossier_fin</text>
+  </svg>
+
+  <table class="tableau" style="margin-top:8px">
+    <tr><th colspan="3">📨 Événements · canal <code>kaldera_avancement</code></th></tr>
+    <tr><th>Type</th><th>Émis par · quand</th><th>% agent</th></tr>
+    <tr><td><code>etape_debut</code></td><td>Orchestrateur · entrée dans une étape</td><td>0</td></tr>
+    <tr><td><code>sous_etape</code> (<code>vue</code> · <code>tour</code> · <code>outil</code> · <code>garde_fou</code>)</td><td>Agent · dans l'étape</td><td>voir ci-dessous</td></tr>
+    <tr><td><code>etape_fin</code></td><td>Orchestrateur · <b>après</b> l'écriture du snapshot</td><td>100</td></tr>
+    <tr><td><code>dossier_fin</code></td><td>Orchestrateur, reaper · dossier clos</td><td>·</td></tr>
+  </table>
+  <p class="note petit" style="margin-top:4px">Charge utile minimale : <code>type</code>, <code>reference</code>, <code>etat</code>, <code>sous_etape</code>, <code>tour</code>, <code>tours_max</code>. Aucune donnée personnelle, aucun contenu de patch.</p>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>% agent / dossier / lot</h3>Prévues = <code>tours_max + 3</code> ; <code>vue</code> = 1, <code>tour</code> / <code>outil</code> k = 1 + k, <code>garde_fou</code> = <code>tours_max + 2</code>, fin d'étape = 100 % ; arrondi entier. <b>Dossier</b> : étapes faites / 5. <b>Lot</b> : dossiers clos / dossiers.</div>
+    <div class="note petit"><h3>Robustesse</h3>Signaux best effort, jamais bloquants (EX-01) : un échec d'émission est journalisé, l'événement perdu. Relecture de l'état à l'ouverture et à la reconnexion (« Reconnexion… »). Reaper si l'API meurt en cours de lot.</div>
+    <div class="note petit"><h3>Tables</h3><code>lots</code>, <code>lot_demandes</code> et statut <code>prete</code> : migration 006. <code>POST /traitements</code> : 202 <code>{lot_id, references}</code> ; 404 inconnue ; 409 non lançable ; 422 liste vide, doublon, format.</div>
+  </div>
+</section>

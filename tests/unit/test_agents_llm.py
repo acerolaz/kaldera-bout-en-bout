@@ -332,3 +332,30 @@ def test_tour_en_erreur_est_mesure() -> None:
     _, mesure = _agent("estimation", Lent()).executer(_vues()["estimation"], budget_s=5)
     assert mesure.cause == "erreur_llm"
     assert mesure.tours_llm == 1 and mesure.latence_llm_ms > 0 and mesure.jetons == 0
+
+
+def _espion_signaux() -> tuple[list[tuple[str, int]], Any]:
+    recus: list[tuple[str, int]] = []
+    return recus, lambda sous_etape, tour: recus.append((sous_etape, tour))
+
+
+def test_signaux_chemin_nominal() -> None:
+    recus, signaler = _espion_signaux()
+    _agent("estimation", _honnete("estimation")).executer(
+        _vues()["estimation"], budget_s=5, signaler=signaler
+    )
+    assert recus == [("vue", 0), ("tour", 1), ("outil", 1), ("tour", 2), ("garde_fou", 2)]
+
+
+def test_signaux_repli_directement_au_garde_fou() -> None:
+    recus, signaler = _espion_signaux()
+    _agent("estimation", None).executer(_vues()["estimation"], budget_s=5, signaler=signaler)
+    assert recus == [("vue", 0), ("garde_fou", 0)]
+
+
+def test_sans_signaler_comportement_inchange() -> None:
+    avec = _agent("decision", _honnete("decision")).executer(
+        _vues()["decision"], budget_s=5, signaler=lambda s, t: None
+    )
+    sans = _agent("decision", _honnete("decision")).executer(_vues()["decision"], budget_s=5)
+    assert avec[0] == sans[0] and avec[1].tours_llm == sans[1].tours_llm

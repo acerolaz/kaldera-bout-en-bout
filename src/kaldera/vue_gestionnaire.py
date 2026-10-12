@@ -11,7 +11,9 @@ elle ne contient aucune donnée personnelle, ce que vérifie le test d'intégrat
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any, Literal, NamedTuple
 
 from pydantic import BaseModel, ValidationError
@@ -30,13 +32,20 @@ FAITES = frozenset({"termine", "sautee", "repli", "degrade"})  # étapes compté
 log = logging.getLogger(__name__)
 
 CodeIssue = Literal["acceptee", "refusee", "escalade"]
-StatutDemande = Literal["admission", "en_cours", "terminee", "secours"]
-StatutEtape = Literal["en_attente", "termine", "sautee", "echec", "repli", "degrade"]
+StatutDemande = Literal["admission", "prete", "en_cours", "terminee", "secours"]
+StatutEtape = Literal["en_attente", "en_cours", "termine", "sautee", "echec", "repli", "degrade"]
 StatutAvis = Literal["ok", "indisponible", "non_requis"]
 STATUT_AVIS: dict[str, StatutAvis] = {
     "avis": "ok",
     "indisponible": "indisponible",
     "non_requis": "non_requis",
+}
+# seul un dossier prêt se lance (EX-D45) ; le motif s'affiche dans l'infobulle d'E1
+MOTIFS_NON_SELECTIONNABLE: dict[str, str] = {
+    "admission": "Pièces en cours d'analyse",
+    "en_cours": "Traitement en cours",
+    "terminee": "Déjà traité",
+    "secours": "Déjà traité",
 }
 
 
@@ -51,6 +60,8 @@ class LigneDemande(BaseModel):
     issue: CodeIssue | None
     file: str | None
     mode_degrade: bool
+    selectionnable: bool = False
+    motif_non_selectionnable: str | None = None
 
 
 class Garanties(BaseModel):
@@ -192,6 +203,8 @@ def ligne(
         issue=sortie.code,
         file=sortie.file,
         mode_degrade=sortie.mode_degrade,
+        selectionnable=statut == "prete",
+        motif_non_selectionnable=MOTIFS_NON_SELECTIONNABLE.get(statut),
     )
 
 
@@ -217,6 +230,8 @@ def lignes(
                     issue=None,
                     file=None,
                     mode_degrade=False,
+                    selectionnable=statut == "prete",
+                    motif_non_selectionnable=MOTIFS_NON_SELECTIONNABLE.get(statut),
                 )
             )
     return resultat
@@ -320,7 +335,7 @@ def _resume(nom: str, statut: StatutEtape, entree: dict[str, Any], etat: EtatDem
     return ""
 
 
-def _etapes(etat: EtatDemande) -> list[Etape]:
+def _etapes(etat: EtatDemande, statut_dossier: str) -> list[Etape]:
     par_etape = _entrees(etat)
     tracees = [rang for rang, nom in enumerate(ETAPES) if nom in par_etape]
     derniere = tracees[-1] if tracees else -1
@@ -364,6 +379,13 @@ def _etapes(etat: EtatDemande) -> list[Etape]:
                 resume=_resume(nom, statut, e, etat),
             )
         )
+    if statut_dossier == "en_cours":  # l'étape courante s'exécute : le flux SSE en donne le %
+        cartes = [
+            c.model_copy(update={"statut": "en_cours", "avancement": 0})
+            if c.etat == etat.etat_courant
+            else c
+            for c in cartes
+        ]
     return cartes
 
 
@@ -409,7 +431,7 @@ def dossier(
 ) -> DossierVue:
     base = ligne(reference, statut, fiche, etat)
     sortie = _sortie(fiche, etat)
-    etapes = _etapes(etat)
+    etapes = _etapes(etat, statut)
     arret = etat.arret
     faites = sum(e.statut in FAITES for e in etapes)
     return DossierVue(
@@ -432,4 +454,142 @@ def dossier(
         etapes=etapes,
         antifraude=_antifraude(etat),
         arret=ArretVue(borne=arret.borne, valeur=arret.valeur, etat=arret.etat) if arret else None,
+    )
+
+
+# ------------------------------------------------------------------ temps réel (C3-3)
+
+TypeEvenement = Literal["etape_debut", "sous_etape", "etape_fin", "dossier_fin"]
+
+
+class EvenementVue(BaseModel):
+    """Événement SSE prêt à afficher : le front n'en déduit rien (EX-D44)."""
+
+    type: TypeEvenement
+    reference: str
+    etat: str | None
+    statut: Literal["en_cours"] | None
+    avancement_agent: int | None
+
+
+def avancement_agent(sous_etape: str, tour: int, tours_max: int) -> int:
+    """% agent (spec C3-3 §3.3) : sous-étapes faites / prévues, prévues = tours_max + 3.
+
+    vue = 1 ; tour ou outil k = 1 + k ; garde-fou = tours_max + 2 (tours non utilisés comptés
+    comme faits : un repli saute au garde-fou) ; la fin d'étape (100 %) vient de etape_fin.
+    """
+    prevues = tours_max + 3
+    faites = {"vue": 1, "tour": 1 + tour, "outil": 1 + tour, "garde_fou": tours_max + 2}
+    return round(100 * min(faites.get(sous_etape, 0), prevues) / prevues)
+
+
+def evenement(brut: dict[str, Any]) -> EvenementVue | None:
+    """Traduit un signal brut (spec §3.2) ; un signal malformé ou inconnu est ignoré."""
+    type_, reference, etat = brut.get("type"), brut.get("reference"), brut.get("etat")
+    if not isinstance(reference, str):
+        return None
+    etape = etat if isinstance(etat, str) else None
+    if type_ == "etape_debut":
+        return EvenementVue(
+            type=type_, reference=reference, etat=etape, statut="en_cours", avancement_agent=0
+        )
+    if type_ == "sous_etape":
+        tour, tours_max = brut.get("tour"), brut.get("tours_max")
+        if not isinstance(tour, int) or not isinstance(tours_max, int):
+            return None
+        return EvenementVue(
+            type=type_,
+            reference=reference,
+            etat=etape,
+            statut="en_cours",
+            avancement_agent=avancement_agent(str(brut.get("sous_etape")), tour, tours_max),
+        )
+    if type_ == "etape_fin":
+        return EvenementVue(
+            type=type_, reference=reference, etat=etape, statut=None, avancement_agent=100
+        )
+    if type_ == "dossier_fin":
+        return EvenementVue(
+            type=type_, reference=reference, etat=None, statut=None, avancement_agent=None
+        )
+    return None
+
+
+# ------------------------------------------------------------------ E3
+
+
+class LigneLot(BaseModel):
+    reference: str
+    nom: str | None
+    prenom: str | None
+    police: str | None
+    statut: str
+    avancement: int
+    etape_en_cours: str | None
+    duree_ms: float
+    issue: CodeIssue | None
+    file: str | None
+    mode_degrade: bool
+    borne: str | None
+
+
+class CompteursLot(BaseModel):
+    acceptee: int
+    refusee: int
+    escalade: dict[str, int]  # par file
+    mode_degrade: int
+
+
+class LotVue(BaseModel):
+    id: int
+    debut: datetime
+    fin: datetime | None
+    avancement: int
+    compteurs: CompteursLot
+    dossiers: list[LigneLot]
+
+
+def ligne_lot(
+    reference: str, statut: str, fiche: dict[str, Any] | None, etat: EtatDemande
+) -> LigneLot:
+    d = dossier(reference, statut, fiche, etat)
+    return LigneLot(
+        reference=reference,
+        nom=d.nom,
+        prenom=d.prenom,
+        police=d.police,
+        statut=statut,
+        avancement=d.avancement,
+        etape_en_cours=etat.etat_courant if statut == "en_cours" else None,
+        duree_ms=d.duree_ms,
+        issue=d.issue,
+        file=d.file,
+        mode_degrade=d.mode_degrade,
+        borne=d.arret.borne if d.arret else None,
+    )
+
+
+def lot(
+    id_lot: int,
+    debut: datetime,
+    derniere_maj: datetime,
+    demandes: Iterable[tuple[str, str, dict[str, Any] | None, EtatDemande]],
+) -> LotVue:
+    """E3 (spec §2.3) : avancement = dossiers clos / dossiers ; fin = dernière mise à jour si clos."""
+    lignes_lot = [ligne_lot(*d) for d in demandes]
+    clos = sum(lg.statut in TERMINAUX for lg in lignes_lot)
+    total = len(lignes_lot)
+    escalades = Counter(lg.file or "inconnue" for lg in lignes_lot if lg.issue == "escalade")
+    return LotVue(
+        id=id_lot,
+        debut=debut,
+        fin=derniere_maj if total and clos == total else None,
+        avancement=round(100 * clos / total) if total else 0,
+        compteurs=CompteursLot(
+            acceptee=sum(lg.issue == "acceptee" for lg in lignes_lot),
+            refusee=sum(lg.issue == "refusee" for lg in lignes_lot),
+            escalade=dict(sorted(escalades.items())),
+            mode_degrade=sum(lg.mode_degrade for lg in lignes_lot),
+        ),
+        dossiers=lignes_lot,
     )

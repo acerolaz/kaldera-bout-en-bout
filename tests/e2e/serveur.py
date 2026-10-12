@@ -1,7 +1,9 @@
 """Serveur de bout en bout (Playwright) : API réelle + worker sur FakeVLM, partenaire coupé.
 
 Base : TEST_DATABASE_URL, vidée puis préparée (tools.demo) ; NOM-03 (refusée) et AF-03
-(escalade, avis anti-fraude indisponible : partenaire coupé) traités pour les écrans de lecture.
+(escalade, avis anti-fraude indisponible : partenaire coupé) traités pour les écrans de lecture ;
+NOM-04 → NOM-11 chargés en « prete » (deux jeux disjoints : un par projet Playwright, la base
+étant partagée).
 Aucun appel Azure : les profils LLM sont retirés de l'environnement et le .env n'est pas lu
 (agents en gabarit/repli).
 Usage : uv run python -m tests.e2e.serveur (lancé par front/playwright.config.ts).
@@ -38,8 +40,6 @@ def main() -> None:
     from kaldera.postgres import pool
     from kaldera.vlm import ConfigIngestion, FakeVLM
     from kaldera.worker import travailler
-    from kaldera.disjoncteur import Disjoncteur
-    from kaldera.etat import BORNES
     from tools.demo import preparer
     from tools.seed import lire_manifeste, verites_fake
 
@@ -47,8 +47,8 @@ def main() -> None:
     connexions = pool(url)
     with connexions.connection() as conn:
         conn.execute(
-            "TRUNCATE appels_partenaire, pieces, file_ingestion, analyses, demandes, contrats, "
-            "blobs"
+            "TRUNCATE lot_demandes, lots, appels_partenaire, pieces, file_ingestion, analyses, "
+            "demandes, contrats, blobs"
         )
     preparer(connexions)
     scenarios = {
@@ -65,15 +65,15 @@ def main() -> None:
     # dossiers déjà traités pour E1 / E2 (PARTENAIRE_URL coupé : avis indisponible si requis)
     traiter_lot([scenarios[i]["demandes"][0] for i in ("NOM-03", "AF-03")])
     ingestion = IngestionPostgres(connexions)
+    for i in range(4, 12):  # NOM-04 → NOM-11 : à lancer depuis E1 (traitement.spec.ts)
+        ingestion.charger(scenarios[f"NOM-{i:02d}"]["demandes"][0])
     vlm = FakeVLM(verites_fake(lire_manifeste()))
     config = ConfigIngestion(_env_file=None)
-
-    disjoncteur = Disjoncteur.depuis(BORNES)  # un pour toute la boucle, comme worker.main
 
     def boucle() -> None:
         while True:
             try:
-                occupe = travailler(ingestion, vlm, config, disjoncteur)
+                occupe = travailler(ingestion, vlm, config)
             except ErreurPersistance:
                 occupe = False
             if not occupe:

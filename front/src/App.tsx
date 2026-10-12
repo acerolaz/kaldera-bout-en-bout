@@ -5,7 +5,8 @@ import { ErreurApi } from "./api";
 import { Coquille } from "./components/Coquille";
 import { Dossier } from "./pages/Dossier";
 import { ListeDemandes } from "./pages/ListeDemandes";
-import { Introuvable, Lot } from "./pages/socle";
+import { Lot } from "./pages/Lot";
+import { Introuvable } from "./pages/socle";
 
 export function Routage() {
   return (

@@ -19,5 +19,8 @@
     <tr><td>Thème clair / sombre</td><td>Jeu de tokens choisi par l'attribut <code>data-theme</code> ; défaut : thème du système ; choix mémorisé (<code>kaldera.theme</code>).</td></tr>
     <tr><td>Projection (vue gestionnaire)</td><td>Fonction pure du serveur qui transforme l'état d'une demande en vue affichable (<code>LigneDemande</code>, <code>DossierVue</code>) ; l'IHM n'interprète rien.</td></tr>
     <tr><td>Statut d'affichage</td><td>Statut d'une étape vu par le gestionnaire (<code>en_attente</code>, <code>termine</code>, <code>sautee</code>, <code>echec</code>, <code>repli</code>, <code>degrade</code>), déduit de la trace.</td></tr>
+    <tr><td>Lot</td><td>Ensemble de dossiers lancés ensemble depuis E1 (<code>POST /traitements</code>), suivi par E3 ; un dossier seul forme un lot d'un dossier.</td></tr>
+    <tr><td>SSE (Server-Sent Events)</td><td>Flux HTTP à sens unique serveur → navigateur (<code>EventSource</code>) ; ≈ SignalR en sens unique.</td></tr>
+    <tr><td>LISTEN / NOTIFY</td><td>Messagerie de PostgreSQL : <code>pg_notify</code> publie sur un canal, <code>LISTEN</code> y abonne une connexion.</td></tr>
   </table>
 </section>
