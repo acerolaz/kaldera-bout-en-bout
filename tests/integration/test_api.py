@@ -172,12 +172,7 @@ def test_lister_filtrer_et_rechercher(client: TestClient, base: Any) -> None:
     assert [d["reference"] for d in escalades] == [degrade]
     nom = par_ref[nominal]["nom"]
     trouves = client.get("/demandes", params={"q": f"  {nom.upper()} "}).json()
-    assert nominal in [d["reference"] for d in trouves]
-    if (
-        par_ref[degrade]["nom"].lower() != nom.lower()
-        and par_ref[admission]["nom"].lower() != nom.lower()
-    ):
-        assert not {degrade, admission} & {d["reference"] for d in trouves}
+    assert [d["reference"] for d in trouves] == [nominal]  # Bernard ; Martin et Moreau exclus
     assert client.get("/demandes", params={"statut": "secours"}).json() == []
 
 
