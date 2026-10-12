@@ -1,20 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import { Routage } from "./App";
+import { json, rendre, simulerApi } from "./test/rendre";
 
-const ouvrir = (chemin: string) =>
-  render(
-    <MemoryRouter initialEntries={[chemin]}>
-      <Routage />
-    </MemoryRouter>,
-  );
+const ouvrir = (chemin: string) => rendre(<Routage />, chemin);
 
 beforeEach(() => {
   localStorage.clear();
   vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+  simulerApi((url) => (url === "/api/demandes" ? json([]) : json({ detail: "demande inconnue" }, 404)));
 });
 
 describe("socle", () => {

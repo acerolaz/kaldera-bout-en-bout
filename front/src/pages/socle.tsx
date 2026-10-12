@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 
-function Cadre({ titre, children }: { titre: string; children: ReactNode }) {
+export function Cadre({ titre, children }: { titre: string; children: ReactNode }) {
   useEffect(() => {
     document.title = `Kaldera · ${titre}`;
   }, [titre]);
@@ -13,26 +13,9 @@ function Cadre({ titre, children }: { titre: string; children: ReactNode }) {
   );
 }
 
-const Vide = ({ children }: { children: ReactNode }) => (
+export const Vide = ({ children }: { children: ReactNode }) => (
   <p className="rounded-lg border border-dashed p-6 text-muted-foreground">{children}</p>
 );
-
-export function ListeDemandes() {
-  return (
-    <Cadre titre="Liste des demandes">
-      <Vide>Écran livré au sous-projet C3-2 : liste filtrable des demandes et sélection pour traitement.</Vide>
-    </Cadre>
-  );
-}
-
-export function Dossier() {
-  const { reference = "" } = useParams();
-  return (
-    <Cadre titre={`Dossier ${reference}`}>
-      <Vide>Écran livré au sous-projet C3-2 : timeline des agents, garanties et carte anti-fraude.</Vide>
-    </Cadre>
-  );
-}
 
 export function Lot() {
   const { id = "" } = useParams();

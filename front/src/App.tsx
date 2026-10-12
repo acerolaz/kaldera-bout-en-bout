@@ -1,6 +1,10 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Coquille } from "./components/Coquille";
-import { Dossier, Introuvable, ListeDemandes, Lot } from "./pages";
+import { Dossier } from "./pages/Dossier";
+import { ListeDemandes } from "./pages/ListeDemandes";
+import { Introuvable, Lot } from "./pages/socle";
 
 export function Routage() {
   return (
@@ -16,9 +20,12 @@ export function Routage() {
 }
 
 export default function App() {
+  const [client] = useState(() => new QueryClient()); // un client par application, pas de global de module
   return (
-    <BrowserRouter>
-      <Routage />
-    </BrowserRouter>
+    <QueryClientProvider client={client}>
+      <BrowserRouter>
+        <Routage />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }

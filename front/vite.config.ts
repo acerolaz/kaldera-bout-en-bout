@@ -10,6 +10,8 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // API FastAPI (make api) : même origine pour le navigateur, pas de CORS
+    proxy: { "/api": { target: "http://127.0.0.1:8000", rewrite: (chemin) => chemin.replace(/^\/api/, "") } },
   },
   test: {
     environment: "jsdom",
