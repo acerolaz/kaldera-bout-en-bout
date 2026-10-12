@@ -36,6 +36,12 @@ from .llm import ClientLLM, ConfigLLM, ErreurLLM
 
 Vue = dict[str, Any]
 Repli = Callable[[Vue], dict[str, Any]]
+Signaler = Callable[[str, int], None]  # (sous_etape, tour) : vue · tour · outil · garde_fou
+
+
+def _muet(sous_etape: str, tour: int) -> None:
+    return None
+
 IDENTITE = ("id_client", "nom", "prenom", "email", "telephone", "iban", "adresse")
 
 
@@ -248,7 +254,20 @@ class AgentLLM:
         self.prompt = (resources.files("kaldera") / "prompts" / f"{nom}.md").read_text("utf-8")
         self.version_prompt = hashlib.sha256(self.prompt.encode()).hexdigest()[:8]
 
-    def executer(self, vue: Vue, budget_s: float) -> tuple[dict[str, Any], MesureAgent]:
+    def executer(
+        self, vue: Vue, budget_s: float, signaler: Signaler | None = None
+    ) -> tuple[dict[str, Any], MesureAgent]:
+        """Exécute l'agent ; ``signaler`` reçoit ses sous-étapes (C3-3) : l'agent étant partagé
+        entre les threads d'un lot, le rappel est passé à chaque appel, jamais stocké."""
+        signaler = signaler or _muet
+        signaler("vue", 0)
+        patch, mesure = self._executer(vue, budget_s, signaler)
+        signaler("garde_fou", mesure.tours_llm)  # garde-fou passé, ou repli direct
+        return patch, mesure
+
+    def _executer(
+        self, vue: Vue, budget_s: float, signaler: Signaler
+    ) -> tuple[dict[str, Any], MesureAgent]:
         debut = monotonic()
         ref = self._reference(vue)
         mesure = MesureAgent(
@@ -267,17 +286,23 @@ class AgentLLM:
         if budget < self.bornes.delai_min_llm_s:
             mesure.cause = "budget"
             return {self.spec.section: ref}, mesure
-        patch = self._tenter(self.llm, vue, ref, budget, mesure)
+        patch = self._tenter(self.llm, vue, ref, budget, mesure, signaler)
         if self.disjoncteur is not None:
             self.disjoncteur.noter(repli=patch is None)
         return {self.spec.section: ref if patch is None else patch}, mesure
 
     def _tenter(
-        self, llm: ClientLLM, vue: Vue, ref: dict[str, Any], budget: float, mesure: MesureAgent
+        self,
+        llm: ClientLLM,
+        vue: Vue,
+        ref: dict[str, Any],
+        budget: float,
+        mesure: MesureAgent,
+        signaler: Signaler,
     ) -> dict[str, Any] | None:
         """Une tentative LLM : le patch accepté, ou None (repli, cause dans ``mesure``)."""
         try:
-            patch = self._boucle(llm, vue, ref, budget, mesure)
+            patch = self._boucle(llm, vue, ref, budget, mesure, signaler)
         except ErreurLLM:
             mesure.cause = "erreur_llm"
         except (
@@ -304,7 +329,13 @@ class AgentLLM:
         return {**ref, self.spec.champ: self.spec.gabarit(ref)}
 
     def _boucle(
-        self, llm: ClientLLM, vue: Vue, ref: dict[str, Any], budget: float, mesure: MesureAgent
+        self,
+        llm: ClientLLM,
+        vue: Vue,
+        ref: dict[str, Any],
+        budget: float,
+        mesure: MesureAgent,
+        signaler: Signaler,
     ) -> dict[str, Any]:
         outils = {o.nom: o for o in self.spec.outils(vue, ref)}
         schemas = [o.schema() for o in outils.values()]
@@ -323,6 +354,7 @@ class AgentLLM:
                     mesure.latence_llm_ms + (perf_counter() - top) * 1000, 2
                 )
             mesure.jetons += reponse.jetons
+            signaler("tour", mesure.tours_llm)
             if not reponse.appels_outils:
                 return self._patch(reponse.texte, ref)
             messages.append(
@@ -348,6 +380,7 @@ class AgentLLM:
                         "content": json.dumps(resultat, ensure_ascii=False, default=str),
                     }
                 )
+                signaler("outil", mesure.tours_llm)
         raise ToursEpuises()
 
     def _patch(self, texte: str | None, ref: dict[str, Any]) -> dict[str, Any]:

@@ -11,7 +11,7 @@ import pytest
 
 from kaldera.etat import AvisFraude, Estimation, EtatDemande
 from kaldera.machine import Etat
-from kaldera.memoire import SnapshotsEnMemoire
+from kaldera.memoire import SignauxEnMemoire, SnapshotsEnMemoire
 from kaldera.orchestrateur import Orchestrateur
 from kaldera.reaper import faucher
 
@@ -91,3 +91,10 @@ def test_un_classement_en_echec_n_arrete_pas_les_autres() -> None:
     fiches = faucher(snapshots, 0)
     assert [f["reference"] for f in fiches] == ["KAL-26-0002"]
     assert snapshots.lignes["KAL-26-0001"]["fiche"] is None  # repris au passage suivant
+
+
+def test_reaper_signale_la_fin_du_dossier() -> None:
+    snapshots, signaux = SnapshotsEnMemoire(), SignauxEnMemoire()
+    snapshots.debuter(EtatDemande(demande={"reference": "KAL-26-9001", "contrat": {}}))
+    faucher(snapshots, 0, signaux)
+    assert signaux.evenements == [{"type": "dossier_fin", "reference": "KAL-26-9001"}]
