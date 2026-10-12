@@ -66,6 +66,13 @@ describe("E1 · Liste des demandes", () => {
     expect(options).toEqual(["Toutes", "cellule_fraude"]);
   });
 
+  it("une file de l'URL absente des données reste sélectionnée", async () => {
+    avecLignes();
+    rendre(<ListeDemandes />, "/?file=archives");
+    await screen.findByRole("link", { name: "KAL-26-0203" });
+    expect(screen.getByLabelText("File")).toHaveValue("archives");
+  });
+
   it("filtres sans résultat : message et « Effacer les filtres »", async () => {
     simulerApi((url) => json(url === "/api/demandes" ? LIGNES : []));
     rendre(<ListeDemandes />, "/?statut=secours");

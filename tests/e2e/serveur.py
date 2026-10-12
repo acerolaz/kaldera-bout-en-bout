@@ -53,8 +53,14 @@ def main() -> None:
     preparer(connexions)
     scenarios = {
         s["id"]: s
-        for s in map(json.loads, Path("eval/scenarios.jsonl").read_text("utf-8").splitlines())
-        if s
+        for s in map(
+            json.loads,
+            (
+                ligne
+                for ligne in Path("eval/scenarios.jsonl").read_text("utf-8").splitlines()
+                if ligne.strip()
+            ),
+        )
     }
     # dossiers déjà traités pour E1 / E2 (PARTENAIRE_URL coupé : avis indisponible si requis)
     traiter_lot([scenarios[i]["demandes"][0] for i in ("NOM-03", "AF-03")])

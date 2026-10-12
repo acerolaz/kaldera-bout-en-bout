@@ -3,6 +3,9 @@
 L'IHM n'interprète rien (EX-D44) : statut d'affichage des étapes, avancement et résumés sont
 calculés ici, sans entrée / sortie. Liste blanche : seuls les champs déclarés dans les schémas
 ci-dessous sortent de l'API (jamais email, téléphone, IBAN, adresse ni identifiant client).
+``fiche`` (compatibilité) est renvoyée telle que construite par le serveur (``construire_fiche``) :
+elle ne contient aucune donnée personnelle, ce que vérifie le test d'intégration
+``test_aucune_donnee_personnelle_exposee``.
 """
 
 from __future__ import annotations
@@ -130,6 +133,11 @@ def euros(montant: float) -> str:
     entier, _, decimales = f"{montant:,.2f}".partition(".")
     texte = entier.replace(",", "\u202f")
     return f"{texte} €" if decimales == "00" else f"{texte},{decimales} €"
+
+
+def _decimal(valeur: Any) -> str:
+    """Nombre à virgule décimale française ; une valeur non numérique reste telle quelle."""
+    return f"{valeur:g}".replace(".", ",") if isinstance(valeur, (int, float)) else str(valeur)
 
 
 def _sous(source: dict[str, Any], cle: str) -> dict[str, Any]:
@@ -301,7 +309,7 @@ def _resume(nom: str, statut: StatutEtape, entree: dict[str, Any], etat: EtatDem
         if a.statut == "indisponible":
             return f"Avis indisponible : {a.cause or 'cause inconnue'}"
         avis = a.avis or {}
-        return f"Avis obtenu : niveau {avis.get('niveau', '?')}, score {avis.get('score', '?')}"
+        return f"Avis obtenu : niveau {avis.get('niveau', '?')}, score {_decimal(avis.get('score', '?'))}"
     if nom == Etat.DECISION.value and etat.issue is not None:
         i = etat.issue
         if i.issue == "escalade":

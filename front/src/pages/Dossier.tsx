@@ -6,10 +6,9 @@ import { ErreurApi, lire, type CarteAntifraude, type DossierVue, type Etape } fr
 import { Statut } from "@/components/Statut";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { euros } from "@/format";
+import { ABSENT, euros, nomComplet } from "@/format";
 import { Cadre, Vide } from "./socle";
 
-const ABSENT = "—";
 const ETAPES: Record<string, string> = {
   eligibilite: "Éligibilité", pieces: "Pièces", estimation: "Estimation", antifraude: "Anti-fraude", decision: "Décision",
 };
@@ -69,7 +68,7 @@ function Detail({ dossier: d }: { dossier: DossierVue }) {
     <>
       <section aria-label="En-tête du dossier" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <p className="text-lg font-semibold">{[d.nom, d.prenom].filter(Boolean).join(" ") || ABSENT}</p>
+          <p className="text-lg font-semibold">{nomComplet(d.nom, d.prenom)}</p>
           <p>Police <span className="font-mono">{d.police ?? ABSENT}</span></p>
           <p>Formule {d.formule ?? ABSENT}</p>
           <Statut code={d.statut} />
@@ -103,7 +102,7 @@ function Detail({ dossier: d }: { dossier: DossierVue }) {
       {d.arret ? (
         <div className="flex items-center gap-2 rounded-lg border border-ton-danger p-3 text-sm">
           <Statut code="borne" />
-          <span>{d.arret.borne} = {d.arret.valeur}{d.arret.etat ? ` (étape ${ETAPES[d.arret.etat] ?? d.arret.etat})` : ""}</span>
+          <span>{d.arret.borne} = {d.arret.valeur.toLocaleString("fr-FR")}{d.arret.etat ? ` (étape ${ETAPES[d.arret.etat] ?? d.arret.etat})` : ""}</span>
         </div>
       ) : null}
 
@@ -118,7 +117,7 @@ function Detail({ dossier: d }: { dossier: DossierVue }) {
 
 function CarteEtape({ etape: e, antifraude }: { etape: Etape; antifraude: CarteAntifraude | null }) {
   const execution = [
-    e.duree_ms !== null ? dureeEtape(e.duree_ms) : null,
+    e.duree_ms !== null && e.statut !== "sautee" ? dureeEtape(e.duree_ms) : null,
     e.mode ? `${e.mode}${e.cause ? ` (${e.cause})` : ""}` : null,
     e.modele,
     e.tours_llm !== null ? `${e.tours_llm} tour${e.tours_llm > 1 ? "s" : ""}` : null,
@@ -149,7 +148,7 @@ function DetailAntifraude({ carte: c }: { carte: CarteAntifraude }) {
     ["Indicateurs", c.indicateurs.length ? c.indicateurs.join(", ") : "aucun"],
     ["Statut", AVIS[c.statut]],
     ["Niveau", c.niveau ?? ABSENT],
-    ["Score", c.score === null ? ABSENT : String(c.score)],
+    ["Score", c.score === null ? ABSENT : c.score.toLocaleString("fr-FR")],
     ["Évaluation", c.evaluation_id ?? ABSENT],
     ["Modèle", c.version_modele ?? ABSENT],
   ];

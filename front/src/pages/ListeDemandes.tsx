@@ -4,14 +4,13 @@ import { Link, useSearchParams } from "react-router-dom";
 import { lire, type LigneDemande } from "@/api";
 import { Statut } from "@/components/Statut";
 import { Button } from "@/components/ui/button";
-import { euros } from "@/format";
+import { ABSENT, euros, nomComplet } from "@/format";
 import { STATUTS } from "@/statuts";
 import { Cadre, Vide } from "./socle";
 
 const FILTRES = ["statut", "issue", "file", "mode_degrade", "q"] as const;
 const STATUTS_DEMANDE = ["admission", "en_cours", "terminee", "secours"];
 const ISSUES = ["acceptee", "refusee", "escalade"];
-const ABSENT = "—";
 
 const libelle = (code: string) => (Object.hasOwn(STATUTS, code) ? STATUTS[code].libelle : code);
 const texte = (valeur: string | null) => valeur ?? ABSENT;
@@ -36,7 +35,10 @@ export function ListeDemandes() {
     queryKey: ["demandes", requete],
     queryFn: () => lire<LigneDemande[]>(requete ? `/demandes?${requete}` : "/demandes"),
   });
-  const files = [...new Set((toutes.data ?? []).flatMap((l) => (l.file ? [l.file] : [])))].sort();
+  const fileActive = params.get("file");
+  const files = [
+    ...new Set([...(toutes.data ?? []).flatMap((l) => (l.file ? [l.file] : [])), ...(fileActive ? [fileActive] : [])]),
+  ].sort();
 
   const changer = (cle: (typeof FILTRES)[number], valeur: string) => {
     const valeurs = new Map(filtres);
@@ -181,7 +183,7 @@ function Tableau({ lignes }: { lignes: LigneDemande[] }) {
                   {l.reference}
                 </Link>
               </td>
-              <td className="px-3">{[l.nom, l.prenom].filter(Boolean).join(" ") || ABSENT}</td>
+              <td className="px-3">{nomComplet(l.nom, l.prenom)}</td>
               <td className="px-3 font-mono">{texte(l.police)}</td>
               <td className="px-3">{l.type_sinistre ? l.type_sinistre.replaceAll("_", " ") : ABSENT}</td>
               <td className="px-3 text-right tabular-nums">{l.montant_declare === null ? ABSENT : euros(l.montant_declare)}</td>

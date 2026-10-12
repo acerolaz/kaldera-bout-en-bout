@@ -321,9 +321,9 @@ def test_resumes_dossier_accepte() -> None:
         ),
         (
             "avis_fraude",
-            AvisFraude(requis=True, statut="avis", avis={"niveau": "faible", "score": 12}),
+            AvisFraude(requis=True, statut="avis", avis={"niveau": "faible", "score": 12.5}),
             "antifraude",
-            "Avis obtenu : niveau faible, score 12",
+            "Avis obtenu : niveau faible, score 12,5",
         ),
         (
             "avis_fraude",

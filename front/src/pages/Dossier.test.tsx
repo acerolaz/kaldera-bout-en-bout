@@ -56,6 +56,22 @@ describe("E2 · Dossier", () => {
     expect(screen.getByText("Borne atteinte")).toBeInTheDocument();
   });
 
+  it("score anti-fraude à virgule décimale et étape sautée sans durée", async () => {
+    const [eligibilite, pieces, ...suite] = DOSSIER_ACCEPTE.etapes;
+    simulerApi(() =>
+      json({
+        ...DOSSIER_ACCEPTE,
+        etapes: [eligibilite, { ...pieces, statut: "sautee", duree_ms: 0, resume: "Sautée (garde ok)" }, ...suite],
+        antifraude: { ...DOSSIER_ACCEPTE.antifraude!, requis: true, statut: "ok", score: 0.75 },
+      }),
+    );
+    ouvrir("KAL-26-0101");
+    const carte = await screen.findByRole("region", { name: "Carte anti-fraude" });
+    expect(carte).toHaveTextContent("0,75");
+    const cartePieces = within(screen.getByRole("list", { name: "Étapes du traitement" })).getAllByRole("listitem")[1];
+    expect(cartePieces).not.toHaveTextContent(/\d ms/);
+  });
+
   it("Garanties : panneau au clavier, Échap ferme et rend le focus", async () => {
     simulerApi(() => json(DOSSIER_ACCEPTE));
     ouvrir("KAL-26-0101");

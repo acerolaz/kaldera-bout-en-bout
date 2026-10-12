@@ -20,8 +20,14 @@ RACINE = Path(__file__).resolve().parents[2]
 NOM_01 = json.loads((RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines()[0])
 SCENARIOS = {
     s["id"]: s
-    for s in map(json.loads, (RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines())
-    if s
+    for s in map(
+        json.loads,
+        (
+            ligne
+            for ligne in (RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines()
+            if ligne.strip()
+        ),
+    )
 }
 
 
@@ -202,6 +208,11 @@ def test_aucune_donnee_personnelle_exposee(client: TestClient, base: Any) -> Non
     corps = client.get("/demandes").text + client.get(f"/demandes/{reference}").text
     for cle in ("email", "telephone", "iban", "adresse", "code_postal", "id_client"):
         assert str(assure[cle]) not in corps, cle
+
+
+def test_filtre_inconnu_refuse(client: TestClient) -> None:
+    assert client.get("/demandes", params={"issue": "bogus"}).status_code == 422
+    assert client.get("/demandes", params={"statut": "bogus"}).status_code == 422
 
 
 def test_etat_illisible_ne_fait_pas_tomber_la_liste(client: TestClient, base: Any) -> None:

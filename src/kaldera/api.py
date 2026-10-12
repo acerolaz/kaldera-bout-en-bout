@@ -137,8 +137,8 @@ def soumettre(reference: str, ingestion: Ingestion) -> StatutDemande:
 @app.get("/demandes", response_model=list[LigneDemande])
 def lister_demandes(
     ingestion: Ingestion,
-    statut: str | None = None,
-    issue: str | None = None,
+    statut: vue.StatutDemande | None = None,
+    issue: vue.CodeIssue | None = None,
     file: str | None = None,
     mode_degrade: bool | None = None,
     q: str | None = None,
