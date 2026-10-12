@@ -1,5 +1,5 @@
-"""Worker d'ingestion (dossier 2.4 ter) : analyse les fichiers, puis admet en ``prete`` ; le gestionnaire lance le traitement
-depuis l'IHM (C3-3).
+"""Worker d'ingestion (dossier 2.4 ter) : analyse les fichiers, puis admet en ``prete`` ;
+le gestionnaire lance le traitement depuis l'IHM (C3-3).
 
 Plusieurs workers peuvent tourner : ``SKIP LOCKED`` répartit les tâches, l'admission est un
 compare-and-set ; le VLM est appelé hors transaction, ses sorties sont vérifiées par le code.

@@ -329,7 +329,8 @@ class IngestionPostgres:
 
     def admettre(self, reference: str) -> bool:
         """Admission atomique (C3-3) : la demande passe en ``prete`` avec sa vue niveau 1 (termes du
-        contrat extraits) dans la même transaction ; faux pour les perdants. Le gestionnaire lance."""
+        contrat extraits) dans la même transaction ; faux pour les perdants.
+        Le gestionnaire lance."""
         with _connexion(self.connexions) as conn, conn.transaction():
             ligne = conn.execute(
                 "SELECT etat FROM demandes WHERE reference = %s AND "
