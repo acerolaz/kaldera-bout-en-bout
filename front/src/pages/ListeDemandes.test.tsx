@@ -175,4 +175,21 @@ describe("E1 · Liste des demandes", () => {
     await userEvent.selectOptions(screen.getByLabelText("Statut"), "prete");
     expect(await screen.findByRole("button", { name: "Traiter la sélection (0)" })).toBeDisabled();
   });
+
+  it("après un 409, les dossiers devenus non lançables sortent de la sélection", async () => {
+    let refuse = false;
+    simulerApi((_url, init) => {
+      if (init?.method === "POST") {
+        refuse = true;
+        return json({ detail: "dossiers non lançables", references: ["KAL-26-0104"] }, 409);
+      }
+      return json(LIGNES.map((l) => (refuse && l.reference === "KAL-26-0104"
+        ? { ...l, selectionnable: false, motif_non_selectionnable: "Traitement en cours" } : l)));
+    });
+    rendre(<ListeDemandes />);
+    await userEvent.click(await screen.findByRole("checkbox", { name: "Tout sélectionner" }));
+    await userEvent.click(screen.getByRole("button", { name: "Traiter la sélection (2)" }));
+    expect(await screen.findByRole("button", { name: "Traiter la sélection (1)" })).toBeEnabled();
+    expect(screen.getByRole("checkbox", { name: "Sélectionner KAL-26-0104" })).not.toBeChecked();
+  });
 });

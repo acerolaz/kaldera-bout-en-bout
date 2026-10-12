@@ -26,10 +26,20 @@ export function ListeDemandes() {
     if (valeur) filtres.set(cle, valeur);
   }
   const requete = filtres.toString();
+  const toutes = useQuery({ queryKey: ["demandes", ""], queryFn: () => lire<LigneDemande[]>("/demandes") });
+  const liste = useQuery({
+    queryKey: ["demandes", requete],
+    queryFn: () => lire<LigneDemande[]>(requete ? `/demandes?${requete}` : "/demandes"),
+  });
   // sélection rattachée aux filtres : en changer la vide, sans effet ni état dupliqué
   const [choix, setChoix] = useState<{ requete: string; refs: Set<string> }>({ requete, refs: new Set() });
-  const selection = choix.requete === requete ? choix.refs : new Set<string>();
-  const selectionner = (refs: Set<string>) => setChoix({ requete, refs });
+  // sélection effective : bornée aux dossiers actuellement lançables (un 409 puis refetch les retire)
+  const lancables = new Set((liste.data ?? []).filter((l) => l.selectionnable).map((l) => l.reference));
+  const selection = new Set([...(choix.requete === requete ? choix.refs : [])].filter((r) => lancables.has(r)));
+  const selectionner = (refs: Set<string>) => {
+    lancer.reset();
+    setChoix({ requete, refs });
+  };
   const navigate = useNavigate();
   const client = useQueryClient();
   const lancer = useMutation({
@@ -45,11 +55,6 @@ export function ListeDemandes() {
   useEffect(() => {
     if (champ.current) champ.current.value = q;
   }, [q]);
-  const toutes = useQuery({ queryKey: ["demandes", ""], queryFn: () => lire<LigneDemande[]>("/demandes") });
-  const liste = useQuery({
-    queryKey: ["demandes", requete],
-    queryFn: () => lire<LigneDemande[]>(requete ? `/demandes?${requete}` : "/demandes"),
-  });
   const fileActive = params.get("file");
   const files = [
     ...new Set([...(toutes.data ?? []).flatMap((l) => (l.file ? [l.file] : [])), ...(fileActive ? [fileActive] : [])]),
