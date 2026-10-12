@@ -7,11 +7,9 @@ import { Statut } from "@/components/Statut";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ABSENT, euros, nomComplet } from "@/format";
+import { ETAPES } from "@/statuts";
 import { Cadre, Vide } from "./socle";
 
-const ETAPES: Record<string, string> = {
-  eligibilite: "Éligibilité", pieces: "Pièces", estimation: "Estimation", antifraude: "Anti-fraude", decision: "Décision",
-};
 const AVIS: Record<CarteAntifraude["statut"], string> = { ok: "Avis obtenu", indisponible: "Indisponible", non_requis: "Non requis" };
 
 const secondes = (ms: number) => `${(ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s`;

@@ -1,5 +1,5 @@
 import {
-  CircleCheck, CircleX, Clock, FileSearch, LifeBuoy, Loader, OctagonX, RotateCcw, SkipForward, UserRound,
+  CircleCheck, CirclePlay, CircleX, Clock, FileSearch, LifeBuoy, Loader, OctagonX, RotateCcw, SkipForward, UserRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -10,6 +10,7 @@ export type DefinitionStatut = { libelle: string; icone: LucideIcon; ton: Ton };
 export const STATUTS: Record<string, DefinitionStatut> = {
   // demande
   admission: { libelle: "En analyse", icone: FileSearch, ton: "info" },
+  prete: { libelle: "Prête", icone: CirclePlay, ton: "info" },
   en_cours: { libelle: "En traitement", icone: Loader, ton: "info" },
   terminee: { libelle: "Terminée", icone: CircleCheck, ton: "succes" },
   secours: { libelle: "Fiche de secours", icone: LifeBuoy, ton: "attention" },
@@ -27,4 +28,9 @@ export const STATUTS: Record<string, DefinitionStatut> = {
   // badges
   mode_degrade: { libelle: "Mode dégradé", icone: LifeBuoy, ton: "attention" },
   borne: { libelle: "Borne atteinte", icone: OctagonX, ton: "danger" },
+};
+
+/** Libellés des étapes de la machine (E2, E3). */
+export const ETAPES: Record<string, string> = {
+  eligibilite: "Éligibilité", pieces: "Pièces", estimation: "Estimation", antifraude: "Anti-fraude", decision: "Décision",
 };

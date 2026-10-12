@@ -4,17 +4,27 @@ export const LIGNES: LigneDemande[] = [
   {
     reference: "KAL-26-0203", nom: "Durand", prenom: "Paul", police: "CTR-778803",
     type_sinistre: "degat_des_eaux", montant_declare: 9200, statut: "terminee", issue: "escalade",
-    file: "cellule_fraude", mode_degrade: true,
+    file: "cellule_fraude", mode_degrade: true, selectionnable: false, motif_non_selectionnable: "Déjà traité",
   },
   {
     reference: "KAL-26-0103", nom: "Martin", prenom: "Léa", police: "CTR-778802",
     type_sinistre: "vol", montant_declare: 640, statut: "terminee", issue: "refusee",
-    file: null, mode_degrade: false,
+    file: null, mode_degrade: false, selectionnable: false, motif_non_selectionnable: "Déjà traité",
   },
   {
     reference: "KAL-26-0101", nom: "Martin", prenom: "Claire", police: "CTR-778801",
     type_sinistre: "degat_des_eaux", montant_declare: null, statut: "admission", issue: null,
-    file: null, mode_degrade: false,
+    file: null, mode_degrade: false, selectionnable: false, motif_non_selectionnable: "Pièces en cours d'analyse",
+  },
+  {
+    reference: "KAL-26-0105", nom: "Petit", prenom: "Jean", police: "CTR-778805",
+    type_sinistre: "degat_des_eaux", montant_declare: 4200, statut: "prete", issue: null,
+    file: null, mode_degrade: false, selectionnable: true, motif_non_selectionnable: null,
+  },
+  {
+    reference: "KAL-26-0104", nom: "Roux", prenom: "Anne", police: "CTR-778804",
+    type_sinistre: "incendie", montant_declare: 1500, statut: "prete", issue: null,
+    file: null, mode_degrade: false, selectionnable: true, motif_non_selectionnable: null,
   },
 ];
 

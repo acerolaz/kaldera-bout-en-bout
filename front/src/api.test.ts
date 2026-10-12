@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ErreurApi, lire } from "./api";
+import { ErreurApi, envoyer, lire } from "./api";
 import { json, simulerApi } from "./test/rendre";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -25,5 +25,24 @@ describe("lire", () => {
     const erreur = await lire("/demandes").catch((e: unknown) => e);
     expect(erreur).toBeInstanceOf(ErreurApi);
     expect((erreur as ErreurApi).message).toBe("Erreur 502");
+  });
+});
+
+describe("envoyer", () => {
+  it("POST JSON et renvoie le corps", async () => {
+    const espion = simulerApi(() => json({ lot_id: 7, references: ["KAL-26-0104"] }, 202));
+    await expect(envoyer("/traitements", { references: ["KAL-26-0104"] })).resolves.toEqual({
+      lot_id: 7, references: ["KAL-26-0104"],
+    });
+    expect(espion).toHaveBeenCalledWith("/api/traitements", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: '{"references":["KAL-26-0104"]}',
+    });
+  });
+
+  it("409 : ErreurApi porte les références refusées", async () => {
+    simulerApi(() => json({ detail: "dossiers non lançables", references: ["KAL-26-0104"] }, 409));
+    await expect(envoyer("/traitements", { references: ["KAL-26-0104"] })).rejects.toMatchObject({
+      statut: 409, message: "dossiers non lançables", references: ["KAL-26-0104"],
+    });
   });
 });

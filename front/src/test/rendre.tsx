@@ -27,9 +27,9 @@ export function rendre(element: ReactElement, chemin = "/") {
 export const json = (corps: unknown, statut = 200): Response =>
   new Response(JSON.stringify(corps), { status: statut, headers: { "Content-Type": "application/json" } });
 
-/** Remplace fetch ; le gestionnaire reçoit l'URL demandée (ex. "/api/demandes?issue=escalade"). */
-export function simulerApi(gestionnaire: (url: string) => Response | Promise<Response>) {
-  const espion = vi.fn(async (url: RequestInfo | URL) => gestionnaire(String(url)));
+/** Remplace fetch ; le gestionnaire reçoit l'URL demandée (ex. "/api/demandes?issue=escalade") et l'init (POST). */
+export function simulerApi(gestionnaire: (url: string, init?: RequestInit) => Response | Promise<Response>) {
+  const espion = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => gestionnaire(String(url), init));
   vi.stubGlobal("fetch", espion);
   return espion;
 }
