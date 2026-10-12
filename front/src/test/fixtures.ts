@@ -52,7 +52,7 @@ export const DOSSIER_DEGRADE: DossierVue = {
   ...DOSSIER_ACCEPTE,
   reference: "KAL-26-0203", nom: "Durand", prenom: "Paul", police: "CTR-778803",
   issue: "escalade", file: "cellule_fraude", motif: "Avis anti-fraude indisponible",
-  mode_degrade: true, montant_rembourse: null, avancement: 80,
+  mode_degrade: true, montant_rembourse: null, avancement: 100, // terminal ⇒ 100
   etapes: [
     etape("eligibilite", { vers: "pieces", resume: "Éligible" }),
     etape("pieces", { vers: "estimation", resume: "Pièces complètes (2 retenues)" }),

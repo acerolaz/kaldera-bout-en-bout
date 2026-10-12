@@ -4,6 +4,8 @@ import type { ReactElement } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { vi } from "vitest";
 
+// Sonde de test : ce module n'est jamais rechargé à chaud.
+// eslint-disable-next-line react-refresh/only-export-components
 function SondeUrl() {
   const { pathname, search } = useLocation();
   return <span hidden data-testid="url">{pathname + search}</span>;
