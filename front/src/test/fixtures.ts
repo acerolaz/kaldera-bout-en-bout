@@ -1,4 +1,4 @@
-import type { DossierVue, Etape, LigneDemande } from "@/api";
+import type { DossierVue, Etape, LigneDemande, LotVue } from "@/api";
 
 export const LIGNES: LigneDemande[] = [
   {
@@ -85,5 +85,20 @@ export const DOSSIER_EN_COURS: DossierVue = {
     etape("pieces", { statut: "en_cours", avancement: 0, duree_ms: null, de: null, garde: null }),
     ...["estimation", "antifraude", "decision"].map((e) =>
       etape(e, { statut: "en_attente", avancement: 0, passages: 0, duree_ms: null, de: null, garde: null })),
+  ],
+};
+
+export const LOT: LotVue = {
+  id: 7, debut: "2026-10-12T09:00:00Z", fin: null, avancement: 50,
+  compteurs: { acceptee: 1, refusee: 0, escalade: { cellule_fraude: 1 }, mode_degrade: 1 },
+  dossiers: [
+    { reference: "KAL-26-0104", nom: "Roux", prenom: "Anne", police: "CTR-778804", statut: "terminee", avancement: 100,
+      etape_en_cours: null, duree_ms: 2400, issue: "acceptee", file: null, mode_degrade: false, borne: null },
+    { reference: "KAL-26-0105", nom: "Petit", prenom: "Jean", police: "CTR-778805", statut: "en_cours", avancement: 40,
+      etape_en_cours: "estimation", duree_ms: 900, issue: null, file: null, mode_degrade: false, borne: null },
+    { reference: "KAL-26-0106", nom: "Blanc", prenom: "Lou", police: "CTR-778806", statut: "terminee", avancement: 100,
+      etape_en_cours: null, duree_ms: 8100, issue: "escalade", file: "cellule_fraude", mode_degrade: true, borne: "duree_max_s" },
+    { reference: "KAL-26-0107", nom: "Noir", prenom: "Max", police: "CTR-778807", statut: "en_cours", avancement: 0,
+      etape_en_cours: "eligibilite", duree_ms: 0, issue: null, file: null, mode_degrade: false, borne: null },
   ],
 };
