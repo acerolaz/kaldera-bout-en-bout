@@ -62,3 +62,9 @@ class RegistreA2A(Protocol):
     def reserver(self, reference: str) -> bool: ...
 
     def noter(self, reference: str, evaluation_id: str) -> None: ...
+
+
+class Signaux(Protocol):
+    """Événements d'avancement (spec C3-3 §3) : best effort, jamais bloquant (EX-01)."""
+
+    def emettre(self, evenement: dict[str, Any]) -> None: ...

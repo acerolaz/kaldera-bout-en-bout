@@ -21,6 +21,7 @@ def _sans_llm_reel(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(postgres, "snapshots_par_defaut", lambda: None)
     monkeypatch.setattr(postgres, "registre_par_defaut", lambda: None)  # .env local ignoré
+    monkeypatch.setattr(postgres, "signaux_par_defaut", lambda: None)
 
 
 @pytest.fixture

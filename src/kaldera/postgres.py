@@ -6,6 +6,7 @@ Toute ``psycopg.Error`` devient ``ErreurPersistance`` : le domaine ne voit jamai
 from __future__ import annotations
 
 import functools
+import json
 import logging
 from time import monotonic
 from collections.abc import Iterator
@@ -215,6 +216,25 @@ class RegistreA2APostgres:
             )
 
 
+CANAL = "kaldera_avancement"  # LISTEN / NOTIFY : avancement des dossiers vers les flux SSE
+
+
+class SignauxPostgres:
+    """``pg_notify`` best effort : un événement perdu ne fausse rien (l'IHM relit l'état)."""
+
+    def __init__(self, connexions: ConnectionPool) -> None:
+        self.connexions = connexions
+
+    def emettre(self, evenement: dict[str, Any]) -> None:
+        try:
+            with _connexion(self.connexions) as conn:
+                conn.execute(
+                    "SELECT pg_notify(%s, %s)", (CANAL, json.dumps(evenement, ensure_ascii=False))
+                )
+        except ErreurPersistance as exc:  # jamais bloquant pour une décision (EX-01)
+            LOGGER.debug("signal %s perdu : %s", evenement.get("type"), exc)
+
+
 def _pool_par_defaut() -> ConnectionPool | None:
     """Pool si ``KALDERA_DATABASE_URL`` est configurée et joignable, sinon aucun."""
     try:
@@ -236,6 +256,12 @@ def snapshots_par_defaut() -> SnapshotsPostgres | None:
     """Snapshots PostgreSQL si la base est configurée et joignable, sinon aucun."""
     connexions = _pool_par_defaut()
     return SnapshotsPostgres(connexions) if connexions is not None else None
+
+
+def signaux_par_defaut() -> SignauxPostgres | None:
+    """Signaux PostgreSQL si la base est configurée et joignable, sinon aucun."""
+    connexions = _pool_par_defaut()
+    return SignauxPostgres(connexions) if connexions is not None else None
 
 
 class _RegistreA2AParesseux(RegistreA2APostgres):

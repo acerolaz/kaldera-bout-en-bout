@@ -111,3 +111,15 @@ class RegistreA2AEnMemoire:
         with self._verrou:
             if reference in self.evaluations:
                 self.evaluations[reference] = evaluation_id
+
+
+class SignauxEnMemoire:
+    """Événements gardés dans l'ordre d'émission ; tests et démonstration."""
+
+    def __init__(self) -> None:
+        self.evenements: list[dict[str, Any]] = []
+        self._verrou = threading.Lock()
+
+    def emettre(self, evenement: dict[str, Any]) -> None:
+        with self._verrou:
+            self.evenements.append(copy.deepcopy(evenement))

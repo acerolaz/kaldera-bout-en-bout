@@ -85,3 +85,33 @@ def test_demande_fauchee_sans_fiche_reprise_au_passage_suivant(
     snapshots.debuter(_etat())
     assert [r for r, _ in snapshots.faucher(0)] == [REF]  # le reaper meurt avant classer
     assert [r for r, _ in snapshots.faucher(0)] == [REF]  # repris, jamais oublié
+
+
+@pytest.fixture(params=["memoire", pytest.param("postgres", marks=pytest.mark.integration)])
+def signaux(request: pytest.FixtureRequest) -> tuple[Any, Any]:
+    """(signaux, lecteur) : le lecteur rend les événements effectivement émis."""
+    if request.param == "memoire":
+        from kaldera.memoire import SignauxEnMemoire
+
+        memoire = SignauxEnMemoire()
+        return memoire, lambda: memoire.evenements
+    import json
+
+    import psycopg
+
+    from kaldera.postgres import CANAL, SignauxPostgres
+
+    base = request.getfixturevalue("base")
+    ecoute = psycopg.connect(base.conninfo, autocommit=True)
+    request.addfinalizer(ecoute.close)
+    ecoute.execute(f"LISTEN {CANAL}")
+    return SignauxPostgres(base), lambda: [
+        json.loads(n.payload) for n in ecoute.notifies(timeout=1.0, stop_after=1)
+    ]
+
+
+def test_signal_emis_tel_quel(signaux: tuple[Any, Any]) -> None:
+    emetteur, lire = signaux
+    evenement = {"type": "etape_debut", "reference": REF, "etat": "pieces"}
+    emetteur.emettre(evenement)
+    assert lire() == [evenement]

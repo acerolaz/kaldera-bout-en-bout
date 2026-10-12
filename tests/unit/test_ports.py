@@ -49,3 +49,19 @@ def test_depot_pour_la_tentative(tentative: int, lisible: bool) -> None:
 
 def test_depot_pour_un_type_jamais_depose() -> None:
     assert depot_pour(DEMANDE["espace_assure"]["depots"], "facture", 0) is None
+
+
+def test_signaux_postgres_jamais_bloquants() -> None:
+    """Base injoignable : l'événement est perdu, aucune exception ne remonte (EX-01)."""
+    from psycopg_pool import ConnectionPool
+
+    from kaldera.postgres import SignauxPostgres
+
+    connexions = ConnectionPool(
+        "postgresql://x@127.0.0.1:9/x",
+        min_size=0,
+        max_size=1,  # psycopg_pool refuse min_size=0 seul (max_size par défaut = min_size)
+        open=False,
+        kwargs={"connect_timeout": 1},
+    )
+    SignauxPostgres(connexions).emettre({"type": "dossier_fin", "reference": "KAL-26-9001"})
