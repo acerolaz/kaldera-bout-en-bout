@@ -1,6 +1,9 @@
 const EUROS = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const HEURE = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" });
 
+export const ABSENT = "—";
+export const nomComplet = (nom: string | null, prenom: string | null): string =>
+  [nom, prenom].filter(Boolean).join(" ") || ABSENT;
 export const euros = (montant: number): string => EUROS.format(montant);
 export const heure = (iso: string): string => HEURE.format(new Date(iso));
 export function duree(secondes: number): string {

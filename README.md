@@ -160,12 +160,13 @@ donne la matrice agent × modèle (replis, sorties rejetées, latence LLM p95, t
 modèle recommandé par rôle, l'invariance des issues et les bornes remesurées. Code de sortie : 0
 tout vert, 1 alerte, 2 non mesuré (aucune clé ou aucun modèle).
 
-IHM : back-office gestionnaire (chantier 3 ; socle livré en C3-1, écrans E1 / E2 / E3 à venir) :
+IHM : back-office gestionnaire (chantier 3 ; socle C3-1 et lecture E1 / E2 C3-2 livrés ; traitement, E3 et reprise à venir) :
 
 ```bash
 make up
 docker compose --profile integration up -d --wait postgres
 make demo    # demande KAL-26-0101 et son contrat
+make scenarios  # dossiers traités, visibles dans E1 / E2
 make api     # http://127.0.0.1:8000/docs
 make worker
 make front   # http://localhost:5173 : back-office gestionnaire
@@ -178,6 +179,14 @@ sans choix, le thème du système. Design system : `design-system/kaldera/MASTER
 | Clair | Sombre |
 |---|---|
 | ![IHM en thème clair](docs/captures/ihm-clair.png) | ![IHM en thème sombre](docs/captures/ihm-sombre.png) |
+
+E1 liste et filtre les demandes (filtres dans l'adresse) ; E2 montre un dossier : en-tête, panneau Garanties, timeline des
+5 étapes (statut, durée, mode llm / repli, résumé) et carte anti-fraude. API et règles d'affichage :
+`docs/interface_gestionnaire.md`.
+
+| E1 · Liste | E2 · Dossier |
+|---|---|
+| ![E1, liste des demandes](docs/captures/e1-liste.png) | ![E2, dossier](docs/captures/e2-dossier.png) |
 
 `make demo` et `make seed` créent tous deux `KAL-26-0101` : on n'en lance qu'un par base (sinon
 « base déjà préparée » ou « base déjà semée »).
@@ -240,6 +249,7 @@ docker compose --profile integration down -v        # vider la base (et tout arr
 - `tests/unit/`, `tests/acceptance/`, `tests/integration/` : tests (l'intégration exige PostgreSQL)
 - `tests/e2e/` : serveur de bout en bout (API + worker sur FakeVLM) lancé par Playwright
 - `docs/specs_metier.md`, `docs/interface.md` : spécifications fonctionnelles, contrat d'intégration
+- `docs/interface_gestionnaire.md` : back-office (écrans, API de lecture)
 - `docs/interface_web.md` : espace assuré (retiré en v5, archive)
 - `docs/journal_ajustements.md` : ajustements consignés et bornes en vigueur
 - `docs/addendum_conception.md` : écarts entre le dossier de conception et le code
@@ -254,7 +264,7 @@ make fmt        # ruff format + autofix
 make lint       # ruff check
 make typecheck  # mypy
 make front-test # Vitest (front)
-make front-e2e  # Playwright : socle du back-office (thème, clavier, axe ; démarre PostgreSQL de test)
+make front-e2e  # Playwright : socle et lecture E1 / E2 (thème, clavier, axe ; démarre PostgreSQL de test)
 make down       # arrête les services docker
 ```
 

@@ -62,17 +62,22 @@ def groupes(liste):
 
 # Statut relevé au dernier déroulé (vide : à dérouler) ; mis à jour à chaque recette.
 STATUTS: dict[str, str] = {
-    "S-01": "NT", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "OK",
-    "U-01": "OK", "U-02": "OK", "U-03": "OK", "U-04": "OK",
-    "A-01": "OK", "A-02": "OK", "A-03": "OK", "A-04": "NT",
+    "S-01": "NT", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "NT",
+    "U-01": "OK", "U-02": "OK", "U-03": "OK", "U-04": "OK", "U-05": "OK",
+    "U-06": "OK", "U-07": "OK", "U-08": "OK", "U-09": "OK", "U-10": "OK",
+    "A-01": "NT", "A-02": "OK", "A-03": "OK", "A-04": "NT",
 }
 
 # Remarque relevée au dernier déroulé (vide : aucune) ; mise à jour à chaque recette.
 REMARQUES: dict[str, str] = {
-    "S-01": "Adapté : base vidée (TRUNCATE des tests) au lieu de make recette ; "
-            "PostgreSQL du checkout principal conservé.",
+    "S-01": "Adapté : base vidée (TRUNCATE) puis make demo ; PostgreSQL du checkout principal "
+            "conservé, partenaire anti-fraude non démarré sur ce poste.",
     "S-03": "Pas de profil VLM Azure sur ce poste.",
-    "A-03": "Anti-fraude en mode dégradé (PARTENAIRE_URL absent).",
+    "S-05": "Partenaire non démarré : make ctl le signale injoignable.",
+    "U-05": "34 dossiers ; sans partenaire, les avis requis sont indisponibles (mode dégradé).",
+    "U-09": "Dossier KAL-26-0404 (PAN-01).",
+    "A-01": "Partenaire non démarré : pas de journal à lire.",
+    "A-03": "Anti-fraude en mode dégradé (partenaire non démarré).",
     "A-04": "make recette-reset non lancé : PostgreSQL du checkout principal conservé.",
 }
 
@@ -97,8 +102,7 @@ UI = [
     ("Socle du back-office", [
         ("U-01", "Ouvrir <b>http://localhost:5173</b>.",
          "En-tête « Kaldera · back-office gestionnaire », lien « Demandes » souligné (page "
-         "courante), bouton de thème ; titre « Liste des demandes » et cadre « Écran livré au "
-         "sous-projet C3-2 »."),
+         "courante), bouton de thème ; titre « Liste des demandes » (contenu vérifié en U-05)."),
         ("U-02", "Cliquer le bouton de thème (lune), recharger la page, puis recliquer (soleil).",
          "Passage en sombre ; après rechargement la page reste en sombre, sans flash clair ; "
          "second clic : retour en clair. Navigateur sans choix enregistré (fenêtre privée) : "
@@ -107,22 +111,49 @@ UI = [
          "1er Tab : « Aller au contenu » apparaît en haut à gauche ; 2e : « Demandes » ; 3e : "
          "bouton de thème. Anneau de focus or visible à chaque fois, dans les deux thèmes."),
         ("U-04", "Ouvrir <i>/demandes/KAL-26-0101</i>, <i>/lots/1</i>, puis <i>/inconnu</i>.",
-         "Titres « Dossier KAL-26-0101 » et « Lot 1 » (cadres C3-2 / C3-3) ; adresse inconnue : "
+         "Titres « Dossier KAL-26-0101 » (E2, vérifié en U-07) et « Lot 1 » (cadre C3-3) ; adresse inconnue : "
          "« Page introuvable » et lien « Retour à la liste des demandes »."),
+    ]),
+    ("Lecture des dossiers (E1, E2)", [
+        ("U-05", f"Terminal 4 : {m('make scenarios')} (une seule fois), puis ouvrir "
+         "<b>http://localhost:5173</b>.",
+         "E1 liste les dossiers des scénarios et KAL-26-0101 : référence, assuré, police, "
+         "sinistre, montant, statut et issue en icône + libellé, file, badge mode dégradé ; "
+         "aucun email, téléphone ni IBAN affiché."),
+        ("U-06", "Filtrer Issue = Escaladée, cocher « Mode dégradé seulement », chercher un "
+         "nom ; recharger ; cliquer « Effacer les filtres ».",
+         "La liste se restreint à chaque filtre ; l'adresse porte les filtres et les conserve "
+         "au rechargement ; un filtre sans résultat affiche « Aucune demande ne correspond aux "
+         "filtres. » ; « Effacer les filtres » rend la liste complète."),
+        ("U-07", "Cliquer la référence d'un dossier accepté.",
+         "E2 « Dossier KAL-… » : assuré, police, formule, issue, avancement 100 %, durée / 8 s ; "
+         "5 cartes (Éligibilité → Décision) avec statut, durée, mode llm / repli, transition et "
+         "résumé (ex. « Estimé … = min(déclaré, justifié) − franchise … »)."),
+        ("U-08", "Sur E2, Tab jusqu'au bouton « Garanties », Entrée, puis Échap.",
+         "Panneau Garanties : formule, franchise, plafond, souscription, statut du contrat, "
+         "cotisations, extraction et provenance ; Échap ferme et rend le focus au bouton."),
+        ("U-09", "Ouvrir un dossier PAN-01 (partenaire hors service).",
+         "Carte anti-fraude : requis, indicateurs F1–F4, statut Indisponible, motif du mode "
+         "dégradé ; carte d'étape « Mode dégradé » ; issue Escaladée avec sa file."),
+        ("U-10", "Arrêter <i>make api</i> puis recharger E1 ; relancer l'API et cliquer "
+         "« Réessayer » ; ouvrir <i>/demandes/KAL-26-9999</i>.",
+         "API arrêtée : message d'erreur et « Réessayer » (pas de page blanche) ; après "
+         "relance, la liste revient ; référence inconnue : « Dossier introuvable. » et lien de "
+         "retour."),
     ]),
 ]
 
 ADMIN = [
     ("Contrôles par make", [
         ("A-01", f"{m('make ctl ARGS=journal')}",
-         "Journal vide : aucun dossier n'a encore été traité, le partenaire n'a reçu aucun appel."),
+         "Journal : un appel au plus par dossier soumis à l'anti-fraude pendant "
+         "<i>make scenarios</i> (U-05), aucun doublon (EX-D19)."),
         ("A-02", f"{m('make reaper')}, observer 20 s puis Ctrl+C.",
          "Aucune ligne « escaladée par le reaper » : aucune demande bloquée."),
-        ("A-03", f"{m('make scenarios')}",
-         "Une fiche JSON par scénario de recette (« == NOM-01 — ... ») puis une synthèse : "
-         "métriques par agent et bilan de l'équipe ; chaque scénario finit par une décision "
-         "ou une escalade. À lancer une seule fois : relancé, il réécrit le dossier de démo et "
-         "chaque dossier déjà soumis au partenaire passe en mode dégradé."),
+        ("A-03", "Relire la sortie de <i>make scenarios</i> lancé en U-05.",
+         "Une fiche JSON par scénario (« == NOM-01 — ... ») puis une synthèse : métriques par "
+         "agent et bilan de l'équipe ; chaque scénario finit par une décision ou une escalade. "
+         "Ne pas relancer : chaque dossier déjà soumis au partenaire passerait en mode dégradé."),
         ("A-04", f"Ctrl+C dans les 3 terminaux, puis {m('make recette-reset')}",
          "Services arrêtés et base vidée ; la recette peut être rejouée depuis S-01."),
     ]),
@@ -148,16 +179,16 @@ def construire():
         tableau(["Rubrique", "Valeur"], [
             ["Objet", "Recette de démonstration : setup par commandes make (administrateur), "
                       "interface gestionnaire en construction, contrôles d'exploitation."],
-            ["Version testée", "<i>kaldera-bout-en-bout</i>, branche <i>feature/chantier3-c3-1-design-system</i>"],
+            ["Version testée", "<i>kaldera-bout-en-bout</i>, branche <i>feature/chantier3-c3-2-lecture</i>"],
             ["Date", "12 octobre 2026"],
-            ["Durée estimée", "20 minutes environ"],
+            ["Durée estimée", "30 minutes environ"],
             ["Testeur", ""],
         ], [4, 14]),
         Spacer(1, 1 * cm),
         Paragraph("Légende", H2),
         Paragraph("<b>OK</b> : résultat conforme · <b>KO</b> : écart (le décrire en remarque) · "
                   "<b>NT</b> : non testé. Les cas s'enchaînent dans l'ordre : "
-                  "<b>S-01 à S-05</b>, puis <b>U-01 à U-04</b>, puis <b>A-01 à A-04</b>.", TXT),
+                  "<b>S-01 à S-05</b>, puis <b>U-01 à U-10</b>, puis <b>A-01 à A-04</b>.", TXT),
         Spacer(1, 1 * cm),
         Paragraph("Validation", H2),
         tableau(["Rôle", "Nom", "Date", "Signature"],
@@ -191,14 +222,15 @@ def construire():
         PageBreak(),
 
         Paragraph("2. Interface gestionnaire", H1),
-        Paragraph("Navigateur sur http://localhost:5173. Le socle du back-office (C3-1) est livré ; "
-                  "les écrans E1, E2, E3 (EX-D44 → EX-D50) s'ajoutent avec les sous-projets C3-2 à C3-4.", TXT),
+        Paragraph("Navigateur sur http://localhost:5173. Le socle (C3-1) et la lecture des dossiers E1 / E2 "
+                  "(C3-2) sont livrés ; le traitement depuis l'IHM, E3, le temps réel et la reprise "
+                  "d'étape s'ajoutent avec C3-3 et C3-4.", TXT),
         *groupes(UI),
         PageBreak(),
 
         Paragraph("3. Contrôles d'exploitation (administrateur)", H1),
-        Paragraph("Les écrans du back-office (C3-2 à C3-4) ne sont pas encore livrés : "
-                  "les contrôles se font par make.", TXT),
+        Paragraph("Le traitement depuis l'IHM (C3-3) et la reprise d'étape (C3-4) ne sont pas encore "
+                  "livrés : les contrôles se font par make.", TXT),
         *groupes(ADMIN),
         Spacer(1, 12),
         Paragraph("4. Anomalies relevées", H1),

@@ -1,0 +1,35 @@
+<section class="page" id="ihm-lecture">
+  <style>
+    #ihm-lecture .tableau td, #ihm-lecture .tableau th { font-size:9.5px; padding:3px 6px; }
+  </style>
+  <div class="surtitre">Livrable 2 · IHM gestionnaire</div>
+  <h2 class="titre"><span class="num">2.9</span>🔎 IHM gestionnaire · lecture des dossiers (E1, E2)</h2>
+  <p class="chapo">Le gestionnaire lit les dossiers traités par l'équipe d'agents. L'IHM n'interprète rien (EX-D44) : une projection
+    serveur (<code>vue_gestionnaire.py</code>) transforme l'état en base en vues typées, que l'écran affiche telles quelles.</p>
+
+  <table class="tableau">
+    <tr><th colspan="3">🖥️ Écrans</th></tr>
+    <tr><th>Écran</th><th>Contenu</th><th>États</th></tr>
+    <tr><td><b>E1</b> · Liste des demandes</td><td>Référence, assuré, police, sinistre, montant déclaré, statut, issue, file, mode dégradé ; filtres (statut, issue, file, mode dégradé, recherche) conservés dans l'URL ; lecture seule</td><td>Chargement, vide (« Effacer les filtres »), base vide, erreur (« Réessayer »)</td></tr>
+    <tr><td><b>E2</b> · Dossier</td><td>En-tête (avancement, durée / budget, issue, file, motif, montant) ; bouton Garanties ; timeline des 5 étapes avec résumé de chaque patch ; carte anti-fraude (statut, niveau, score, cause)</td><td>Chargement, « Dossier introuvable. », erreur</td></tr>
+  </table>
+
+  <table class="tableau" style="margin-top:8px">
+    <tr><th colspan="3">🏷️ Statut d'affichage d'une étape · la première règle vraie gagne</th></tr>
+    <tr><th>#</th><th>Condition</th><th>Statut</th></tr>
+    <tr><td>1</td><td>Étape absente de la trace, mais une étape aval y figure (court-circuit : la machine saute de <code>eligibilite</code> à <code>decision</code>)</td><td><code>sautee</code></td></tr>
+    <tr><td>2</td><td>Étape absente de la trace, aucune étape aval</td><td><code>en_attente</code></td></tr>
+    <tr><td>3</td><td>Filet de sécurité (entrée <code>filet_securite</code> : marque la carte de l'état <code>de</code>)</td><td><code>echec</code></td></tr>
+    <tr><td>4</td><td>Échec de trace sur l'étape <code>antifraude</code>, avis indisponible</td><td><code>degrade</code></td></tr>
+    <tr><td>5</td><td>Autre échec de trace</td><td><code>echec</code></td></tr>
+    <tr><td>6</td><td>Garde d'entrée : action non exécutée (<code>ecrit</code> vide, durée 0, pas de mode)</td><td><code>sautee</code></td></tr>
+    <tr><td>7</td><td>Mode <code>repli</code></td><td><code>repli</code></td></tr>
+    <tr><td>8</td><td>Sinon</td><td><code>termine</code></td></tr>
+  </table>
+
+  <div class="grille-3 pousse">
+    <div class="note petit"><h3>Avancement</h3>(<code>termine</code> + <code>sautee</code> + <code>repli</code> + <code>degrade</code>) / 5 × 100 ; statut terminal (<code>terminee</code>, <code>secours</code>) ⇒ 100 %. Écart assumé au brief « (termine + sautee) / 5 » : une étape finie en repli ou dégradé est faite, sinon la barre stagne. <code>en_cours</code> n'est jamais produit ici.</div>
+    <div class="note petit"><h3>Liste blanche</h3>La projection n'expose jamais l'email, le téléphone, l'IBAN, l'adresse, le code postal ni l'identifiant client ; un test vérifie le JSON sérialisé. Résumés d'étape formatés côté serveur (<code>1 230 €</code>).</div>
+    <div class="note petit"><h3>API</h3><code>GET /demandes</code> : filtres combinés en ET, tri par référence décroissante. <code>GET /demandes/{ref}</code> renvoie <code>DossierVue</code> (404 si inconnue), qui garde <code>reference</code>, <code>statut</code> et <code>fiche</code> par compatibilité.</div>
+  </div>
+</section>

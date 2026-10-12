@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -9,12 +10,34 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from kaldera.orchestrateur import Orchestrateur
+from kaldera.postgres import SnapshotsPostgres
 from tests.fabrique_pdf import PNG, pdf_texte
 from tests.integration.dossiers import json_demande
 
 pytestmark = pytest.mark.integration
 RACINE = Path(__file__).resolve().parents[2]
 NOM_01 = json.loads((RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines()[0])
+SCENARIOS = {
+    s["id"]: s
+    for s in map(
+        json.loads,
+        (
+            ligne
+            for ligne in (RACINE / "eval/scenarios.jsonl").read_text("utf-8").splitlines()
+            if ligne.strip()
+        ),
+    )
+}
+
+
+def _traiter(base: Any, scenario: str) -> str:
+    """Traite la 1re demande d'un scénario, partenaire absent (avis indisponible si requis)."""
+    demande = copy.deepcopy(SCENARIOS[scenario]["demandes"][0])
+    Orchestrateur(evaluer=lambda d, timeout: None, snapshots=SnapshotsPostgres(base)).traiter(
+        demande
+    )
+    return str(demande["reference"])
 
 
 def _creer(client: TestClient) -> str:
@@ -45,11 +68,10 @@ def _compter(base: Any) -> tuple[int, int, int]:
 def test_creer_puis_lire(client: TestClient) -> None:
     reference = _creer(client)
     assert client.post("/demandes", json=json_demande(NOM_01["demandes"][0])).status_code == 409
-    assert client.get(f"/demandes/{reference}").json() == {
-        "reference": reference,
-        "statut": "admission",
-        "fiche": None,
-    }
+    vue = client.get(f"/demandes/{reference}").json()
+    assert (vue["reference"], vue["statut"], vue["fiche"]) == (reference, "admission", None)
+    assert [e["statut"] for e in vue["etapes"]] == ["en_attente"] * 5
+    assert vue["avancement"] == 0
     assert client.get("/demandes/KAL-26-9999").status_code == 404
 
 
@@ -109,3 +131,100 @@ def test_soumettre(client: TestClient, base: Any) -> None:
     assert client.post(f"/demandes/{reference}/soumettre").status_code == 409
     facture = pdf_texte("Total 1850.00 EUR")
     assert _deposer(client, reference, facture, type="facture").status_code == 409
+
+
+CLES_DOSSIER = {
+    "reference",
+    "statut",
+    "fiche",
+    "nom",
+    "prenom",
+    "police",
+    "formule",
+    "avancement",
+    "duree_ms",
+    "budget_ms",
+    "issue",
+    "file",
+    "motif",
+    "mode_degrade",
+    "montant_rembourse",
+    "garanties",
+    "etapes",
+    "antifraude",
+    "arret",
+}
+
+
+def test_lister_filtrer_et_rechercher(client: TestClient, base: Any) -> None:
+    admission = _creer(client)  # KAL-26-0101, en admission
+    nominal, degrade = _traiter(base, "NOM-03"), _traiter(base, "AF-03")
+    toutes = client.get("/demandes").json()
+    assert [d["reference"] for d in toutes] == sorted([admission, nominal, degrade], reverse=True)
+    assert set(toutes[0]) == {
+        "reference",
+        "nom",
+        "prenom",
+        "police",
+        "type_sinistre",
+        "montant_declare",
+        "statut",
+        "issue",
+        "file",
+        "mode_degrade",
+    }
+    par_ref = {d["reference"]: d for d in toutes}
+    assert par_ref[admission]["statut"] == "admission" and par_ref[admission]["issue"] is None
+    assert par_ref[degrade]["issue"] == "escalade"
+    escalades = client.get("/demandes", params={"issue": "escalade"}).json()
+    assert [d["reference"] for d in escalades] == [degrade]
+    nom = par_ref[nominal]["nom"]
+    trouves = client.get("/demandes", params={"q": f"  {nom.upper()} "}).json()
+    assert [d["reference"] for d in trouves] == [nominal]  # Bernard ; Martin et Moreau exclus
+    assert client.get("/demandes", params={"statut": "secours"}).json() == []
+
+
+def test_dossier_traite(client: TestClient, base: Any) -> None:
+    reference = _traiter(base, "AF-03")
+    vue = client.get(f"/demandes/{reference}").json()
+    assert set(vue) == CLES_DOSSIER
+    assert [e["etat"] for e in vue["etapes"]] == [
+        "eligibilite",
+        "pieces",
+        "estimation",
+        "antifraude",
+        "decision",
+    ]
+    assert vue["statut"] == "terminee" and vue["avancement"] == 100
+    assert vue["issue"] == "escalade" and vue["motif"]
+    assert vue["file"] == "cellule_fraude" and vue["mode_degrade"] is True
+    assert vue["etapes"][3]["statut"] == "degrade"
+    assert vue["antifraude"]["statut"] == "indisponible"
+
+
+def test_aucune_donnee_personnelle_exposee(client: TestClient, base: Any) -> None:
+    reference = _traiter(base, "NOM-03")
+    assure = SCENARIOS["NOM-03"]["demandes"][0]["assure"]
+    corps = client.get("/demandes").text + client.get(f"/demandes/{reference}").text
+    for cle in ("email", "telephone", "iban", "adresse", "code_postal", "id_client"):
+        assert str(assure[cle]) not in corps, cle
+
+
+def test_filtre_inconnu_refuse(client: TestClient) -> None:
+    assert client.get("/demandes", params={"issue": "bogus"}).status_code == 422
+    assert client.get("/demandes", params={"statut": "bogus"}).status_code == 422
+
+
+def test_etat_illisible_ne_fait_pas_tomber_la_liste(client: TestClient, base: Any) -> None:
+    abime, sain = _traiter(base, "NOM-03"), _traiter(base, "AF-03")
+    with base.connection() as conn:
+        conn.execute(
+            "UPDATE demandes SET etat = jsonb_set(etat, '{demande,assure,nom}', '12') "
+            "WHERE reference = %s",
+            (abime,),
+        )
+    reponse = client.get("/demandes")
+    assert reponse.status_code == 200
+    par_ref = {d["reference"]: d for d in reponse.json()}
+    assert set(par_ref) == {abime, sain}
+    assert par_ref[abime]["nom"] is None and par_ref[abime]["statut"] == "terminee"

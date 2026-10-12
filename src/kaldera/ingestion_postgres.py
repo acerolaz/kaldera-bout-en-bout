@@ -13,6 +13,7 @@ from uuid import UUID
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
+from pydantic import ValidationError
 
 from .etat import EtatDemande
 from .ingestion import ExtractionContrat
@@ -36,6 +37,25 @@ class Tache:
     reference: str
     contenu: bytes
     mime: str
+
+
+@dataclass(frozen=True)
+class DemandeLue:
+    """Demande telle que lue pour l'IHM gestionnaire (projection dans ``vue_gestionnaire``)."""
+
+    reference: str
+    statut: str
+    fiche: dict[str, Any] | None
+    etat: EtatDemande
+
+
+def _demande_lue(ligne: tuple[Any, ...]) -> DemandeLue:
+    reference, statut, fiche, etat = ligne
+    try:
+        lu = EtatDemande.model_validate(etat)
+    except ValidationError:  # état illisible : la liste reste servie (spec C3-2 §5)
+        lu = EtatDemande(demande={"reference": reference})
+    return DemandeLue(reference, statut, fiche, lu)
 
 
 class IngestionPostgres:
@@ -65,6 +85,22 @@ class IngestionPostgres:
                 "SELECT reference, statut, fiche FROM demandes WHERE reference = %s", (reference,)
             ).fetchone()
         return None if ligne is None else dict(zip(("reference", "statut", "fiche"), ligne))
+
+    def lister(self) -> list[DemandeLue]:
+        """Toutes les demandes, référence décroissante (données factices : pas de pagination)."""
+        with _connexion(self.connexions) as conn:
+            lignes = conn.execute(
+                "SELECT reference, statut, fiche, etat FROM demandes ORDER BY reference DESC"
+            ).fetchall()
+        return [_demande_lue(ligne) for ligne in lignes]
+
+    def lire_dossier(self, reference: str) -> DemandeLue | None:
+        with _connexion(self.connexions) as conn:
+            ligne = conn.execute(
+                "SELECT reference, statut, fiche, etat FROM demandes WHERE reference = %s",
+                (reference,),
+            ).fetchone()
+        return None if ligne is None else _demande_lue(ligne)
 
     def deposer_piece(
         self,

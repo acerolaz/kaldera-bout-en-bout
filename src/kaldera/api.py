@@ -1,4 +1,5 @@
-"""API de dépôt (dossier 2.4 ter) : routes minces, contrôles dans ``ingestion``, SQL dans le dépôt.
+"""API de dépôt (dossier 2.4 ter) et de lecture du back-office (C3-2) :
+routes minces, contrôles dans ``ingestion``, SQL dans le dépôt.
 
 Routes ``def`` synchrones : FastAPI les exécute dans son pool de threads (psycopg synchrone).
 """
@@ -13,11 +14,13 @@ from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, Up
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from . import vue_gestionnaire as vue
 from .ingestion import FichierRefuse, controler_fichier
 from .ingestion_postgres import IngestionPostgres
 from .ports import ErreurPersistance
 from .postgres import ConfigBase, pool
 from .vlm import ConfigIngestion
+from .vue_gestionnaire import DossierVue, LigneDemande
 
 app = FastAPI(title="Kaldera — dépôt des demandes et des pièces")
 
@@ -131,9 +134,24 @@ def soumettre(reference: str, ingestion: Ingestion) -> StatutDemande:
     raise HTTPException(409, "demande déjà soumise au traitement")
 
 
-@app.get("/demandes/{reference}", response_model=StatutDemande)
-def lire_demande(reference: str, ingestion: Ingestion) -> StatutDemande:
-    ligne = ingestion.lire(reference)
-    if ligne is None:
+@app.get("/demandes", response_model=list[LigneDemande])
+def lister_demandes(
+    ingestion: Ingestion,
+    statut: vue.StatutDemande | None = None,
+    issue: vue.CodeIssue | None = None,
+    file: str | None = None,
+    mode_degrade: bool | None = None,
+    q: str | None = None,
+) -> list[LigneDemande]:
+    lignes = vue.lignes((d.reference, d.statut, d.fiche, d.etat) for d in ingestion.lister())
+    return vue.filtrer(
+        lignes, statut=statut, issue=issue, file=file, mode_degrade=mode_degrade, q=q
+    )
+
+
+@app.get("/demandes/{reference}", response_model=DossierVue)
+def lire_demande(reference: str, ingestion: Ingestion) -> DossierVue:
+    demande = ingestion.lire_dossier(reference)
+    if demande is None:
         raise HTTPException(404, "demande inconnue")
-    return StatutDemande(**ligne)
+    return vue.dossier(demande.reference, demande.statut, demande.fiche, demande.etat)
