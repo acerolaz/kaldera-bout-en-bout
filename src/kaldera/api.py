@@ -20,11 +20,13 @@ from fastapi import (
     Response,
     UploadFile,
 )
-from fastapi.responses import JSONResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from . import traitements
 from . import vue_gestionnaire as vue
+from .flux import diffuser, ecouter
 from .ingestion import FichierRefuse, controler_fichier
 from .ingestion_postgres import IngestionPostgres
 from .lots_postgres import DepotLots, DossiersNonLancables, ReferencesInconnues
@@ -221,3 +223,27 @@ def lire_lot(lot_id: int, lots: Lots) -> LotVue:
         raise HTTPException(404, "lot inconnu")
     demandes = ((d.reference, d.statut, d.fiche, d.etat) for d in lu.demandes)
     return vue.lot(lu.id, lu.debut, lu.derniere_maj, demandes)
+
+
+def _flux(connexions: Any, references: frozenset[str]) -> StreamingResponse:
+    conninfo = connexions.conninfo  # str pour notre pool (mypy : « str | Callable » côté psycopg)
+    return StreamingResponse(
+        diffuser(ecouter(conninfo), references),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/flux/demandes/{reference}")
+async def flux_demande(reference: str, ingestion: Ingestion) -> StreamingResponse:
+    if await run_in_threadpool(ingestion.statut, reference) is None:
+        raise HTTPException(404, "demande inconnue")
+    return _flux(ingestion.connexions, frozenset({reference}))
+
+
+@app.get("/flux/lots/{lot_id}")
+async def flux_lot(lot_id: int, lots: Lots) -> StreamingResponse:
+    references = await run_in_threadpool(lots.references, lot_id)
+    if references is None:
+        raise HTTPException(404, "lot inconnu")
+    return _flux(lots.connexions, frozenset(references))
