@@ -61,10 +61,25 @@ def groupes(liste):
 
 
 # Statut relevé au dernier déroulé (vide : à dérouler) ; mis à jour à chaque recette.
-STATUTS: dict[str, str] = {}
+STATUTS: dict[str, str] = {
+    "S-01": "NT", "S-02": "OK", "S-03": "NT", "S-04": "OK", "S-05": "NT",
+    "U-01": "OK", "U-02": "OK", "U-03": "OK", "U-04": "OK", "U-05": "OK",
+    "U-06": "OK", "U-07": "OK", "U-08": "OK", "U-09": "OK", "U-10": "OK",
+    "A-01": "NT", "A-02": "OK", "A-03": "OK", "A-04": "NT",
+}
 
 # Remarque relevée au dernier déroulé (vide : aucune) ; mise à jour à chaque recette.
-REMARQUES: dict[str, str] = {}
+REMARQUES: dict[str, str] = {
+    "S-01": "Adapté : base vidée (TRUNCATE) puis make demo ; PostgreSQL du checkout principal "
+            "conservé, partenaire anti-fraude non démarré sur ce poste.",
+    "S-03": "Pas de profil VLM Azure sur ce poste.",
+    "S-05": "Partenaire non démarré : make ctl le signale injoignable.",
+    "U-05": "34 dossiers ; sans partenaire, les avis requis sont indisponibles (mode dégradé).",
+    "U-09": "Dossier KAL-26-0404 (PAN-01).",
+    "A-01": "Partenaire non démarré : pas de journal à lire.",
+    "A-03": "Anti-fraude en mode dégradé (partenaire non démarré).",
+    "A-04": "make recette-reset non lancé : PostgreSQL du checkout principal conservé.",
+}
 
 SETUP = [
     ("Démarrage (un terminal par commande longue)", [
