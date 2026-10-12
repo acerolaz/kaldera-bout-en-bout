@@ -76,3 +76,14 @@ export const DOSSIER_DEGRADE: DossierVue = {
   },
   arret: { borne: "duree_max_s", valeur: 8, etat: "decision" },
 };
+
+export const DOSSIER_EN_COURS: DossierVue = {
+  ...DOSSIER_ACCEPTE,
+  statut: "en_cours", avancement: 20, issue: null, motif: null, montant_rembourse: null,
+  etapes: [
+    etape("eligibilite", { vers: "pieces", resume: "Éligible" }),
+    etape("pieces", { statut: "en_cours", avancement: 0, duree_ms: null, de: null, garde: null }),
+    ...["estimation", "antifraude", "decision"].map((e) =>
+      etape(e, { statut: "en_attente", avancement: 0, passages: 0, duree_ms: null, de: null, garde: null })),
+  ],
+};

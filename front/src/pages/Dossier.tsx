@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, useMemo, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ErreurApi, lire, type CarteAntifraude, type DossierVue, type Etape } from "@/api";
+import { ErreurApi, lire, type CarteAntifraude, type DossierVue, type Etape, type EvenementVue } from "@/api";
+import { Barre } from "@/components/Barre";
 import { Statut } from "@/components/Statut";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ABSENT, euros, nomComplet } from "@/format";
 import { ETAPES } from "@/statuts";
+import { useFlux } from "@/useFlux";
 import { Cadre, Vide } from "./socle";
 
 const AVIS: Record<CarteAntifraude["statut"], string> = { ok: "Avis obtenu", indisponible: "Indisponible", non_requis: "Non requis" };
@@ -16,13 +18,24 @@ const secondes = (ms: number) => `${(ms / 1000).toLocaleString("fr-FR", { maximu
 const dureeEtape = (ms: number) => (ms < 1000 ? `${Math.round(ms)} ms` : secondes(ms)); // une étape rapide ne lit pas « 0 s »
 const montant = (valeur: number | null) => (valeur === null ? ABSENT : euros(valeur));
 
+/** Début d'étape et sous-étapes : statut et % agent reçus du serveur, posés sur la carte concernée. */
+const majDossier = (d: DossierVue, e: EvenementVue): DossierVue => ({
+  ...d,
+  etapes: d.etapes.map((x) =>
+    x.etat === e.etat ? { ...x, statut: e.statut ?? x.statut, avancement: e.avancement_agent ?? x.avancement } : x,
+  ),
+});
+
 export function Dossier() {
   const { reference = "" } = useParams();
   const zone = useRef<HTMLDivElement>(null);
+  const cle = useMemo(() => ["dossier", reference], [reference]);
   const requete = useQuery({
-    queryKey: ["dossier", reference],
+    queryKey: cle,
     queryFn: () => lire<DossierVue>(`/demandes/${encodeURIComponent(reference)}`),
   });
+  const enDirect = requete.data !== undefined && requete.data.avancement < 100;
+  const coupe = useFlux(enDirect ? `/flux/demandes/${encodeURIComponent(reference)}` : null, cle, majDossier);
 
   let contenu: ReactNode;
   if (requete.isPending) {
@@ -50,7 +63,7 @@ export function Dossier() {
       </div>
     );
   } else {
-    contenu = <Detail dossier={requete.data} />;
+    contenu = <Detail dossier={requete.data} coupe={coupe} />;
   }
   return (
     <Cadre titre={`Dossier ${reference}`}>
@@ -61,7 +74,8 @@ export function Dossier() {
   );
 }
 
-function Detail({ dossier: d }: { dossier: DossierVue }) {
+function Detail({ dossier: d, coupe }: { dossier: DossierVue; coupe: boolean }) {
+  const enCours = d.etapes.find((e) => e.statut === "en_cours");
   return (
     <>
       <section aria-label="En-tête du dossier" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
@@ -82,16 +96,7 @@ function Detail({ dossier: d }: { dossier: DossierVue }) {
           </p>
         ) : null}
         <div className="flex items-center gap-3 text-sm">
-          <div
-            role="progressbar"
-            aria-label="Avancement du dossier"
-            aria-valuenow={d.avancement}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            className="h-2 w-48 overflow-hidden rounded-full bg-muted"
-          >
-            <div className="h-full bg-primary" style={{ width: `${d.avancement}%` }} />
-          </div>
+          <Barre valeur={d.avancement} libelle="Avancement du dossier" />
           <span className="tabular-nums">{d.avancement} %</span>
           <span className="tabular-nums">{`${secondes(d.duree_ms)} / ${secondes(d.budget_ms)}`}</span>
         </div>
@@ -103,6 +108,11 @@ function Detail({ dossier: d }: { dossier: DossierVue }) {
           <span>{d.arret.borne} = {d.arret.valeur.toLocaleString("fr-FR")}{d.arret.etat ? ` (étape ${ETAPES[d.arret.etat] ?? d.arret.etat})` : ""}</span>
         </div>
       ) : null}
+
+      <p aria-live="polite" className="text-sm text-muted-foreground">
+        {enCours ? `Étape en cours : ${ETAPES[enCours.etat] ?? enCours.etat}` : d.avancement === 100 ? "Traitement terminé" : null}
+        {coupe ? <span className="ml-3 font-medium text-ton-attention">Reconnexion…</span> : null}
+      </p>
 
       <ol aria-label="Étapes du traitement" className="flex flex-col gap-2">
         {d.etapes.map((etape) => (
@@ -129,6 +139,12 @@ function CarteEtape({ etape: e, antifraude }: { etape: Etape; antifraude: CarteA
         <Statut code={e.statut} />
         {execution.length > 0 ? <span className="text-sm text-muted-foreground tabular-nums">{execution.join(" · ")}</span> : null}
       </div>
+      {e.statut === "en_cours" ? (
+        <div className="flex items-center gap-2 text-sm">
+          <Barre valeur={e.avancement} libelle={`Avancement de l'étape ${ETAPES[e.etat] ?? e.etat}`} className="w-32" />
+          <span className="tabular-nums">{e.avancement} %</span>
+        </div>
+      ) : null}
       {e.resume ? <p className="text-sm">{e.resume}</p> : null}
       {e.de && e.vers ? (
         <p className="text-xs text-muted-foreground">
