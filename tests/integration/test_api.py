@@ -26,9 +26,11 @@ SCENARIOS = {
 
 
 def _traiter(base: Any, scenario: str) -> str:
-    """Traite la 1re demande d'un scénario, partenaire absent : l'agent anti-fraude échoue si l'avis est requis."""
+    """Traite la 1re demande d'un scénario, partenaire absent (avis indisponible si requis)."""
     demande = copy.deepcopy(SCENARIOS[scenario]["demandes"][0])
-    Orchestrateur(evaluer=lambda d, t: None, snapshots=SnapshotsPostgres(base)).traiter(demande)
+    Orchestrateur(evaluer=lambda d, timeout: None, snapshots=SnapshotsPostgres(base)).traiter(
+        demande
+    )
     return str(demande["reference"])
 
 
@@ -189,9 +191,9 @@ def test_dossier_traite(client: TestClient, base: Any) -> None:
     ]
     assert vue["statut"] == "terminee" and vue["avancement"] == 100
     assert vue["issue"] == "escalade" and vue["motif"]
-    assert vue["file"] == "gestionnaire"
-    # L'agent anti-fraude échoue (partenaire absent) : étape en échec, pas de carte d'avis.
-    assert vue["etapes"][3]["statut"] == "echec" and vue["antifraude"] is None
+    assert vue["file"] == "cellule_fraude" and vue["mode_degrade"] is True
+    assert vue["etapes"][3]["statut"] == "degrade"
+    assert vue["antifraude"]["statut"] == "indisponible"
 
 
 def test_aucune_donnee_personnelle_exposee(client: TestClient, base: Any) -> None:
