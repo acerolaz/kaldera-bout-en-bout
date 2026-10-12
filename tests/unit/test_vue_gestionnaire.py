@@ -96,6 +96,8 @@ def test_ligne_reprend_les_champs_de_la_liste() -> None:
         "issue": "acceptee",
         "file": None,
         "mode_degrade": False,
+        "selectionnable": False,
+        "motif_non_selectionnable": "Déjà traité",
     }
 
 
@@ -159,6 +161,8 @@ def test_une_ligne_illisible_ne_fait_pas_tomber_la_liste() -> None:
         "reference": "KAL-26-0102",
         "statut": "terminee",
         "mode_degrade": False,
+        "selectionnable": False,
+        "motif_non_selectionnable": "Déjà traité",
     }
 
 
@@ -271,6 +275,7 @@ def test_carte_reprend_la_mesure_et_la_transition() -> None:
 def test_avancement_et_duree() -> None:
     etat = _complet()
     etat.trace = etat.trace[:3]  # eligibilite, pieces, estimation
+    etat.etat_courant = "antifraude"  # snapshot réel après estimation (C3-3 : étape courante en_cours)
     vue = dossier("KAL-26-0101", "en_cours", None, etat)
     assert (vue.avancement, vue.duree_ms, vue.budget_ms) == (60, 37.5, 8000.0)
     assert dossier("KAL-26-0101", "secours", None, etat).avancement == 100
