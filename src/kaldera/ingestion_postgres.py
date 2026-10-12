@@ -48,6 +48,11 @@ class DemandeLue:
     etat: EtatDemande
 
 
+def _demande_lue(ligne: tuple[Any, ...]) -> DemandeLue:
+    reference, statut, fiche, etat = ligne
+    return DemandeLue(reference, statut, fiche, EtatDemande.model_validate(etat))
+
+
 class IngestionPostgres:
     def __init__(self, connexions: ConnectionPool) -> None:
         self.connexions = connexions
@@ -82,7 +87,7 @@ class IngestionPostgres:
             lignes = conn.execute(
                 "SELECT reference, statut, fiche, etat FROM demandes ORDER BY reference DESC"
             ).fetchall()
-        return [DemandeLue(r, s, f, EtatDemande.model_validate(e)) for r, s, f, e in lignes]
+        return [_demande_lue(ligne) for ligne in lignes]
 
     def lire_dossier(self, reference: str) -> DemandeLue | None:
         with _connexion(self.connexions) as conn:
@@ -90,10 +95,7 @@ class IngestionPostgres:
                 "SELECT reference, statut, fiche, etat FROM demandes WHERE reference = %s",
                 (reference,),
             ).fetchone()
-        if ligne is None:
-            return None
-        r, s, f, e = ligne
-        return DemandeLue(r, s, f, EtatDemande.model_validate(e))
+        return None if ligne is None else _demande_lue(ligne)
 
     def deposer_piece(
         self,

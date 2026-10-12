@@ -26,7 +26,7 @@ SCENARIOS = {
 
 
 def _traiter(base: Any, scenario: str) -> str:
-    """Traite la 1re demande d'un scénario, partenaire absent (avis indisponible si requis)."""
+    """Traite la 1re demande d'un scénario, partenaire absent : l'agent anti-fraude échoue si l'avis est requis."""
     demande = copy.deepcopy(SCENARIOS[scenario]["demandes"][0])
     Orchestrateur(evaluer=lambda d, t: None, snapshots=SnapshotsPostgres(base)).traiter(demande)
     return str(demande["reference"])
@@ -173,6 +173,11 @@ def test_lister_filtrer_et_rechercher(client: TestClient, base: Any) -> None:
     nom = par_ref[nominal]["nom"]
     trouves = client.get("/demandes", params={"q": f"  {nom.upper()} "}).json()
     assert nominal in [d["reference"] for d in trouves]
+    if (
+        par_ref[degrade]["nom"].lower() != nom.lower()
+        and par_ref[admission]["nom"].lower() != nom.lower()
+    ):
+        assert not {degrade, admission} & {d["reference"] for d in trouves}
     assert client.get("/demandes", params={"statut": "secours"}).json() == []
 
 
@@ -189,6 +194,7 @@ def test_dossier_traite(client: TestClient, base: Any) -> None:
     ]
     assert vue["statut"] == "terminee" and vue["avancement"] == 100
     assert vue["issue"] == "escalade" and vue["motif"]
+    assert vue["file"] == "gestionnaire"
     # L'agent anti-fraude échoue (partenaire absent) : étape en échec, pas de carte d'avis.
     assert vue["etapes"][3]["statut"] == "echec" and vue["antifraude"] is None
 
@@ -197,5 +203,5 @@ def test_aucune_donnee_personnelle_exposee(client: TestClient, base: Any) -> Non
     reference = _traiter(base, "NOM-03")
     assure = SCENARIOS["NOM-03"]["demandes"][0]["assure"]
     corps = client.get("/demandes").text + client.get(f"/demandes/{reference}").text
-    for cle in ("email", "telephone", "iban", "adresse"):
-        assert assure[cle] not in corps, cle
+    for cle in ("email", "telephone", "iban", "adresse", "code_postal", "id_client"):
+        assert str(assure[cle]) not in corps, cle

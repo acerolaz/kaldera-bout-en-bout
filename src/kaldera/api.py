@@ -1,4 +1,5 @@
-"""API de dépôt (dossier 2.4 ter) et de lecture du back-office (C3-2) : routes minces, contrôles dans ``ingestion``, SQL dans le dépôt.
+"""API de dépôt (dossier 2.4 ter) et de lecture du back-office (C3-2) :
+routes minces, contrôles dans ``ingestion``, SQL dans le dépôt.
 
 Routes ``def`` synchrones : FastAPI les exécute dans son pool de threads (psycopg synchrone).
 """
@@ -9,7 +10,7 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 import psycopg
-from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -138,7 +139,7 @@ def lister_demandes(
     ingestion: Ingestion,
     statut: str | None = None,
     issue: str | None = None,
-    file: Annotated[str | None, Query()] = None,
+    file: str | None = None,
     mode_degrade: bool | None = None,
     q: str | None = None,
 ) -> list[LigneDemande]:
