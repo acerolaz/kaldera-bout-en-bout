@@ -1,5 +1,6 @@
 """API de dépôt (dossier 2.4 ter) et de lecture du back-office (C3-2),
-traitement et suivi de lot (C3-3) : routes minces, contrôles dans ``ingestion``, SQL dans le dépôt.
+traitement et suivi de lot (C3-3) : routes minces, contrôles dans ``ingestion``,
+SQL dans le dépôt.
 
 Routes ``def`` synchrones : FastAPI les exécute dans son pool de threads (psycopg synchrone).
 """
@@ -22,6 +23,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
+from psycopg_pool import ConnectionPool
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from . import traitements
@@ -225,10 +227,9 @@ def lire_lot(lot_id: int, lots: Lots) -> LotVue:
     return vue.lot(lu.id, lu.debut, lu.derniere_maj, demandes)
 
 
-def _flux(connexions: Any, references: frozenset[str]) -> StreamingResponse:
-    conninfo = connexions.conninfo  # str pour notre pool (mypy : « str | Callable » côté psycopg)
+def _flux(connexions: ConnectionPool, references: frozenset[str]) -> StreamingResponse:
     return StreamingResponse(
-        diffuser(ecouter(conninfo), references),
+        diffuser(ecouter(str(connexions.conninfo)), references),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
